@@ -1,7 +1,7 @@
 // gestione modali -------------------------------------------------------------------------------------------
 
 // set di id dei modali che compaiono nell'header
-const MODAL_ID = new Set(['notifiche', 'le-mie-prenotazioni', 'account']);
+const MODAL_ID = new Set(['notifiche', 'le-mie-prenotazioni', 'account', 'feedback']);
 
 // oggetto che gestisce l'apertura e chiusura dei modali
 const modal = {
@@ -10,7 +10,7 @@ const modal = {
     init() {
         document.addEventListener('click', (e) => {
             // cerca se il click è avvenuto su un attivatore di modal nell'header
-            const activator = e.target.closest('header [data-modal]'); // controlla l'attributo data-modal
+            const activator = e.target.closest('[data-modal]'); // controlla l'attributo data-modal
             if (activator) {
                 const id = activator.dataset.modal;
                 // controlla che l'id sia tra quelli previsti per i modali dell'header
@@ -45,6 +45,15 @@ const modal = {
         this.open(id); // altrimenti lo apre
     },
 
+    // aggiorna la classe active sui pulsanti [data-modal] dell'header
+    syncActivatorActive(id) {
+        document.querySelectorAll('[data-modal]').forEach((btn) => {
+            const btnId = btn.dataset.modal;
+            if (!MODAL_ID.has(btnId)) return;
+            btn.classList.toggle('active', btnId === id);
+        });
+    },
+
     // apre il modal col dato id, chiudendo prima gli altri (se ce ne sono aperti)
     open(id) {
         const el = document.getElementById('modal-' + id);
@@ -57,6 +66,7 @@ const modal = {
         el.style.display = 'flex';
         void el.offsetHeight; // forza il repaint per far partire l'animazione css
         el.classList.add('showing');
+        this.syncActivatorActive(id);
         this._openedAt = Date.now(); // salva quando è stato aperto per debounce
     },
 
@@ -64,6 +74,9 @@ const modal = {
     closeEl(el) {
         if (!el) return;
         el.classList.remove('showing');
+        if (el.id.startsWith('modal-')) {
+            this.syncActivatorActive(null);
+        }
         if (el._hideT) clearTimeout(el._hideT);
         // usa un token per evitare problemi in caso di chiusure multiple ravvicinate
         const token = (el._closeToken || 0) + 1;

@@ -53,11 +53,20 @@ span, a, button, h1, h2, h3, h4, h5 {
     opacity: .5;
 }
 
-/* Containers */
+/* Containers o altri elementi */
 
 .horizontal-container {
     display: flex;
-    gap: 15px;
+    align-items: center;
+    gap: 10px;
+}
+
+.vertical-separator {
+    width:1.5px; 
+    height: 25px; 
+    margin: 0px 10px;
+    background:var(--gray2);  
+    align-self:center;
 }
 
 /* Testo */
@@ -66,7 +75,7 @@ h1 {
     font-size: 42px;
 }
 h2 {
-    font-size: 25px;
+    font-size: 18px;
 }
 h3 {
     font-size: 14px;
@@ -106,6 +115,9 @@ button.active {
     background-color: var(--black);
     color: var(--white);
 }
+button.active > img {
+    outline: 2px solid var(--black);
+}
 
 button.no-style {
     padding: 0;
@@ -122,6 +134,21 @@ button.no-style {
     border-radius: 50%;
 }
 
+button.mini {
+    min-height: fit-content;
+}
+button.mini .lucide {
+    width: 14px; height: 14px;
+}
+button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+button:disabled:hover {
+    background-color: var(--gray);
+}
+
 /* Header & nav */
 
 header {
@@ -134,11 +161,15 @@ header {
 #logo {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 20px;
     width: fit-content;
 }
 #logo img {
     max-width: 30px;
+}
+
+#auletta-state {
+    font-style: italic;
 }
 
 
@@ -193,7 +224,7 @@ main {
 }
 
 .calendar-day {
-    height: 110px;
+    height: 95px;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -214,8 +245,20 @@ main {
     background-color: var(--gray);
 }
 
+.calendar-day.past span {
+    text-decoration: line-through;
+    opacity: .4;
+}
+
 .calendar-day.inactive span{
     opacity: .2;
+}
+
+.calendar-day.inactive:hover {
+    cursor: auto;
+}
+.calendar-day.inactive:hover span {
+    background-color: var(--white);
 }
 
 .calendar-day.current-day span {
@@ -246,7 +289,7 @@ footer {
     height: 100%;
 }
 
-/* Modals */
+/* Modali piccole */
 
 .header-modals {
     position: absolute;
@@ -352,3 +395,105 @@ footer {
     height: 14px;
     color: var(--white-2);
 }
+
+/* Modali a schemo intero */
+
+.full-modal {
+    width: 100%;
+    height: 100%;
+    background-color: #00000077;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    position: absolute;
+    top: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    display: none;
+    transition:
+      opacity 0.23s cubic-bezier(0.32, 0.72, 0.25, 1),
+      transform 0.23s cubic-bezier(0.32, 0.72, 0.25, 1);
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  .full-modal.showing {
+    display: flex;
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+  }
+  
+  .full-modal-body {
+    top: 58px;
+    right: 10px;
+    background-color: var(--white);
+    width: 500px;
+    border-radius: 4px;
+    align-items: start;
+    justify-content: start;
+    box-sizing: border-box;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.29);
+    flex-direction: column;
+    transition:
+      opacity 0.23s cubic-bezier(0.32, 0.72, 0.25, 1),
+      transform 0.23s cubic-bezier(0.32, 0.72, 0.25, 1);
+    transform: scale(0.96);
+    z-index: 9999;
+    display: flex;
+  }
+  
+  .full-modal .modal-header {
+    border-bottom: 1px solid var(--light-2);
+  }
+  
+  .full-modal-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--dark);
+  }
+  .full-modal-subtitle {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--dark);
+  }
+  
+  .full-modal-content,
+  .full-modal-footer {
+    display: flex;
+    justify-content: start;
+    align-items: start;
+    gap: 1rem;
+    flex-direction: column;
+    padding: 20px;
+    width: 100%;
+  }
+  .full-modal-content {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .modal-search-results {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 4px;
+  }
+  
+  .full-modal-footer {
+    flex-direction: row;
+    justify-content: end;
+    border-top: 1px solid var(--light-2);
+    padding: 10px 20px;
+  }
+  
+  .full-modal textarea {
+    width: 100%;
+    background-color: var(--light-3);
+    color: var(--dark);
+    border-color: var(--light-2);
+  }

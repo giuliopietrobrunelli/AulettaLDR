@@ -22,9 +22,11 @@
 
         <!-- logo e nome webapp -->
         <div id="logo">
-            <img src="/src/img/logo.webp" alt="">
-            <!-- <h3 class="semibold">Auletta LDR</h3> -->
             <div class="horizontal-container">
+                <img src="/src/img/logo.webp" alt="">
+                <h2><span class="semibold">Ciao Giulio</span>, al momento l'auletta è <span id="auletta-state">occupata</span></h2>
+            </div>
+            <!-- <div class="horizontal-container">
                 <button class="w-text active">
                     <span>Calendario</span>
                 </button>
@@ -32,12 +34,18 @@
                 <button class="w-text">
                     <span>Le mie prenotazioni</span>
                 </button>
-            </div>
+            </div> -->
         </div>
 
         <!-- container azioni header -->
         <div class="horizontal-container">
             
+            <!-- feedback -->
+            <button class="w-text" data-modal="feedback">
+                <i data-lucide="megaphone"></i>
+                <span>Lascia un feedback</span>
+            </button>
+
             <!-- prenotazioni -->
             <button class="w-text" data-modal="le-mie-prenotazioni">
                 <i data-lucide="calendar-clock"></i>
@@ -97,7 +105,7 @@
     </header>
 
     <!-- navbar dinamica -->
-    <!-- <nav>
+    <nav>
 
         <div class="horizontal-container">
             <button class="w-text active">
@@ -109,7 +117,7 @@
             </button>
         </div>
 
-    </nav> -->
+    </nav>
 
     <!-- contenuto dinamico -->
     <main>
@@ -118,10 +126,25 @@
         <div id="calendar-header">
 
             <!-- indicatore data (mese o giorno del mese) -->
-            <h1 id="current-date">Giugno 2026</h1>
+            <div class="horizontal-container">
+                <h1 id="current-date"></h1>
+            </div>
 
             <div class="horizontal-container">
 
+                <!-- naviga al giorno corrente o al mese precedente/successivo -->
+                <button type="button" id="calendar-prev" class="mini" aria-label="Mese precedente">
+                    <i data-lucide="chevron-left"></i>
+                </button>
+                <!-- <button type="button w-text" id="calendar-today" class="mini" aria-label="Mese successivo">
+                    <span>Oggi</span>
+                </button> -->
+                <button type="button" id="calendar-next" class="mini" aria-label="Mese successivo">
+                    <i data-lucide="chevron-right"></i>
+                </button>
+
+                <div class="vertical-separator"></div>
+          
                 <!-- seleziona il tipo di vista del calendario -->
                 <button class="w-text">
                     <i data-lucide="calendar"></i>
@@ -152,38 +175,7 @@
                 <h3>dom</h3>
             </div>
 
-            <div id="calendar-rows">
-
-                <div class="calendar-row">
-                    <div class="calendar-day inactive">
-                        <span>1</span>
-                    </div>
-                    <div class="calendar-day inactive">
-                        <span>2</span>
-                    </div>
-                    <div class="calendar-day inactive">
-                        <span>3</span>
-                    </div>
-                    <div class="calendar-day current-day">
-                        <span>4</span>
-                        <div class="reservation-list">
-                            <img class="profile-pic" src="/src/img/monkey.webp" alt="">
-                            <img class="profile-pic" src="/src/img/monkey.webp" alt="">
-                            <img class="profile-pic" src="/src/img/monkey.webp" alt="">
-                        </div>
-                    </div>
-                    <div class="calendar-day">
-                        <span>5</span>
-                    </div>
-                    <div class="calendar-day">
-                        <span>6</span>
-                    </div>
-                    <div class="calendar-day">
-                        <span>7</span>
-                    </div>
-                </div>
-
-            </div>
+            <div id="calendar-rows"></div>
 
         </div>
 
@@ -192,7 +184,7 @@
     <!-- footer fisso -->
     <footer>
 
-        <h5>© 2015-2026 Il Lume della Ragione</h5>
+        <h5>© 2010-2026 Il Lume della Ragione</h5>
         
         <div class="horizontal-container">
             
@@ -208,11 +200,31 @@
 
     </footer>
 
+    <!-- modali a "schermo intero" -->
+
+    <div id="modal-feedbackk" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+                <span class="full-modal-title">Lascia un feedback</span>
+            </div>
+            <div class="full-modal-content">
+                    <textarea id="modal-feedback-text" rows="5" class="form-control" placeholder="Descrivi il problema o lasciaci un feedback..."></textarea>
+            </div>
+            <div class="full-modal-footer">
+                <button type="button" class="light wtext" data-modal="close-modal">Annulla</button>
+                    <button type="button" class="wtext" id="btn-modal-invia-feedback">
+                    <i data-lucide="megaphone"></i> Invia feedback
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- scripts -->
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>lucide.createIcons();</script>
     <script src="/src/js/modal.js"></script>
+    <script src="/src/js/calendar-render.js"></script>
 
 </body>
 </html>
