@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>Auletta LDR — prenota l'auletta</title>
+
+    <!-- fogli di stile -->
+    <link rel="stylesheet" href="/src/style/main.css">
+
+    <!-- font da googlefonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+
+</head>
+<body>
+
+    <!-- header fisso della pagina -->
+    <header>
+
+        <!-- logo e nome webapp -->
+        <div id="logo">
+            <img src="/src/img/logo.webp" alt="">
+            <!-- <h3 class="semibold">Auletta LDR</h3> -->
+            <div class="horizontal-container">
+                <button class="w-text active">
+                    <span>Calendario</span>
+                </button>
+        
+                <button class="w-text">
+                    <span>Le mie prenotazioni</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- container azioni header -->
+        <div class="horizontal-container">
+            
+            <!-- prenotazioni -->
+            <button class="w-text" data-modal="le-mie-prenotazioni">
+                <i data-lucide="calendar-clock"></i>
+                <span>0/14</span>
+            </button>
+
+            <!-- inbox -->
+            <button data-modal="notifiche">
+                <i data-lucide="inbox"></i>
+            </button>
+
+            <!-- profilo utente -->
+            <button data-modal="account" class="no-style">
+                <img class="profile-pic" src="/src/img/monkey.webp" alt="">
+            </button>
+
+        </div>
+
+        <!-- modali dell'header (messe qui per questioni di UI) -->
+        <div class="header-modals">
+            <div id="modal-le-mie-prenotazioni" class="modal">
+                <div class="modal-header auto-gap">
+                    <span class="modal-title">Le mie prenotazioni</span>
+                    <span class="modal-subtitle">0/14</span>
+                </div>
+                <div class="lista-notifiche">
+                    <span class="modal-advise disabled">
+                        Nessuna prenotazione attiva
+                    </span>
+                </div>
+            </div>
+
+            <div id="modal-notifiche" class="modal">
+                <div class="modal-header">
+                    <span class="modal-title">Notifiche</span>
+                </div>
+                <div class="lista-notifiche">
+                    <span class="modal-advise">
+                        <div class="advise-indicator"></div>
+                        <span class="disabled">Nessuna nuova notifica</span>
+                    </span>
+                </div>
+            </div>
+
+            <div id="modal-account" class="modal">
+                <div class="modal-header">
+                    <span class="modal-title">Giulio Brunelli</span>
+                    <span class="modal-subtitle">n.000</span>
+                </div>
+                <div class="lista-notifiche">
+                    <span class="modal-option" data-goto="opzioni"><i data-lucide="circle-user"></i> Opzioni account</span>
+                    <span class="modal-option" data-action="logout"><i data-lucide="log-out"></i> Effettua Log-out</span>
+                </div>
+            </div>
+        </div>
+
+    </header>
+
+    <!-- navbar dinamica -->
+    <!-- <nav>
+
+        <div class="horizontal-container">
+            <button class="w-text active">
+                <span>Calendario</span>
+            </button>
+    
+            <button class="w-text">
+                <span>Le mie prenotazioni</span>
+            </button>
+        </div>
+
+    </nav> -->
+
+    <!-- contenuto dinamico -->
+    <main>
+
+        <!-- header con informazioni sul calendario -->
+        <div id="calendar-header">
+
+            <!-- indicatore data (mese o giorno del mese) -->
+            <h1 id="current-date">Giugno 2026</h1>
+
+            <div class="horizontal-container">
+
+                <!-- seleziona il tipo di vista del calendario -->
+                <button class="w-text">
+                    <i data-lucide="calendar"></i>
+                    <span>Vista mensile</span>
+                </button>
+
+                <!-- effettua una nuova prenotazione -->
+                <button class="w-text">
+                    <i data-lucide="plus"></i>
+                    <span>Prenota</span>
+                </button>
+
+            </div>
+
+        </div>
+
+        <!-- calendario -->
+        <div id="calendar-container">
+
+            <!-- colonne del calendario -->
+            <div id="calendar-columns">
+                <h3>lun</h3>
+                <h3>mar</h3>
+                <h3>mer</h3>
+                <h3>gio</h3>
+                <h3>ven</h3>
+                <h3>sab</h3>
+                <h3>dom</h3>
+            </div>
+
+            <div id="calendar-rows">
+
+                <div class="calendar-row">
+                    <div class="calendar-day inactive">
+                        <span>1</span>
+                    </div>
+                    <div class="calendar-day inactive">
+                        <span>2</span>
+                    </div>
+                    <div class="calendar-day inactive">
+                        <span>3</span>
+                    </div>
+                    <div class="calendar-day current-day">
+                        <span>4</span>
+                        <div class="reservation-list">
+                            <img class="profile-pic" src="/src/img/monkey.webp" alt="">
+                            <img class="profile-pic" src="/src/img/monkey.webp" alt="">
+                            <img class="profile-pic" src="/src/img/monkey.webp" alt="">
+                        </div>
+                    </div>
+                    <div class="calendar-day">
+                        <span>5</span>
+                    </div>
+                    <div class="calendar-day">
+                        <span>6</span>
+                    </div>
+                    <div class="calendar-day">
+                        <span>7</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- footer fisso -->
+    <footer>
+
+        <h5>© 2015-2026 Il Lume della Ragione</h5>
+        
+        <div class="horizontal-container">
+            
+            <button class="no-style" data-modal="feedback">
+                <h5>Feedback</h5>
+            </button>
+
+            <button class="no-style" data-modal="guida">
+                <h5>Guida</h5>
+            </button>
+                
+        </div>
+
+    </footer>
+
+    <!-- scripts -->
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>lucide.createIcons();</script>
+    <script src="/src/js/modal.js"></script>
+
+</body>
+</html>
