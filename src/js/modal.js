@@ -1,99 +1,130 @@
-// gestione modali -------------------------------------------------------------------------------------------
+const MODAL_TRANSITION_MS = 230;
 
-// set di id dei modali che compaiono nell'header
-const MODAL_ID = new Set(['notifiche', 'le-mie-prenotazioni', 'account', 'feedback']);
-
-// oggetto che gestisce l'apertura e chiusura dei modali
 const modal = {
-  
-    // inizializza gli event listener per la gestione dei modali
-    init() {
-        document.addEventListener('click', (e) => {
-            // cerca se il click è avvenuto su un attivatore di modal nell'header
-            const activator = e.target.closest('[data-modal]'); // controlla l'attributo data-modal
-            if (activator) {
-                const id = activator.dataset.modal;
-                // controlla che l'id sia tra quelli previsti per i modali dell'header
-                if (MODAL_ID.has(id)) {
-                    e.preventDefault();
-                    this.toggle(id); // apre o chiude il modal relativo
-                }
-                return;
-            }
+  smallIds: new Set(),
+  fullIds: new Set(),
 
-            // chiude tutti i modali visibili se si clicca fuori da essi
-            document.querySelectorAll('.modal.showing').forEach((m) => {
-                if (m.contains(e.target)) return;
-                this.closeEl(m);
-            });
-        });
+  init() {
+    this.discover();
+    document.addEventListener('click', (e) => this.onClick(e));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this.closeAll();
+    });
+  },
 
-        // chiude tutti i modali premendo il tasto "esc"
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') this.closeAll();
-        });
-    },
+  /** Registra modali da elementi #modal-{id} con classe .modal o .full-modal */
+  discover() {
+    document.querySelectorAll('[id^="modal-"]').forEach((el) => {
+      const id = el.id.slice(6);
+      if (!id) return;
+      if (el.classList.contains('full-modal')) this.fullIds.add(id);
+      else if (el.classList.contains('modal')) this.smallIds.add(id);
+    });
+  },
 
-    // alterna l'apertura/chiusura del modal col dato id
-    toggle(id) {
-        const el = document.getElementById('modal-' + id);
-        if (!el) return;
-        if (el.classList.contains('showing')) {
-            this.closeEl(el); // se già visibile lo chiude
-            return;
-        }
-        this.open(id); // altrimenti lo apre
-    },
+  isKnown(id) {
+    return this.smallIds.has(id) || this.fullIds.has(id);
+  },
 
-    // aggiorna la classe active sui pulsanti [data-modal] dell'header
-    syncActivatorActive(id) {
-        document.querySelectorAll('[data-modal]').forEach((btn) => {
-            const btnId = btn.dataset.modal;
-            if (!MODAL_ID.has(btnId)) return;
-            btn.classList.toggle('active', btnId === id);
-        });
-    },
+  getEl(id) {
+    return document.getElementById('modal-' + id);
+  },
 
-    // apre il modal col dato id, chiudendo prima gli altri (se ce ne sono aperti)
-    open(id) {
-        const el = document.getElementById('modal-' + id);
-        if (!el) return;
-        this.closeAll(); // chiude tutti i modali aperti
-        if (el._hideT) {
-            clearTimeout(el._hideT); // interrompe eventuale timeout di chiusura
-            el._hideT = null;
-        }
-        el.style.display = 'flex';
-        void el.offsetHeight; // forza il repaint per far partire l'animazione css
-        el.classList.add('showing');
-        this.syncActivatorActive(id);
-        this._openedAt = Date.now(); // salva quando è stato aperto per debounce
-    },
+  getShowing() {
+    return document.querySelectorAll('.modal.showing, .full-modal.showing');
+  },
 
-    // chiude un singolo elemento modal con transizione
-    closeEl(el) {
-        if (!el) return;
-        el.classList.remove('showing');
-        if (el.id.startsWith('modal-')) {
-            this.syncActivatorActive(null);
-        }
-        if (el._hideT) clearTimeout(el._hideT);
-        // usa un token per evitare problemi in caso di chiusure multiple ravvicinate
-        const token = (el._closeToken || 0) + 1;
-        el._closeToken = token;
-        el._hideT = setTimeout(() => {
-            // solo l'ultimo token valido nasconde davvero il modal
-            if (el._closeToken !== token) return;
-            el.style.display = 'none';
-            el._hideT = null;
-        }, 230); // tempo dell'animazione di transizione css
-    },
+  onClick(e) {
+    const target = e.target;
+    const activator = target.closest('[data-modal]');
 
-    // chiude tutti i modali visibili
-    closeAll() {
-        document.querySelectorAll('.modal.showing').forEach((el) => this.closeEl(el));
-    },
+    if (activator) {
+      const id = activator.dataset.modal;
+
+      if (id === 'close-modal') {
+        e.preventDefault();
+        const parent = activator.closest('.modal.showing, .full-modal.showing');
+        if (parent) this.closeEl(parent);
+        else this.closeAll();
+        return;
+      }
+
+      if (this.isKnown(id)) {
+        e.preventDefault();
+        this.toggle(id);
+      }
+      return;
+    }
+
+    if (this._openedAt && Date.now() - this._openedAt < 220) return;
+
+    this.getShowing().forEach((m) => {
+      if (this.shouldKeepOpen(m, target)) return;
+      this.closeEl(m);
+    });
+  },
+
+  shouldKeepOpen(modalEl, target) {
+    if (modalEl.classList.contains('full-modal')) {
+      const body = modalEl.querySelector('.full-modal-body');
+      return body?.contains(target) ?? false;
+    }
+    return modalEl.contains(target);
+  },
+
+  toggle(id) {
+    const el = this.getEl(id);
+    if (!el) return;
+    if (el.classList.contains('showing')) {
+      this.closeEl(el);
+      return;
+    }
+    this.open(id);
+  },
+
+  syncActivatorActive(id) {
+    const known = new Set([...this.smallIds, ...this.fullIds]);
+    document.querySelectorAll('[data-modal]').forEach((btn) => {
+      const btnId = btn.dataset.modal;
+      if (!known.has(btnId)) return;
+      btn.classList.toggle('active', btnId === id);
+    });
+  },
+
+  open(id) {
+    const el = this.getEl(id);
+    if (!el) return;
+    this.closeAll();
+    if (el._hideT) {
+      clearTimeout(el._hideT);
+      el._hideT = null;
+    }
+    el.style.display = 'flex';
+    void el.offsetHeight;
+    el.classList.add('showing');
+    this.syncActivatorActive(id);
+    this._openedAt = Date.now();
+  },
+
+  closeEl(el) {
+    if (!el) return;
+    el.classList.remove('showing');
+    if (el.id.startsWith('modal-')) {
+      this.syncActivatorActive(null);
+    }
+    if (el._hideT) clearTimeout(el._hideT);
+    const token = (el._closeToken || 0) + 1;
+    el._closeToken = token;
+    el._hideT = setTimeout(() => {
+      if (el._closeToken !== token) return;
+      el.style.display = 'none';
+      el._hideT = null;
+    }, MODAL_TRANSITION_MS);
+  },
+
+  closeAll() {
+    this.getShowing().forEach((el) => this.closeEl(el));
+  },
 };
 
-// inizializza la gestione dei modali una volta caricata la pagina
 document.addEventListener('DOMContentLoaded', () => modal.init());

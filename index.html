@@ -13,6 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+    <!--  -->
 
 </head>
 <body>
@@ -23,8 +24,8 @@
         <!-- logo e nome webapp -->
         <div id="logo">
             <div class="horizontal-container">
-                <img src="/src/img/logo.webp" alt="">
-                <h2><span class="semibold">Ciao Giulio</span>, al momento l'auletta è <span id="auletta-state">occupata</span></h2>
+                <img src="/src/img/logo-prenotaldr-giallo.webp" alt="">
+                <h2><span class="semibold">Ciao Giulio</span>, al momento l'auletta è <span class="available" id="auletta-state">libera</span></h2>
             </div>
             <!-- <div class="horizontal-container">
                 <button class="w-text active">
@@ -127,32 +128,88 @@
 
             <!-- indicatore data (mese o giorno del mese) -->
             <div class="horizontal-container">
+                <button type="button" id="day-back" class="mini hidden" aria-label="Torna alla vista precedente">
+                    <i data-lucide="arrow-left"></i>
+                </button>
                 <h1 id="current-date"></h1>
             </div>
 
-            <div class="horizontal-container">
+            <!-- azioni vista mensile -->
+            <div class="horizontal-container" data-view="month">
 
                 <!-- naviga al giorno corrente o al mese precedente/successivo -->
-                <button type="button" id="calendar-prev" class="mini" aria-label="Mese precedente">
+                <button type="button" id="calendar-prev" class="mini" aria-label="Vai al mese precedente">
                     <i data-lucide="chevron-left"></i>
                 </button>
-                <!-- <button type="button w-text" id="calendar-today" class="mini" aria-label="Mese successivo">
+                <button type="button" id="month-today" class="mini" aria-label="Vai al giorno attuale">
                     <span>Oggi</span>
-                </button> -->
-                <button type="button" id="calendar-next" class="mini" aria-label="Mese successivo">
+                </button>
+                <button type="button" id="calendar-next" class="mini" aria-label="Vai al mese successivo">
                     <i data-lucide="chevron-right"></i>
                 </button>
 
                 <div class="vertical-separator"></div>
           
                 <!-- seleziona il tipo di vista del calendario -->
-                <button class="w-text">
+                <button type="button" class="w-text" data-calendar-switch="week">
+                    <i data-lucide="calendar"></i>
+                    <span>Vista settimanale</span>
+                </button>
+
+                <!-- effettua una nuova prenotazione -->
+                <button type="button" class="w-text" data-modal="prenota">
+                    <i data-lucide="plus"></i>
+                    <span>Prenota</span>
+                </button>
+
+            </div>
+
+            <!-- azioni vista settimanale -->
+            <div class="horizontal-container" data-view="week">
+
+                <!-- naviga al giorno corrente o al mese precedente/successivo -->
+                <button type="button" id="week-prev" class="mini" aria-label="Vai alla settimana precedente">
+                    <i data-lucide="chevron-left"></i>
+                </button>
+                <button type="button" id="week-today" class="mini" aria-label="Vai al giorno attuale">
+                    <span>Oggi</span>
+                </button>
+                <button type="button" id="week-next" class="mini" aria-label="Vai alla settimana successiva">
+                    <i data-lucide="chevron-right"></i>
+                </button>
+
+                <div class="vertical-separator"></div>
+          
+                <!-- seleziona il tipo di vista del calendario -->
+                <button type="button" class="w-text" data-calendar-switch="month">
                     <i data-lucide="calendar"></i>
                     <span>Vista mensile</span>
                 </button>
 
                 <!-- effettua una nuova prenotazione -->
-                <button class="w-text">
+                <button type="button" class="w-text" data-modal="prenota">
+                    <i data-lucide="plus"></i>
+                    <span>Prenota</span>
+                </button>
+
+            </div>
+
+            <!-- azioni vista giornaliera -->
+            <div class="horizontal-container hidden" data-view="day">
+
+                <button type="button" id="day-prev" class="mini" aria-label="Vai al giorno precedente">
+                    <i data-lucide="chevron-left"></i>
+                </button>
+                <button type="button" id="day-today" class="mini" aria-label="Vai al giorno attuale">
+                    <span>Oggi</span>
+                </button>
+                <button type="button" id="day-next" class="mini" aria-label="Vai al giorno successivo">
+                    <i data-lucide="chevron-right"></i>
+                </button>
+
+                <div class="vertical-separator"></div>
+
+                <button type="button" class="w-text" data-modal="prenota">
                     <i data-lucide="plus"></i>
                     <span>Prenota</span>
                 </button>
@@ -161,23 +218,49 @@
 
         </div>
 
-        <!-- calendario -->
-        <div id="calendar-container">
+        <!-- calendario vista mensile -->
 
-            <!-- colonne del calendario -->
-            <div id="calendar-columns">
-                <h3>lun</h3>
-                <h3>mar</h3>
-                <h3>mer</h3>
-                <h3>gio</h3>
-                <h3>ven</h3>
-                <h3>sab</h3>
-                <h3>dom</h3>
+            <div id="calendar-container">
+
+                <!-- colonne del calendario -->
+                <div id="calendar-columns">
+                    <h3>lun</h3>
+                    <h3>mar</h3>
+                    <h3>mer</h3>
+                    <h3>gio</h3>
+                    <h3>ven</h3>
+                    <h3>sab</h3>
+                    <h3>dom</h3>
+                </div>
+
+                <div id="calendar-rows"></div>
+
             </div>
 
-            <div id="calendar-rows"></div>
+        <!-- vista settimanale -->
 
-        </div>
+            <div id="week-calendar-container" class="hidden">
+
+                <!-- colonne del calendario -->
+                <div id="week-calendar-columns"></div>
+
+                <div id="week-calendar-turns">
+                    <div id="week-schedules" class="week-calendar-day">
+                    </div>
+                </div>
+
+            </div>
+
+        <!-- calendario vista giornaliera -->
+
+            <div id="day-calendar-container" class="hidden">
+
+                <!-- colonne del calendario -->
+                <!-- <div id="day-calendar-columns"></div> -->
+
+                <div id="day-schedules" class="day-calendar"></div>
+
+            </div>
 
     </main>
 
@@ -200,20 +283,42 @@
 
     </footer>
 
-    <!-- modali a "schermo intero" -->
+    <!-- modali a "schermo intero" -------------------------------------------------------------------------------------------------------- -->
 
-    <div id="modal-feedbackk" class="full-modal">
+    <!-- feedback -->
+    <div id="modal-feedback" class="full-modal">
         <div class="full-modal-body">
             <div class="modal-header">
-                <span class="full-modal-title">Lascia un feedback</span>
+                <span class="modal-title">Lascia un feedback</span>
             </div>
             <div class="full-modal-content">
-                    <textarea id="modal-feedback-text" rows="5" class="form-control" placeholder="Descrivi il problema o lasciaci un feedback..."></textarea>
+                <textarea id="modal-feedback-text" rows="5" placeholder="Descrivi il problema o lasciaci un feedback..."></textarea>
             </div>
             <div class="full-modal-footer">
-                <button type="button" class="light wtext" data-modal="close-modal">Annulla</button>
-                    <button type="button" class="wtext" id="btn-modal-invia-feedback">
-                    <i data-lucide="megaphone"></i> Invia feedback
+                <button type="button" class="w-text" data-modal="close-modal">Annulla</button>
+                <button type="button" class="w-text active" id="btn-modal-invia-feedback">
+                    <i data-lucide="megaphone"></i>
+                    <span>Invia feedback</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- prenota turno -->
+    <div id="modal-prenota" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+                <span class="modal-title">Prenota l'auletta</span>
+                <span class="modal-subtitle">Seleziona data e orario</span>
+            </div>
+            <div class="full-modal-content">
+                
+            </div>
+            <div class="full-modal-footer">
+                <button type="button" class="w-text" data-modal="close-modal">Annulla</button>
+                <button type="button" class="w-text active" id="btn-modal-conferma-prenota" disabled>
+                    <i data-lucide="plus"></i>
+                    <span>Conferma prenotazione</span>
                 </button>
             </div>
         </div>
@@ -223,6 +328,7 @@
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>lucide.createIcons();</script>
+    
     <script src="/src/js/modal.js"></script>
     <script src="/src/js/calendar-render.js"></script>
 
