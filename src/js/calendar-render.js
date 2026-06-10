@@ -43,6 +43,9 @@ const calendarRender = {
   weekViewStart: null,
   dayViewDate: null,
   weeksBeforeNextMonthView: 1,
+  selectedSlots: [],
+  bookingsBySlot: new Map(),
+  stockProfilePic: "/src/img/yellow-profile-picture.webp",
 
   init() {
     this.today = new Date();
@@ -68,6 +71,9 @@ const calendarRender = {
     this.btnDayPrev = document.getElementById("day-prev");
     this.btnDayNext = document.getElementById("day-next");
     this.btnDayToday = document.getElementById("day-today");
+    this.bookingBar = document.getElementById("booking-bar");
+    this.btnBookingConfirm = document.getElementById("booking-confirm");
+    this.btnBookingCancel = document.getElementById("booking-cancel");
 
     this.btnMonthPrev?.addEventListener("click", () => this.goMonthPrev());
     this.btnMonthNext?.addEventListener("click", () => this.goMonthNext());
@@ -79,6 +85,8 @@ const calendarRender = {
     this.btnDayPrev?.addEventListener("click", () => this.goDayPrev());
     this.btnDayNext?.addEventListener("click", () => this.goDayNext());
     this.btnDayToday?.addEventListener("click", () => this.goDayToday());
+    this.btnBookingCancel?.addEventListener("click", () => this.clearSelection());
+    this.btnBookingConfirm?.addEventListener("click", () => this.confirmBooking());
 
     document.querySelectorAll("[data-calendar-switch]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -95,8 +103,12 @@ const calendarRender = {
 
     this.weekContainer?.addEventListener("click", (e) => {
       const header = e.target.closest("#week-calendar-columns h3[data-date]");
-      if (!header?.dataset.date) return;
-      this.openDayView(this.parseDateISO(header.dataset.date));
+      if (header?.dataset.date) {
+        this.openDayView(this.parseDateISO(header.dataset.date));
+        return;
+      }
+      const turn = e.target.closest('.turn[data-status="available"]');
+      if (turn) this.selectSlot(turn);
     });
 
     this.dayContainer?.addEventListener("click", (e) => {
@@ -106,13 +118,14 @@ const calendarRender = {
         return;
       }
       const turn = e.target.closest('.day-turn[data-status="available"]');
-      if (turn && typeof modal !== "undefined") modal.open("prenota");
+      if (turn) this.selectSlot(turn);
     });
 
     this.setViewMode(this.viewMode);
   },
 
   setViewMode(mode) {
+    if (mode !== this.viewMode) this.clearSelection();
     this.viewMode = mode;
     const isMonth = mode === "month";
     const isWeek = mode === "week";
@@ -140,9 +153,9 @@ const calendarRender = {
   },
 
   render() {
-    if (this.viewMode === "month") this.renderMonth();
-    else if (this.viewMode === "week") this.renderWeek();
-    else this.renderDay();
+    if (this.viewMode === "month") return this.renderMonth();
+    if (this.viewMode === "week") return this.renderWeek();
+    return this.renderDay();
   },
 
   openDayView(date) {
@@ -278,6 +291,60 @@ const calendarRender = {
     return "available";
   },
 
+  getSlotBooking(day, turnId) {
+    return this.bookingsBySlot.get(`${day}.${turnId}`) ?? null;
+  },
+
+  getDayBookings(day) {
+    const bookings = [];
+    for (const [key, booking] of this.bookingsBySlot) {
+      if (key.startsWith(`${day}.`)) bookings.push(booking);
+    }
+    return bookings;
+  },
+
+  getSlotStatus(date, turnId) {
+    const baseStatus = this.getTurnStatus(date);
+    if (baseStatus !== "available") return baseStatus;
+    if (this.getSlotBooking(this.formatDateISO(date), turnId)) return "occupied";
+    return "available";
+  },
+
+  formatDateISOFromDb(isoDate) {
+    const [y, m, d] = isoDate.split("-");
+    return `${d}.${m}.${y}`;
+  },
+
+  async loadBookings(rangeStart, rangeEnd) {
+    const { getPrenotazioniByDateRange } = window.ldrDb ?? {};
+    this.bookingsBySlot.clear();
+
+    if (!getPrenotazioniByDateRange) return;
+
+    const start = this.formatDateForDb(this.formatDateISO(rangeStart));
+    const end = this.formatDateForDb(this.formatDateISO(rangeEnd));
+    const { data, error } = await getPrenotazioniByDateRange(start, end);
+
+    if (error) {
+      console.error("Impossibile caricare le prenotazioni:", error);
+      return;
+    }
+
+    for (const prenotazione of data ?? []) {
+      const indice = prenotazione.Turno?.indice;
+      if (!indice || !prenotazione.data_prenotazione) continue;
+
+      const day = this.formatDateISOFromDb(prenotazione.data_prenotazione);
+      const turnId = String(indice);
+
+      this.bookingsBySlot.set(`${day}.${turnId}`, {
+        id_utente: prenotazione.id_utente,
+        nome: prenotazione.Utente?.nome ?? "",
+        cognome: prenotazione.Utente?.cognome ?? "",
+      });
+    }
+  },
+
   isValidMonthOffset(offset) {
     if (offset === -1 || offset === 0) return true;
     if (offset === 1) return this.canViewNextMonth();
@@ -314,7 +381,7 @@ const calendarRender = {
     }
   },
 
-  renderMonth() {
+  async renderMonth() {
     if (this.monthViewOffset === 1 && !this.canViewNextMonth()) {
       this.monthViewOffset = 0;
     }
@@ -332,6 +399,7 @@ const calendarRender = {
     if (!rowsEl) return;
 
     const cells = this.buildMonthGrid(year, month);
+    await this.loadBookings(cells[0], cells[cells.length - 1]);
     rowsEl.replaceChildren();
 
     for (let i = 0; i < cells.length; i += 7) {
@@ -391,6 +459,20 @@ const calendarRender = {
     span.textContent = String(date.getDate());
     el.appendChild(span);
 
+    const dayStr = this.formatDateISO(date);
+    const bookings = this.getDayBookings(dayStr);
+    if (bookings.length) {
+      const recap = document.createElement("div");
+      recap.className = "booked-day-recap";
+      bookings.forEach(() => {
+        const img = document.createElement("img");
+        img.src = this.stockProfilePic;
+        img.alt = "";
+        recap.appendChild(img);
+      });
+      el.appendChild(recap);
+    }
+
     return el;
   },
 
@@ -437,7 +519,7 @@ const calendarRender = {
     }
   },
 
-  renderWeek() {
+  async renderWeek() {
     this.weekViewStart = this.clampWeekStart(this.weekViewStart);
 
     const weekStart = this.weekViewStart;
@@ -447,6 +529,8 @@ const calendarRender = {
       return d;
     });
 
+    await this.loadBookings(days[0], days[6]);
+
     if (this.titleEl) {
       this.titleEl.textContent = this.formatWeekTitle(days[0], days[6]);
     }
@@ -454,6 +538,8 @@ const calendarRender = {
     this.renderWeekColumns(days);
     this.renderWeekTurns(days);
     this.syncWeekNavButtons();
+    this.restoreSelection();
+    if (typeof lucide !== "undefined") lucide.createIcons();
   },
 
   renderWeekColumns(days) {
@@ -523,24 +609,26 @@ const calendarRender = {
 
       turnsEl.appendChild(col);
     });
-
-    if (typeof lucide !== "undefined") lucide.createIcons();
   },
 
   createTurnElement(date, turn) {
+    const day = this.formatDateISO(date);
+    const booking = this.getSlotBooking(day, turn.id);
+    const status = this.getSlotStatus(date, turn.id);
+
     const el = document.createElement("div");
     el.className = "turn";
-    el.dataset.day = this.formatDateISO(date);
+    el.dataset.day = day;
     el.dataset.turn = turn.id;
-    el.dataset.userId = "";
-
-    const status = this.getTurnStatus(date);
+    el.dataset.userId = booking?.id_utente ?? "";
     el.dataset.status = status;
 
     if (status === "available") {
       const icon = document.createElement("i");
       icon.setAttribute("data-lucide", "plus");
       el.appendChild(icon);
+    } else if (status === "occupied") {
+      el.appendChild(this.createUserPreviewEl(booking));
     }
 
     return el;
@@ -548,10 +636,12 @@ const calendarRender = {
 
   // navigazione giornaliera ----------------------------------------------------------------------------------------
 
-  renderDay() {
+  async renderDay() {
     this.dayViewDate = this.clampDayDate(this.dayViewDate);
 
     const date = this.dayViewDate;
+    await this.loadBookings(date, date);
+
     const weekStart = this.getWeekStart(date);
     const days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(weekStart);
@@ -567,6 +657,7 @@ const calendarRender = {
     this.renderDayTurns(date);
     this.syncDayNavButtons();
 
+    this.restoreSelection();
     if (typeof lucide !== "undefined") lucide.createIcons();
   },
 
@@ -610,32 +701,29 @@ const calendarRender = {
   },
 
   createDayTurnElement(date, turn, index) {
+    const day = this.formatDateISO(date);
+    const booking = this.getSlotBooking(day, turn.id);
+    const status = this.getSlotStatus(date, turn.id);
+
     const el = document.createElement("div");
     el.className = "day-turn";
-    el.dataset.day = this.formatDateISO(date);
+    el.dataset.day = day;
     el.dataset.turn = turn.id;
-
-    const userId = "";
-    el.dataset.userId = userId;
-
-    let status = this.getTurnStatus(date);
-    if (userId && status === "available") status = "occupied";
+    el.dataset.userId = booking?.id_utente ?? "";
     el.dataset.status = status;
 
     const checkDiv = document.createElement("div");
     checkDiv.className = "check-day-turn";
 
-    const radio = document.createElement("input");
-    radio.type = "radio";
-    radio.name = `day-turn-${el.dataset.day}`;
-    radio.disabled = true;
-    radio.checked = status === "occupied";
-    radio.tabIndex = -1;
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = status === "occupied";
+    checkbox.tabIndex = -1;
 
     const orderSpan = document.createElement("span");
     orderSpan.textContent = `${index + 1}°`;
 
-    checkDiv.append(radio, orderSpan);
+    checkDiv.append(checkbox, orderSpan);
 
     const timeDiv = document.createElement("div");
     timeDiv.className = "time-day-turn";
@@ -650,6 +738,8 @@ const calendarRender = {
       const icon = document.createElement("i");
       icon.setAttribute("data-lucide", "plus");
       userDiv.appendChild(icon);
+    } else if (status === "occupied") {
+      userDiv.appendChild(this.createUserPreviewEl(booking));
     }
 
     el.append(checkDiv, timeDiv, userDiv);
@@ -684,6 +774,216 @@ const calendarRender = {
     return `${start.getDate()} ${MONTHS[start.getMonth()]} – ${end.getDate()} ${MONTHS[end.getMonth()]} ${end.getFullYear()}`;
   },
 
+  // prenotazioni ------------------------------------------------------------------------------------
+
+  isSlotSelected(day, turnId) {
+    return this.selectedSlots.some(
+      (s) => s.day === day && s.turnId === turnId,
+    );
+  },
+
+  formatUserShortName(profilo) {
+    if (!profilo?.nome || !profilo?.cognome) return "";
+    const initial = profilo.nome.charAt(0).toUpperCase();
+    return `${initial}. ${profilo.cognome}`;
+  },
+
+  formatDateForDb(dayStr) {
+    const [d, m, y] = dayStr.split(".");
+    return `${y}-${m}-${d}`;
+  },
+
+  createUserPreviewEl(profilo) {
+    const user = profilo ?? window.ldrProfilo;
+    const container = document.createElement("div");
+    container.className = "horizontal-container";
+
+    const img = document.createElement("img");
+    img.className = "profile-pic";
+    img.src = this.stockProfilePic;
+    img.alt = "";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.textContent = this.formatUserShortName(user);
+
+    container.append(img, nameSpan);
+    return container;
+  },
+
+  markSlotSelected(turnEl) {
+    turnEl.classList.add("selected");
+
+    const input = turnEl.querySelector('input[type="checkbox"]');
+    if (input) input.checked = true;
+
+    const userDiv = turnEl.querySelector(".user-day-turn");
+    if (userDiv) {
+      userDiv.replaceChildren(this.createUserPreviewEl());
+      return;
+    }
+
+    if (turnEl.classList.contains("turn")) {
+      turnEl.replaceChildren(this.createUserPreviewEl());
+    }
+  },
+
+  markSlotDeselected(turnEl) {
+    turnEl.classList.remove("selected");
+
+    const input = turnEl.querySelector('input[type="checkbox"]');
+    if (input && turnEl.dataset.status === "available") input.checked = false;
+
+    const userDiv = turnEl.querySelector(".user-day-turn");
+    if (userDiv && turnEl.dataset.status === "available") {
+      userDiv.replaceChildren();
+      const icon = document.createElement("i");
+      icon.setAttribute("data-lucide", "plus");
+      userDiv.appendChild(icon);
+      if (typeof lucide !== "undefined") lucide.createIcons();
+      return;
+    }
+
+    if (turnEl.classList.contains("turn") && turnEl.dataset.status === "available") {
+      turnEl.replaceChildren();
+      const icon = document.createElement("i");
+      icon.setAttribute("data-lucide", "plus");
+      turnEl.appendChild(icon);
+      if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+  },
+
+  selectSlot(turnEl) {
+    const day = turnEl.dataset.day;
+    const turnId = turnEl.dataset.turn;
+    if (!day || !turnId || turnEl.dataset.status !== "available") return;
+
+    if (this.isSlotSelected(day, turnId)) {
+      this.selectedSlots = this.selectedSlots.filter(
+        (s) => !(s.day === day && s.turnId === turnId),
+      );
+      this.markSlotDeselected(turnEl);
+    } else {
+      this.selectedSlots.push({ day, turnId });
+      this.markSlotSelected(turnEl);
+    }
+
+    if (this.selectedSlots.length) {
+      this.showBookingBar();
+    } else {
+      this.hideBookingBar();
+    }
+  },
+
+  clearSelectionVisual() {
+    document
+      .querySelectorAll(".day-turn.selected, .turn.selected")
+      .forEach((el) => this.markSlotDeselected(el));
+  },
+
+  clearSelection() {
+    this.clearSelectionVisual();
+    this.selectedSlots = [];
+    this.hideBookingBar();
+  },
+
+  showBookingBar() {
+    this.bookingBar?.classList.remove("hidden");
+    this.bookingBar?.setAttribute("aria-hidden", "false");
+    document.body.classList.add("booking-active");
+    if (typeof lucide !== "undefined") lucide.createIcons();
+  },
+
+  hideBookingBar() {
+    this.bookingBar?.classList.add("hidden");
+    this.bookingBar?.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("booking-active");
+  },
+
+  restoreSelection() {
+    if (!this.selectedSlots.length) return;
+
+    const remaining = [];
+
+    this.selectedSlots.forEach(({ day, turnId }) => {
+      const selector =
+        this.viewMode === "day"
+          ? `.day-turn[data-day="${day}"][data-turn="${turnId}"]`
+          : `.turn[data-day="${day}"][data-turn="${turnId}"]`;
+      const el = document.querySelector(selector);
+
+      if (el?.dataset.status === "available") {
+        this.markSlotSelected(el);
+        remaining.push({ day, turnId });
+      }
+    });
+
+    this.selectedSlots = remaining;
+
+    if (this.selectedSlots.length) this.showBookingBar();
+    else this.hideBookingBar();
+  },
+
+  async confirmBooking() {
+    if (!this.selectedSlots.length || this.btnBookingConfirm?.disabled) return;
+
+    const profilo = window.ldrProfilo;
+    const { getTurniByIndici, createPrenotazioni } = window.ldrDb ?? {};
+
+    if (!profilo?.id_utente) {
+      alert("Impossibile prenotare: profilo non caricato.");
+      return;
+    }
+    if (!getTurniByIndici || !createPrenotazioni) {
+      alert("Impossibile prenotare: servizio non disponibile.");
+      return;
+    }
+
+    this.btnBookingConfirm.disabled = true;
+
+    const indici = [
+      ...new Set(this.selectedSlots.map((s) => parseInt(s.turnId, 10))),
+    ];
+    const { data: turni, error: turnoError } = await getTurniByIndici(indici);
+
+    if (turnoError || !turni?.length) {
+      console.error("Turni non trovati:", turnoError);
+      alert("Turni non trovati. Riprova più tardi.");
+      this.btnBookingConfirm.disabled = false;
+      return;
+    }
+
+    const turnoByIndice = new Map(turni.map((t) => [t.indice, t.id_turno]));
+    const prenotazioni = [];
+
+    for (const slot of this.selectedSlots) {
+      const indice = parseInt(slot.turnId, 10);
+      const id_turno = turnoByIndice.get(indice);
+      if (!id_turno) {
+        alert(`Turno ${indice} non trovato. Riprova più tardi.`);
+        this.btnBookingConfirm.disabled = false;
+        return;
+      }
+      prenotazioni.push({
+        id_utente: profilo.id_utente,
+        id_turno,
+        data_prenotazione: this.formatDateForDb(slot.day),
+      });
+    }
+
+    const { error } = await createPrenotazioni(prenotazioni);
+
+    this.btnBookingConfirm.disabled = false;
+
+    if (error) {
+      console.error("Errore prenotazione:", error);
+      alert("Errore durante la prenotazione. Riprova più tardi.");
+      return;
+    }
+
+    this.clearSelection();
+    this.render();
+  },
+
   // funzioni utili ----------------------------------------------------------------------------------------
 
   isSameDate(a, b) {
@@ -704,12 +1004,11 @@ const calendarRender = {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
     const d = String(date.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-    // return `${d}-${m}-${y}`;
+    return `${d}.${m}.${y}`;
   },
 
   parseDateISO(iso) {
-    const [y, m, d] = iso.split("-").map(Number);
+    const [d, m, y] = iso.split(".").map(Number);
     return new Date(y, m - 1, d);
   },
 };

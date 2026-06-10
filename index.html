@@ -24,18 +24,11 @@
         <!-- logo e nome webapp -->
         <div id="logo">
             <div class="horizontal-container">
-                <img src="/src/img/logo-prenotaldr-giallo.webp" alt="">
-                <h2><span class="semibold">Ciao Giulio</span>, al momento l'auletta è <span class="available" id="auletta-state">libera</span></h2>
+                <a href="index.html">
+                    <img src="/src/img/logo-prenotaldr-giallo.webp" alt="">
+                </a>
+                <h2>Ciao <span data-get-info="username-name"></span>, al momento l'auletta è <span class="available" id="auletta-state">libera</span></h2>
             </div>
-            <!-- <div class="horizontal-container">
-                <button class="w-text active">
-                    <span>Calendario</span>
-                </button>
-        
-                <button class="w-text">
-                    <span>Le mie prenotazioni</span>
-                </button>
-            </div> -->
         </div>
 
         <!-- container azioni header -->
@@ -50,7 +43,7 @@
             <!-- prenotazioni -->
             <button class="w-text" data-modal="le-mie-prenotazioni">
                 <i data-lucide="calendar-clock"></i>
-                <span>0/14</span>
+                <span>0/7</span>
             </button>
 
             <!-- inbox -->
@@ -60,17 +53,18 @@
 
             <!-- profilo utente -->
             <button data-modal="account" class="no-style">
-                <img class="profile-pic" src="/src/img/monkey.webp" alt="">
+                <img class="profile-pic" src="/src/img/yellow-profile-picture.webp" alt="">
             </button>
 
         </div>
 
         <!-- modali dell'header (messe qui per questioni di UI) -->
         <div class="header-modals">
+
             <div id="modal-le-mie-prenotazioni" class="modal">
                 <div class="modal-header auto-gap">
                     <span class="modal-title">Le mie prenotazioni</span>
-                    <span class="modal-subtitle">0/14</span>
+                    <span class="modal-subtitle">0/7</span>
                 </div>
                 <div class="lista-notifiche">
                     <span class="modal-advise disabled">
@@ -93,12 +87,12 @@
 
             <div id="modal-account" class="modal">
                 <div class="modal-header">
-                    <span class="modal-title">Giulio Brunelli</span>
+                    <span class="modal-title">———</span>
                     <span class="modal-subtitle">n.000</span>
                 </div>
                 <div class="lista-notifiche">
                     <span class="modal-option" data-goto="opzioni"><i data-lucide="circle-user"></i> Opzioni account</span>
-                    <span class="modal-option" data-action="logout"><i data-lucide="log-out"></i> Effettua Log-out</span>
+                    <span class="modal-option" onclick="ldrLogout()" style="cursor:pointer"><i data-lucide="log-out"></i> Effettua Log-out</span>
                 </div>
             </div>
         </div>
@@ -283,6 +277,22 @@
 
     </footer>
 
+    <!-- elemeneti in sovra-impressione -->
+
+    <!-- barra conferma prenotazione -->
+    <div id="booking-bar" class="booking-bar hidden" aria-hidden="true">
+        <div class="booking-bar-inner horizontal-container">
+            <button type="button" id="booking-cancel" class="w-text">
+                <span>Annulla</span>
+            </button>
+            <button type="button" id="booking-confirm" class="w-text active">
+                <i data-lucide="notebook-pen"></i>
+                <span>Segna la prenotazione</span>
+            </button>
+        </div>
+
+    </div>
+
     <!-- modali a "schermo intero" -------------------------------------------------------------------------------------------------------- -->
 
     <!-- feedback -->
@@ -309,10 +319,31 @@
         <div class="full-modal-body">
             <div class="modal-header">
                 <span class="modal-title">Prenota l'auletta</span>
-                <span class="modal-subtitle">Seleziona data e orario</span>
+                <span class="modal-subtitle">Seleziona data e turno</span>
             </div>
             <div class="full-modal-content">
-                
+                <form id="prenota-form" class="form-block">
+
+                    <div class="form-block">
+                        <label for="prenota-data"><span>Data</span></label>
+                        <input id="prenota-data" name="data" type="date" placeholder="gg.mm.aaaa" autocomplete="on">
+                    </div>
+
+                    <div class="form-block">
+                        <label for="prenota-turno"><span>Turno</span></label>
+                        <select id="prenota-turno" name="turno">
+                            <option value="" disabled selected>Seleziona un orario</option>
+                            <option value="1">1° : 08:00 - 10:00</option>
+                            <option value="2">2° : 10:00 - 12:00</option>
+                            <option value="3">3° : 13:30 - 15:30</option>
+                            <option value="4">4° : 15:30 - 17:30</option>
+                            <option value="5">5° : 17:30 - 19:30</option>
+                            <option value="6">6° : 19:30 - 21:00</option>
+                            <option value="7">7° : 21:00 in poi</option>
+                        </select>
+                    </div>
+
+                </form>
             </div>
             <div class="full-modal-footer">
                 <button type="button" class="w-text" data-modal="close-modal">Annulla</button>
@@ -331,6 +362,9 @@
     
     <script src="/src/js/modal.js"></script>
     <script src="/src/js/calendar-render.js"></script>
+
+    <script type="module" src="/src/js/auth.js"></script>
+    <script type="module" src="/src/js/app.js"></script>
 
 </body>
 </html>

@@ -30,7 +30,7 @@ body {
     align-items: center;
     gap: 35px;
     padding: 20px;
-    height: 100vh;
+    /* height: 100vh; */
 }
 
 header, nav, main, footer {
@@ -38,7 +38,7 @@ header, nav, main, footer {
     max-width: 1000px;
 }
 
-span, a, button, h1, h2, h3, h4, h5 {
+span, a, button, h1, h2, h3, h4, h5, input, select {
     font-family: var(--plex-sans);
     font-weight: 400;
     padding: 0;
@@ -49,6 +49,7 @@ a {
     text-decoration: underline;
     cursor: pointer;
     color: var(--black);
+    max-height: 30px;
 }
 
 .semibold {
@@ -269,6 +270,9 @@ main {
     text-decoration: line-through;
     opacity: .4;
 }
+.calendar-day.past .booked-day-recap {
+    opacity: .4;
+}
 
 .calendar-day.locked span {
     opacity: .35;
@@ -287,6 +291,35 @@ main {
 
 .calendar-day.current-day span {
     background-color: var(--aula);
+}
+
+.calendar-day .booked-day-recap {
+    align-self: end;
+    width: 100%;
+}
+
+.booked-day-recap {
+    display: flex;
+    justify-content: end;
+    align-items: center;
+    width: fit-content;
+    position: relative;
+    padding-right: 10px;
+    padding-bottom: 10px;
+}
+
+.booked-day-recap img {
+    position: relative;
+    margin-left: -10px;
+}
+
+.booked-day-recap img:first-child {
+    margin-left: 0;
+}
+.booked-day-recap img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
 }
 
 #week-calendar-container {
@@ -387,16 +420,33 @@ main {
     opacity: .6;
 }
 .turn[data-status="past"],
-.turn[data-status="locked"] {
+.turn[data-status="locked"],
+.turn[data-status="occupied"] {
     cursor: default;
     pointer-events: none;
 }
 .turn[data-status="past"]:hover,
-.turn[data-status="locked"]:hover {
+.turn[data-status="locked"]:hover,
+.turn[data-status="occupied"]:hover {
     background-color: transparent;
 }
 .turn[data-status="locked"] .lucide {
     display: none;
+}
+.turn[data-status="occupied"] .horizontal-container {
+    gap: 4px;
+    padding-inline: 4px;
+}
+.turn[data-status="occupied"] .profile-pic {
+    width: 20px;
+    height: 20px;
+}
+.turn[data-status="occupied"] .horizontal-container span {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60px;
 }
 
 .week-calendar-day > :first-child {
@@ -469,7 +519,8 @@ main {
 }
 .user-day-turn {
     flex: 1;
-    min-height: 37px;
+    min-height: 35px;
+    max-height: 35.5px;
     box-sizing: border-box;
 }
 .user-day-turn .lucide {
@@ -492,17 +543,65 @@ main {
 .day-turn[data-status="occupied"] {
     cursor: default;
     pointer-events: none;
+    opacity: .6;
 }
 .day-turn[data-status="past"],
 .day-turn[data-status="locked"] {
     opacity: .5;
 }
-.day-turn[data-status="occupied"] .check-day-turn input[type="radio"] {
+.day-turn[data-status="past"] span, .day-turn[data-status="past"] h3 {
+    text-decoration: line-through;
+}
+.day-turn[data-status="occupied"] .check-day-turn input[type="checkbox"] {
     accent-color: var(--aula);
 }
-.check-day-turn input[type="radio"] {
+.check-day-turn input[type="checkbox"] {
     margin: 0;
     pointer-events: none;
+}
+
+.day-turn.selected .check-day-turn input[type="checkbox"] {
+    accent-color: var(--black);
+}
+.user-day-turn .horizontal-container {
+    gap: 8px;
+}
+.user-day-turn .profile-pic {
+    width: 20px;
+    height: 20px;
+}
+.user-day-turn .horizontal-container span {
+    font-size: 13px;
+}
+
+.turn.selected {
+    background-color: var(--aula);
+}
+.turn.selected .lucide {
+    opacity: .6;
+}
+
+.booking-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    padding: 15px 20px;
+    background-color: var(--white);
+    border-top: 1px solid var(--gray2);
+    z-index: 200;
+    box-sizing: border-box;
+}
+.booking-bar-inner {
+    width: 100%;
+    max-width: 1000px;
+    justify-content: flex-end;
+}
+
+body.booking-active {
+    padding-bottom: 80px;
 }
 
 
@@ -676,7 +775,7 @@ footer {
 }
 
 .full-modal .modal-subtitle {
-    color: var(--gray2);
+    color: var(--black-2);
 }
 
 .full-modal-content,
@@ -735,6 +834,13 @@ footer {
     place-content: center;
     position: relative;
     isolation: isolate;
+    min-height: 100dvh;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    gap: 0;
+    box-sizing: border-box;
+    --grid-tile: 6vmin;
 }
 
 .full-page-form-body::before {
@@ -743,18 +849,14 @@ footer {
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    opacity: 1;
-    background-image:
-        linear-gradient(var(--white-3) 1px, transparent 1px),
-        linear-gradient(90deg, var(--white-3) 1px, transparent 1px),
-        linear-gradient(var(--white-3) 0.5px, transparent 0.5px),
-        linear-gradient(90deg, var(--white-3) 0.5px, var(--black) 0.5px);
-    background-size: 50px 50px, 50px 50px, 10px 10px, 10px 10px;
-    background-position: -1px -1px, -1px -1px, -0.5px -0.5px, -0.5px -0.5px;
+    background-color: var(--black);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Cpath fill='none' stroke='%23ffffff1a' stroke-width='1' d='M0 0h50M0 0v50'/%3E%3C/svg%3E");
+    background-size: var(--grid-tile) var(--grid-tile);
 }
 
-#login-form {
+#login-form, #register-form, #set-password-form {
     width: 450px;
+    max-width: 100%;
     height: fit-content;
     align-items: center;
     justify-content: center;
@@ -765,8 +867,7 @@ footer {
     box-shadow: 0 0px 400px 0 var(--black-3);
 }
 
-#login-form h1 {
-    font-size: 45px;
+#login-form h1, #register-form h1, #set-password-form h1 {
     line-height: 1.1;
     text-wrap: balance;
 }
@@ -798,15 +899,39 @@ div.form-block {
     margin-bottom: 30px;
 }
 
-input {
+#prenota-form {
+    margin-block: 10px;
+    gap: 15px;
+}
+#prenota-form .form-block {
+    margin: 0px;
+}
+
+input, select {
     width: 100%;
     box-sizing: border-box;
     padding: 8px 10px;
     border-radius: 4px;
     border: .5px solid var(--gray2);
     font-size: 14px;
+    background-color: var(--white);
 }
 input:focus {
     border: .5px solid var(--black);
     outline: none;
+}
+
+.form-error {
+    width: 100%;
+    color: red;
+    text-align: center;
+    text-wrap: balance;
+    margin-bottom: 20px;
+}
+.form-success {
+    width: 100%;
+    color: green;
+    text-align: center;
+    text-wrap: balance;
+    margin-bottom: 20px;
 }
