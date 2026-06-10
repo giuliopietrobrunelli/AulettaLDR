@@ -168,7 +168,7 @@ const auth = {
         email: utente.email,
         options: {
           // il magic link manda a set-password.html
-          emailRedirectTo: `${window.location.origin}https://prenotaulettaldr.illumedellaragione6.workers.dev/set-password`,
+          emailRedirectTo: 'https://prenotaulettaldr.illumedellaragione6.workers.dev/set-password',
           shouldCreateUser: true,
           data: {
             id_utente: utente.id_utente, // passiamo l'id per collegarlo dopo
