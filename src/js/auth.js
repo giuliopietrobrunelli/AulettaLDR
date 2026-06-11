@@ -1,43 +1,45 @@
 import { supabase } from './supabase-client.js';
 
+// oggetto principale per la gestione dell'autenticazione
 const auth = {
 
   async init() {
-    // intercetta il magic link se l'utente torna dal link email
+    // prende la sessione corrente (es: dopo magic link)
     const { data: { session }, error } = await supabase.auth.getSession();
 
-    if (error) console.error('Errore sessione:', error.message);
+    // stampa un errore se c'è un errore nella sessione
+    if (error) console.error('errore sessione:', error.message);
 
-    // se siamo sulla pagina di set-password, aspettiamo solo che la sessione sia pronta (il magic link l'ha già creata)
+    // se siamo su set-password usa direttamente initSetPassword
     if (window.location.pathname.includes('set-password')) {
       this.initSetPassword(session);
       return;
     }
 
-    // se siamo sulla pagina di registrazione, inizializza il form
+    // se siamo su register usa direttamente initRegisterPage
     if (window.location.pathname.includes('register')) {
       this.initRegisterPage(session);
       return;
     }
 
-    // se siamo sulla pagina di login, inizializza il form
+    // se siamo su login usa direttamente initLoginPage
     if (window.location.pathname.includes('login')) {
       this.initLoginPage(session);
       return;
     }
 
-    // su tutte le altre pagine impedisci l'accesso
+    // su tutte le altre pagine controlla che l'utente sia autenticato
     this.requireAuth(session);
   },
 
-  // manda al login se non autenticato (provvisorio per testat)
-
+  // se non c'è sessione reindirizza al login
   requireAuth(session) {
     if (!session) {
       window.location.href = '/login.html';
     }
   },
 
+  // se utente già loggato, manda alla home, altrimenti mostra form login
   initLoginPage(session) {
     if (session) {
       window.location.href = '/index.html';
@@ -47,6 +49,7 @@ const auth = {
     this.setupLoginForm();
   },
 
+  // se utente già loggato, manda alla home, altrimenti mostra form registrazione
   initRegisterPage(session) {
     if (session) {
       window.location.href = '/index.html';
@@ -56,8 +59,7 @@ const auth = {
     this.setupRegisterForm();
   },
 
-  // email o numero tessera + password
-
+  // login con email o numero tessera più password
   setupLoginForm() {
     const form = document.getElementById('login-form');
     if (!form) return;
@@ -74,20 +76,21 @@ const auth = {
       const identifier = inputIdentifier?.value.trim();
       const password   = inputPassword?.value;
 
+      // controlla che tutti i campi siano compilati
       if (!identifier || !password) {
-        this.showError(form, 'Compila tutti i campi.');
+        this.showError(form, 'compila tutti i campi.');
         this.setLoading(btnSubmit, false);
         return;
       }
 
-      // determina se l'utente ha inserito email o numero tessera
+      // se l'identificatore non è una email assume che sia un numero tessera
       let email = identifier;
 
       if (!identifier.includes('@')) {
-        // è un numero tessera: cerchiamo l'email corrispondente
+        // cerca la mail associata nella tabella utenti
         const numeroTessera = parseInt(identifier, 10);
         if (isNaN(numeroTessera)) {
-          this.showError(form, 'Numero tessera non valido.');
+          this.showError(form, 'numero tessera non valido.');
           this.setLoading(btnSubmit, false);
           return;
         }
@@ -100,36 +103,34 @@ const auth = {
           .single();
 
         if (dbError || !utente) {
-          this.showError(form, 'Numero di tessera inserito non esisteste o non attivo.');
+          this.showError(form, 'numero di tessera inserito non esistente o non attivo.');
           this.setLoading(btnSubmit, false);
           return;
         }
 
         if (!utente.registrato) {
-          this.showError(form, 'La tua tessera è valida, ma per accedere devi prima registrarti.');
+          this.showError(form, 'la tua tessera è valida, ma devi prima registrarti.');
           this.setLoading(btnSubmit, false);
           return;
         }
         email = utente.email;
       }
 
-      // login con email + password
+      // usa email e password per fare login
       const { error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
-        this.showError(form, 'Email o password errati.');
+        this.showError(form, 'email o password errati.');
         this.setLoading(btnSubmit, false);
         return;
       }
 
-      // login andato a buon fine
+      // reindirizza alla home se login ok
       window.location.href = '/index.html';
     });
   },
 
-
-  // registrazione - numero tessera → magic link via email
-
+  // registrazione tramite numero tessera, invia magic link via email
   setupRegisterForm() {
     const form = document.getElementById('register-form');
     if (!form) return;
@@ -142,15 +143,16 @@ const auth = {
       this.setLoading(btnSubmit, true);
       this.clearError(form);
 
-      const numeroTessera = parseInt(inputTessera?.value?.trim(), 10); // converti la stringa in un intero
+      // cerca il numero tessera nel db
+      const numeroTessera = parseInt(inputTessera?.value?.trim(), 10);
 
       if (isNaN(numeroTessera)) {
-        this.showError(form, 'Inserisci un numero tessera valido.');
+        this.showError(form, 'inserisci un numero tessera valido.');
         this.setLoading(btnSubmit, false);
         return;
       }
 
-      // verifica che il numero tessera esista nella tabella Utente
+      // cerca l'utente col numero tessera indicato
       const { data: utente, error: dbError } = await supabase
         .from('Utente')
         .select('id_utente, email, nome')
@@ -158,51 +160,47 @@ const auth = {
         .single();
 
       if (dbError || !utente) {
-        this.showError(form, 'Numero tessera non trovato. Riprova o contatta un amministratore.');
+        this.showError(form, 'numero tessera non trovato. riprova o scrivi a un amministratore.');
         this.setLoading(btnSubmit, false);
         return;
       }
 
-      // invia il magic link all'email associata alla tessera nel db
+      // invia il magic link per impostare la password via email
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email: utente.email,
         options: {
-          // il magic link manda a set-password.html
           emailRedirectTo: 'https://prenotaulettaldr.illumedellaragione6.workers.dev/set-password',
           shouldCreateUser: true,
           data: {
-            id_utente: utente.id_utente, // passiamo l'id per collegarlo dopo
+            id_utente: utente.id_utente, // serve per associazione successiva
           },
         },
       });
 
       if (otpError) {
-        this.showError(form, 'Errore nell\'invio della mail. Riprova tra qualche minuto.');
-        console.error('OTP error:', otpError.message);
+        this.showError(form, 'errore nell\'invio della mail. riprova tra qualche minuto.');
+        console.error('otp error:', otpError.message);
         this.setLoading(btnSubmit, false);
         return;
       }
 
-      // mostra feedback
+      // avvisa che il link è stato inviato
       this.showSuccess(
         form,
-        `Abbiamo inviato un link di attivazione a ${this.maskEmail(utente.email)}. 
-         Controlla la posta (anche lo spam).`
+        `abbiamo inviato un link di attivazione a ${this.maskEmail(utente.email)}. controlla la posta (anche nello spam).`
       );
       this.setLoading(btnSubmit, false);
     });
   },
 
-
-  // pagina di impostazione passowrd dopo il magic link
-
+  // gestione impostazione password dopo magic link via email
   async initSetPassword(session) {
     const form = document.getElementById('set-password-form');
     if (!form) return;
 
-    // se non c'è sessione, il link è scaduto o già usato
+    // se non c'è sessione, il link non è valido
     if (!session) {
-      this.showError(form, 'Il link è scaduto o già utilizzato. Richiedine uno nuovo.');
+      this.showError(form, 'il link è scaduto o già usato. richiedine uno nuovo.');
       return;
     }
 
@@ -217,50 +215,50 @@ const auth = {
       const pwd  = inputPwd?.value;
       const conf = inputConf?.value;
 
+      // controlla che la password abbia almeno 8 caratteri
       if (!pwd || pwd.length < 8) {
-        this.showError(form, 'La password deve essere di almeno 8 caratteri.');
+        this.showError(form, 'la password deve essere di almeno 8 caratteri.');
         return;
       }
 
+      // controlla che le password coincidano
       if (pwd !== conf) {
-        this.showError(form, 'Le password non coincidono.');
+        this.showError(form, 'le password non coincidono.');
         return;
       }
 
       this.setLoading(btnSubmit, true);
 
-      // imposta la nuova password sull'utente già autenticato via magic link
+      // aggiorna la password dell'utente autenticato
       const { error } = await supabase.auth.updateUser({ password: pwd });
 
       if (error) {
-        this.showError(form, 'Errore nell\'impostazione della password. Riprova.');
-        console.error('updateUser error:', error.message);
+        this.showError(form, 'errore nell\'impostazione della password. riprova.');
+        console.error('updateuser error:', error.message);
         this.setLoading(btnSubmit, false);
         return;
       }
 
-      // vai alla home se tutto ok
+      // manda alla home dopo successo
       window.location.href = '/index.html';
     });
   },
 
-  // logout
-
+  // funzione di logout: esce e manda a login
   async logout() {
     await supabase.auth.signOut();
     window.location.href = '/login.html';
   },
 
-
-  // funzioni utili
-
+  // mette il bottone in loading durante submit
   setLoading(btn, isLoading) {
     if (!btn) return;
-    if (!btn.dataset.label) btn.dataset.label = btn.textContent; // salva il testo originale
+    if (!btn.dataset.label) btn.dataset.label = btn.textContent;
     btn.disabled = isLoading;
-    btn.textContent = isLoading ? 'Attendere...' : btn.dataset.label || btn.textContent;
+    btn.textContent = isLoading ? 'attendere...' : btn.dataset.label || btn.textContent;
   },
 
+  // mostra un errore nel form
   showError(container, msg) {
     this.clearError(container);
     const el = document.createElement('span');
@@ -269,6 +267,7 @@ const auth = {
     container.querySelector('section:last-of-type')?.prepend(el);
   },
 
+  // mostra un messaggio di successo nel form
   showSuccess(container, msg) {
     this.clearError(container);
     const el = document.createElement('span');
@@ -277,22 +276,24 @@ const auth = {
     container.querySelector('section:last-of-type')?.prepend(el);
   },
 
+  // pulisce errori e successi nel form
   clearError(container) {
     container.querySelector('.form-error')?.remove();
     container.querySelector('.form-success')?.remove();
   },
 
-  // maschera l'email per privacy
+  // maschera la mail per privacy (es: lu***@gmail.com)
   maskEmail(email) {
     const [local, domain] = email.split('@');
     return `${local.slice(0, 2)}***@${domain}`;
   },
 };
 
-// avvia al caricamento del DOM in automatico
+// avvia tutto quando il dom è pronto
 document.addEventListener('DOMContentLoaded', () => auth.init());
 
-// rendi logout disponibile sempre (per il pulsante in index.html)
+// rende il logout globale per il bottone nella home
 window.ldrLogout = () => auth.logout();
 
-export { auth }; // rendi il file auth riconoscibile a livello di altri file
+// esporta auth per usarlo altrove
+export { auth };

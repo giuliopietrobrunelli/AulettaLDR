@@ -1,3 +1,4 @@
+// array dei nomi dei mesi in italiano
 const MONTHS = [
   "Gennaio",
   "Febbraio",
@@ -13,8 +14,10 @@ const MONTHS = [
   "Dicembre",
 ];
 
+// array dei giorni abbreviati in italiano
 const WEEKDAYS = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"];
 
+// array dei giorni per esteso in italiano
 const WEEKDAYS_FULL = [
   "lunedì",
   "martedì",
@@ -25,34 +28,43 @@ const WEEKDAYS_FULL = [
   "domenica",
 ];
 
-// monentanei da acquisire poi da db
-const WEEK_TURNS = [
-  { id: "1", label: "08:00 - 10:00" },
-  { id: "2", label: "10:00 - 12:00" },
-  { id: "3", label: "13:30 - 15:30" },
-  { id: "4", label: "15:30 - 17:30" },
-  { id: "5", label: "17:30 - 19:30" },
-  { id: "6", label: "19:30 - 21:00" },
-  { id: "7", label: "21:00 in poi" },
-];
-
+// oggetto principale che gestisce il calendario
 const calendarRender = {
+  // modalità di visualizzazione del calendario: 'month', 'week', 'day'
   viewMode: "month",
+  // modalità precedente (utile per tornare indietro dalla vista giorno)
   previousViewMode: null,
+  // offset dei mesi rispetto a quello corrente (0 = mese attuale)
   monthViewOffset: 0,
+  // data di inizio della settimana selezionata
   weekViewStart: null,
+  // data attiva nella vista giorno
   dayViewDate: null,
+  // settimane che devono passare prima di poter vedere il mese successivo
   weeksBeforeNextMonthView: 1,
+  // array degli slot selezionati
   selectedSlots: [],
+  // mappa delle prenotazioni per slot (key = giorno.turno)
   bookingsBySlot: new Map(),
+  // cache delle prenotazioni per range
+  bookingsRangeCache: new Map(),
+  // generazione di rendering, per gestire eventuale asincronia
+  renderGeneration: 0,
+  // immagine di profilo di default usata quando non ci sono altre foto
   stockProfilePic: "/src/img/yellow-profile-picture.webp",
+  // array dei turni disponibili, caricati dal db
+  turns: [],
 
+  // inizializza gli elementi e gli eventi del calendario
   init() {
+    // imposta la data di oggi alle 00:00
     this.today = new Date();
     this.today.setHours(0, 0, 0, 0);
+    // calcola la settimana corrente e il giorno attivo
     this.weekViewStart = this.clampWeekStart(this.getWeekStart(this.today));
     this.dayViewDate = new Date(this.today);
 
+    // riferimenti agli elementi principali del dom
     this.titleEl = document.getElementById("current-date");
     this.monthContainer = document.getElementById("calendar-container");
     this.weekContainer = document.getElementById("week-calendar-container");
@@ -61,6 +73,7 @@ const calendarRender = {
     this.weekToolbar = document.querySelector('[data-view="week"]');
     this.dayToolbar = document.querySelector('[data-view="day"]');
 
+    // bottoni di navigazione e conferma/cancellazione prenotazione
     this.btnMonthPrev = document.getElementById("calendar-prev");
     this.btnMonthNext = document.getElementById("calendar-next");
     this.btnMonthToday = document.getElementById("month-today");
@@ -75,6 +88,7 @@ const calendarRender = {
     this.btnBookingConfirm = document.getElementById("booking-confirm");
     this.btnBookingCancel = document.getElementById("booking-cancel");
 
+    // eventi per i bottoni di navigazione
     this.btnMonthPrev?.addEventListener("click", () => this.goMonthPrev());
     this.btnMonthNext?.addEventListener("click", () => this.goMonthNext());
     this.btnMonthToday?.addEventListener("click", () => this.goMonthToday());
@@ -88,6 +102,7 @@ const calendarRender = {
     this.btnBookingCancel?.addEventListener("click", () => this.clearSelection());
     this.btnBookingConfirm?.addEventListener("click", () => this.confirmBooking());
 
+    // cambio modalità tra mese e settimana
     document.querySelectorAll("[data-calendar-switch]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const mode = btn.dataset.calendarSwitch;
@@ -95,12 +110,14 @@ const calendarRender = {
       });
     });
 
+    // click su giorno nel calendario mese
     this.monthContainer?.addEventListener("click", (e) => {
       const day = e.target.closest(".calendar-day:not(.inactive)");
       if (!day?.dataset.date) return;
       this.openDayView(this.parseDateISO(day.dataset.date));
     });
 
+    // click su turno nella vista settimana
     this.weekContainer?.addEventListener("click", (e) => {
       const header = e.target.closest("#week-calendar-columns h3[data-date]");
       if (header?.dataset.date) {
@@ -111,6 +128,7 @@ const calendarRender = {
       if (turn) this.selectSlot(turn);
     });
 
+    // click su turno nella vista giorno
     this.dayContainer?.addEventListener("click", (e) => {
       const header = e.target.closest("#day-calendar-columns h3[data-date]");
       if (header?.dataset.date) {
@@ -121,9 +139,42 @@ const calendarRender = {
       if (turn) this.selectSlot(turn);
     });
 
-    this.setViewMode(this.viewMode);
+    // carica i turni dal db prima del primo render
+    this.loadTurni().then(() => this.setViewMode(this.viewMode));
   },
 
+  // carica tutti i turni disponibili dal database
+  async loadTurni() {
+    const { getAllTurni } = window.ldrDb ?? {};
+    if (!getAllTurni) {
+      console.error("calendarRender: window.ldrDb.getAllTurni non disponibile");
+      return;
+    }
+    const { data, error } = await getAllTurni();
+    if (error || !data?.length) {
+      console.error("calendarRender: impossibile caricare i turni dal db", error);
+      return;
+    }
+    // trasforma i turni dal db in array di oggetti con id e label
+    this.turns = data.map((t) => ({
+      id: String(t.indice),
+      label: this.formatTurnLabel(t),
+    }));
+  },
+
+  // restituisce l'orario in formato hh:mm
+  formatClock(timeStr) {
+    return timeStr?.slice(0, 5) ?? '';
+  },
+
+  // formatta l'etichetta del turno (es: '08:30 - 10:30' o '19:30 in poi')
+  formatTurnLabel(turn) {
+    if (!turn) return '';
+    if (turn.indice === 7) return `${this.formatClock(turn.orario_inizio)} in poi`;
+    return `${this.formatClock(turn.orario_inizio)} - ${this.formatClock(turn.orario_fine)}`;
+  },
+
+  // cambia la modalità di visualizzazione (mese, settimana, giorno)
   setViewMode(mode) {
     if (mode !== this.viewMode) this.clearSelection();
     this.viewMode = mode;
@@ -139,12 +190,13 @@ const calendarRender = {
     this.dayToolbar?.classList.toggle("hidden", !isDay);
     this.btnDayBack?.classList.toggle("hidden", !isDay);
 
+    // imposta la settimana di partenza in modalità settimana
     if (isWeek) {
       const anchor =
         this.monthViewOffset === 0 ? this.today : this.getMonthViewDate();
       this.weekViewStart = this.clampWeekStart(this.getWeekStart(anchor));
     }
-
+    // imposta la data attiva in modalità giorno
     if (isDay && !this.dayViewDate) {
       this.dayViewDate = new Date(this.today);
     }
@@ -152,12 +204,14 @@ const calendarRender = {
     this.render();
   },
 
+  // decide quale vista rendere in base alla modalità corrente
   render() {
     if (this.viewMode === "month") return this.renderMonth();
     if (this.viewMode === "week") return this.renderWeek();
     return this.renderDay();
   },
 
+  // apre la vista giorno per una certa data
   openDayView(date) {
     if (this.viewMode !== "day") {
       this.previousViewMode = this.viewMode;
@@ -166,17 +220,20 @@ const calendarRender = {
     this.setViewMode("day");
   },
 
+  // cambia il giorno attivo nella vista giorno
   setDayViewDate(date) {
     this.dayViewDate = this.clampDayDate(date);
     this.renderDay();
   },
 
+  // torna alla modalità precedente dalla vista giorno
   goDayBack() {
     const target = this.previousViewMode || "month";
     this.previousViewMode = null;
     this.setViewMode(target);
   },
 
+  // limita una data (giorno) all’intervallo navigabile
   clampDayDate(date) {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
@@ -187,24 +244,29 @@ const calendarRender = {
     return d;
   },
 
+  // sposta di N giorni la data attiva (vista giorno)
   shiftDay(days) {
     const next = new Date(this.dayViewDate);
     next.setDate(next.getDate() + days);
     this.setDayViewDate(next);
   },
 
+  // va al giorno precedente nella vista giorno
   goDayPrev() {
     this.shiftDay(-1);
   },
 
+  // va al giorno successivo nella vista giorno
   goDayNext() {
     this.shiftDay(1);
   },
 
+  // torna al giorno di oggi nella vista giorno
   goDayToday() {
     this.setDayViewDate(this.today);
   },
 
+  // aggiorna stato dei bottoni (disabilita se fuori range)
   syncDayNavButtons() {
     const cur = this.dayViewDate.getTime();
     const { rangeStart, rangeEnd } = this.getNavigableRange();
@@ -217,8 +279,9 @@ const calendarRender = {
     }
   },
 
-  // navigazione mensile ------------------------------------------------------------------------------------------------
+  // navigazione mensile ------------------
 
+  // restituisce la data del primo giorno del mese visualizzato
   getMonthViewDate() {
     return new Date(
       this.today.getFullYear(),
@@ -227,6 +290,7 @@ const calendarRender = {
     );
   },
 
+  // determina se è possibile vedere il mese prossimo
   canViewNextMonth() {
     const nextMonthStart = new Date(
       this.today.getFullYear(),
@@ -238,10 +302,12 @@ const calendarRender = {
     return this.today >= threshold;
   },
 
+  // ritorna i valori min e max di offset mese navigabili
   getNavigableMonthOffsets() {
     return { min: -1, max: this.canViewNextMonth() ? 1 : 0 };
   },
 
+  // restituisce il range di date navigabili (primo e ultimo giorno)
   getNavigableRange() {
     const { min, max } = this.getNavigableMonthOffsets();
     const rangeStart = new Date(
@@ -259,14 +325,17 @@ const calendarRender = {
     return { rangeStart, rangeEnd };
   },
 
+  // restituisce data di inizio settimana minima
   getMinWeekStart() {
     return this.getWeekStart(this.getNavigableRange().rangeStart);
   },
 
+  // restituisce data di inizio settimana massima
   getMaxWeekStart() {
     return this.getWeekStart(this.getNavigableRange().rangeEnd);
   },
 
+  // limita l’inizio settimana dentro il range navigabile
   clampWeekStart(date) {
     const week = this.getWeekStart(date);
     const t = week.getTime();
@@ -277,6 +346,7 @@ const calendarRender = {
     return week;
   },
 
+  // controlla se una data è prenotabile o meno
   isBookableDate(date) {
     if (this.isBeforeDate(date, this.today)) return false;
     const { rangeEnd } = this.getNavigableRange();
@@ -285,16 +355,19 @@ const calendarRender = {
     return d.getTime() <= rangeEnd.getTime();
   },
 
+  // restituisce stato del turno per una data
   getTurnStatus(date) {
     if (this.isBeforeDate(date, this.today)) return "past";
     if (!this.isBookableDate(date)) return "locked";
     return "available";
   },
 
+  // restituisce la prenotazione per uno slot (giorno.turno) oppure null
   getSlotBooking(day, turnId) {
     return this.bookingsBySlot.get(`${day}.${turnId}`) ?? null;
   },
 
+  // restituisce tutte le prenotazioni per un giorno
   getDayBookings(day) {
     const bookings = [];
     for (const [key, booking] of this.bookingsBySlot) {
@@ -303,22 +376,83 @@ const calendarRender = {
     return bookings;
   },
 
+  // restituisce stato di uno slot (disponibile, occupato, passato, bloccato)
   getSlotStatus(date, turnId) {
-    const baseStatus = this.getTurnStatus(date);
-    if (baseStatus !== "available") return baseStatus;
     if (this.getSlotBooking(this.formatDateISO(date), turnId)) return "occupied";
+    if (this.isBeforeDate(date, this.today)) return "past";
+    if (!this.isBookableDate(date)) return "locked";
     return "available";
   },
 
+  // converte una data db (iso) in formato locale
   formatDateISOFromDb(isoDate) {
-    const [y, m, d] = isoDate.split("-");
+    const [y, m, d] = isoDate.split("T")[0].split("-");
     return `${d}.${m}.${y}`;
   },
 
-  async loadBookings(rangeStart, rangeEnd) {
-    const { getPrenotazioniByDateRange } = window.ldrDb ?? {};
-    this.bookingsBySlot.clear();
+  // genera una chiave per la cache delle prenotazioni (range)
+  getBookingsCacheKey(rangeStart, rangeEnd) {
+    return `${this.formatDateForDb(this.formatDateISO(rangeStart))}_${this.formatDateForDb(this.formatDateISO(rangeEnd))}`;
+  },
 
+  // costruisce una mappa prenotazioni a partire dai dati db
+  parseBookingsToMap(data) {
+    const map = new Map();
+
+    for (const prenotazione of data ?? []) {
+      const indice = prenotazione.Turno?.indice;
+      if (!indice || !prenotazione.data_prenotazione) continue;
+
+      const day = this.formatDateISOFromDb(prenotazione.data_prenotazione);
+      const turnId = String(indice);
+
+      map.set(`${day}.${turnId}`, {
+        id_utente: prenotazione.id_utente,
+        nome: prenotazione.Utente?.nome ?? "",
+        cognome: prenotazione.Utente?.cognome ?? "",
+        foto_profilo: prenotazione.Utente?.foto_profilo ?? null,
+      });
+    }
+
+    return map;
+  },
+
+  // applica la cache delle prenotazioni su un certo range di date
+  applyBookingsCache(rangeStart, rangeEnd) {
+    const exactKey = this.getBookingsCacheKey(rangeStart, rangeEnd);
+
+    if (this.bookingsRangeCache.has(exactKey)) {
+      this.bookingsBySlot = new Map(this.bookingsRangeCache.get(exactKey));
+      return true;
+    }
+
+    const start = this.formatDateForDb(this.formatDateISO(rangeStart));
+    const end = this.formatDateForDb(this.formatDateISO(rangeEnd));
+
+    for (const [key, map] of this.bookingsRangeCache) {
+      const [cacheStart, cacheEnd] = key.split("_");
+      if (cacheStart > start || cacheEnd < end) continue;
+
+      const filtered = new Map();
+      for (const [slotKey, booking] of map) {
+        const dayParts = slotKey.split(".");
+        const dayStr = dayParts.slice(0, 3).join(".");
+        const dbDay = this.formatDateForDb(dayStr);
+        if (dbDay >= start && dbDay <= end) {
+          filtered.set(slotKey, booking);
+        }
+      }
+
+      this.bookingsBySlot = filtered;
+      return true;
+    }
+
+    return false;
+  },
+
+  // recupera le prenotazioni dal database e aggiorna la cache
+  async fetchAndCacheBookings(rangeStart, rangeEnd, cacheKey) {
+    const { getPrenotazioniByDateRange } = window.ldrDb ?? {};
     if (!getPrenotazioniByDateRange) return;
 
     const start = this.formatDateForDb(this.formatDateISO(rangeStart));
@@ -330,45 +464,244 @@ const calendarRender = {
       return;
     }
 
-    for (const prenotazione of data ?? []) {
-      const indice = prenotazione.Turno?.indice;
-      if (!indice || !prenotazione.data_prenotazione) continue;
+    const map = this.parseBookingsToMap(data);
+    this.bookingsRangeCache.set(cacheKey, map);
+    this.bookingsBySlot = new Map(map);
+  },
 
-      const day = this.formatDateISOFromDb(prenotazione.data_prenotazione);
-      const turnId = String(indice);
+  // svuota la cache delle prenotazioni
+  invalidateBookingsCache() {
+    this.bookingsRangeCache.clear();
+    this.bookingsBySlot.clear();
+  },
 
-      this.bookingsBySlot.set(`${day}.${turnId}`, {
-        id_utente: prenotazione.id_utente,
-        nome: prenotazione.Utente?.nome ?? "",
-        cognome: prenotazione.Utente?.cognome ?? "",
-      });
+  // assicura che il db sia pronto prima di fare richieste
+  async ensureDbReady() {
+    if (window.ldrDb?.getPrenotazioniByDateRange) return;
+
+    await new Promise((resolve) => {
+      const started = performance.now();
+      const check = () => {
+        if (window.ldrDb?.getPrenotazioniByDateRange) {
+          resolve();
+          return;
+        }
+        if (performance.now() - started > 5000) {
+          resolve();
+          return;
+        }
+        requestAnimationFrame(check);
+      };
+      check();
+    });
+  },
+
+  // attiva/disattiva il loader sulla vista
+  setViewLoading(container, loading) {
+    container?.classList.toggle("calendar-view-loading", loading);
+  },
+
+  // gestisce l'animazione di entrata della vista
+  finishViewTransition(container) {
+    if (!container) return;
+    container.classList.remove("calendar-view-enter");
+    void container.offsetWidth;
+    container.classList.add("calendar-view-enter");
+  },
+
+  // crea l’elemento visuale con le faccine giorno per gli utenti prenotati
+  createBookedDayRecap(bookings) {
+    const recap = document.createElement("div");
+    recap.className = "booked-day-recap";
+    bookings.forEach((booking) => {
+      const img = document.createElement("img");
+      img.src = booking?.foto_profilo || this.stockProfilePic;
+      img.alt = "";
+      recap.appendChild(img);
+    });
+    return recap;
+  },
+
+  // crea il placeholder (scheletro) di un turno settimana durante caricamento
+  createTurnSkeleton(date, turn) {
+    const el = document.createElement("div");
+    el.className = "turn turn-skeleton";
+    el.dataset.day = this.formatDateISO(date);
+    el.dataset.turn = turn.id;
+    el.dataset.status = "loading";
+    const bar = document.createElement("span");
+    bar.className = "skeleton skeleton-turn";
+    el.appendChild(bar);
+    return el;
+  },
+
+  // crea il placeholder di un turno nella vista giorno
+  createDayTurnSkeleton(date, turn, index) {
+    const el = document.createElement("div");
+    el.className = "day-turn day-turn-skeleton";
+    el.dataset.day = this.formatDateISO(date);
+    el.dataset.turn = turn.id;
+    el.dataset.status = "loading";
+
+    const checkDiv = document.createElement("div");
+    checkDiv.className = "check-day-turn";
+    checkDiv.appendChild(Object.assign(document.createElement("span"), {
+      className: "skeleton skeleton-checkbox",
+    }));
+    checkDiv.appendChild(Object.assign(document.createElement("span"), {
+      className: "skeleton skeleton-label",
+      textContent: `${index + 1}°`,
+    }));
+
+    const timeDiv = document.createElement("div");
+    timeDiv.className = "time-day-turn";
+    timeDiv.appendChild(Object.assign(document.createElement("span"), {
+      className: "skeleton skeleton-label",
+      textContent: turn.label,
+    }));
+
+    const userDiv = document.createElement("div");
+    userDiv.className = "user-day-turn";
+    userDiv.appendChild(Object.assign(document.createElement("span"), {
+      className: "skeleton skeleton-user",
+    }));
+
+    el.append(checkDiv, timeDiv, userDiv);
+    return el;
+  },
+
+  // compila un elemento turno nella vista settimana con stato aggiornato
+  fillTurnElement(el, date, turn) {
+    const day = this.formatDateISO(date);
+    const booking = this.getSlotBooking(day, turn.id);
+    const status = this.getSlotStatus(date, turn.id);
+
+    el.className = "turn calendar-content-enter";
+    el.dataset.day = day;
+    el.dataset.turn = turn.id;
+    el.dataset.userId = booking?.id_utente ?? "";
+    el.dataset.status = status;
+    el.replaceChildren();
+
+    if (status === "available") {
+      const icon = document.createElement("i");
+      icon.setAttribute("data-lucide", "plus");
+      el.appendChild(icon);
+    } else if (status === "occupied") {
+      el.appendChild(this.createUserPreviewEl(booking));
     }
   },
 
+  // compila un elemento turno nella vista giorno
+  fillDayTurnElement(el, date, turn, index) {
+    const day = this.formatDateISO(date);
+    const booking = this.getSlotBooking(day, turn.id);
+    const status = this.getSlotStatus(date, turn.id);
+
+    el.className = "day-turn calendar-content-enter";
+    el.dataset.day = day;
+    el.dataset.turn = turn.id;
+    el.dataset.userId = booking?.id_utente ?? "";
+    el.dataset.status = status;
+    el.replaceChildren();
+
+    const checkDiv = document.createElement("div");
+    checkDiv.className = "check-day-turn";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = status === "occupied";
+    checkbox.tabIndex = -1;
+
+    const orderSpan = document.createElement("span");
+    orderSpan.textContent = `${index + 1}°`;
+    checkDiv.append(checkbox, orderSpan);
+
+    const timeDiv = document.createElement("div");
+    timeDiv.className = "time-day-turn";
+    const timeSpan = document.createElement("span");
+    timeSpan.textContent = turn.label;
+    timeDiv.appendChild(timeSpan);
+
+    const userDiv = document.createElement("div");
+    userDiv.className = "user-day-turn";
+
+    if (status === "available") {
+      const icon = document.createElement("i");
+      icon.setAttribute("data-lucide", "plus");
+      userDiv.appendChild(icon);
+    } else if (status === "occupied") {
+      userDiv.appendChild(this.createUserPreviewEl(booking));
+    }
+
+    el.append(checkDiv, timeDiv, userDiv);
+  },
+
+  // aggiorna la visualizzazione delle prenotazioni nel mese dopo caricamento dal db
+  updateMonthBookings(rowsEl) {
+    rowsEl?.querySelectorAll(".calendar-day").forEach((el) => {
+      el.querySelector(".booked-day-recap")?.remove();
+      const bookings = this.getDayBookings(el.dataset.date);
+      if (bookings.length) {
+        el.appendChild(this.createBookedDayRecap(bookings));
+      }
+    });
+  },
+
+  // ripopola i turni settimana col dato aggiornato delle prenotazioni
+  hydrateWeekTurns(days) {
+    days.forEach((date) => {
+      const day = this.formatDateISO(date);
+      this.turns.forEach((turn) => {
+        const el = document.querySelector(
+          `.turn[data-day="${day}"][data-turn="${turn.id}"]`,
+        );
+        if (el) this.fillTurnElement(el, date, turn);
+      });
+    });
+  },
+
+  // ripopola i turni giorno col dato aggiornato delle prenotazioni
+  hydrateDayTurns(date) {
+    const day = this.formatDateISO(date);
+    this.turns.forEach((turn, i) => {
+      const el = document.querySelector(
+        `.day-turn[data-day="${day}"][data-turn="${turn.id}"]`,
+      );
+      if (el) this.fillDayTurnElement(el, date, turn, i);
+    });
+  },
+
+  // controlla se un offset mese è valido
   isValidMonthOffset(offset) {
     if (offset === -1 || offset === 0) return true;
     if (offset === 1) return this.canViewNextMonth();
     return false;
   },
 
+  // cambia il mese visualizzato
   setMonthViewOffset(offset) {
     if (!this.isValidMonthOffset(offset)) return;
     this.monthViewOffset = offset;
     this.renderMonth();
   },
 
+  // passa al mese precedente
   goMonthPrev() {
     this.setMonthViewOffset(this.monthViewOffset - 1);
   },
 
+  // passa al mese successivo
   goMonthNext() {
     this.setMonthViewOffset(this.monthViewOffset + 1);
   },
 
+  // torna al mese corrente
   goMonthToday() {
     this.setMonthViewOffset(0);
   },
 
+  // aggiorna lo stato dei bottoni di navigazione mese
   syncMonthNavButtons() {
     const canSeeNext = this.canViewNextMonth();
     if (this.btnMonthPrev) {
@@ -381,7 +714,10 @@ const calendarRender = {
     }
   },
 
+  // renderizza la vista mese, comprese le prenotazioni
   async renderMonth() {
+    const gen = ++this.renderGeneration;
+
     if (this.monthViewOffset === 1 && !this.canViewNextMonth()) {
       this.monthViewOffset = 0;
     }
@@ -398,8 +734,11 @@ const calendarRender = {
     const rowsEl = document.getElementById("calendar-rows");
     if (!rowsEl) return;
 
+    // crea la griglia dei giorni visualizzati (anche giorni extra mese)
     const cells = this.buildMonthGrid(year, month);
-    await this.loadBookings(cells[0], cells[cells.length - 1]);
+    const cacheKey = this.getBookingsCacheKey(cells[0], cells[cells.length - 1]);
+    const hasCache = this.applyBookingsCache(cells[0], cells[cells.length - 1]);
+
     rowsEl.replaceChildren();
 
     for (let i = 0; i < cells.length; i += 7) {
@@ -412,8 +751,18 @@ const calendarRender = {
     }
 
     this.syncMonthNavButtons();
+    this.finishViewTransition(rowsEl);
+
+    if (hasCache) return;
+
+    await this.ensureDbReady();
+    await this.fetchAndCacheBookings(cells[0], cells[cells.length - 1], cacheKey);
+    if (gen !== this.renderGeneration) return;
+
+    this.updateMonthBookings(rowsEl);
   },
 
+  // costruisce la lista dei giorni da mostrare nella griglia mese
   buildMonthGrid(year, month) {
     const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -436,6 +785,7 @@ const calendarRender = {
     return cells;
   },
 
+  // crea un elemento giorno del calendario per la vista mese
   createDayElement(date, viewMonth, today) {
     const el = document.createElement("div");
     const isCurrentMonth = date.getMonth() === viewMonth;
@@ -459,25 +809,17 @@ const calendarRender = {
     span.textContent = String(date.getDate());
     el.appendChild(span);
 
-    const dayStr = this.formatDateISO(date);
-    const bookings = this.getDayBookings(dayStr);
+    const bookings = this.getDayBookings(this.formatDateISO(date));
     if (bookings.length) {
-      const recap = document.createElement("div");
-      recap.className = "booked-day-recap";
-      bookings.forEach(() => {
-        const img = document.createElement("img");
-        img.src = this.stockProfilePic;
-        img.alt = "";
-        recap.appendChild(img);
-      });
-      el.appendChild(recap);
+      el.appendChild(this.createBookedDayRecap(bookings));
     }
 
     return el;
   },
 
-  // navigazione settimanale ----------------------------------------------------------------------------------------
+  // navigazione settimanale ------------------
 
+  // restituisce il primo giorno della settimana di una data
   getWeekStart(date) {
     const d = new Date(date);
     const weekday = (d.getDay() + 6) % 7;
@@ -486,6 +828,7 @@ const calendarRender = {
     return d;
   },
 
+  // sposta la settimana visualizzata avanti o indietro di N giorni
   shiftWeekStart(days) {
     const next = new Date(this.weekViewStart);
     next.setDate(next.getDate() + days);
@@ -493,19 +836,23 @@ const calendarRender = {
     this.renderWeek();
   },
 
+  // vai alla settimana precedente
   goWeekPrev() {
     this.shiftWeekStart(-7);
   },
 
+  // vai alla settimana successiva
   goWeekNext() {
     this.shiftWeekStart(7);
   },
 
+  // torna alla settimana corrente
   goWeekToday() {
     this.weekViewStart = this.clampWeekStart(this.getWeekStart(this.today));
     this.renderWeek();
   },
 
+  // aggiorna lo stato dei bottoni settimana
   syncWeekNavButtons() {
     const cur = this.weekViewStart.getTime();
     const min = this.getMinWeekStart().getTime();
@@ -519,7 +866,9 @@ const calendarRender = {
     }
   },
 
+  // renderizza la vista settimana, prenotazioni comprese
   async renderWeek() {
+    const gen = ++this.renderGeneration;
     this.weekViewStart = this.clampWeekStart(this.weekViewStart);
 
     const weekStart = this.weekViewStart;
@@ -529,19 +878,36 @@ const calendarRender = {
       return d;
     });
 
-    await this.loadBookings(days[0], days[6]);
+    const cacheKey = this.getBookingsCacheKey(days[0], days[6]);
+    const hasCache = this.applyBookingsCache(days[0], days[6]);
 
     if (this.titleEl) {
       this.titleEl.textContent = this.formatWeekTitle(days[0], days[6]);
     }
 
     this.renderWeekColumns(days);
-    this.renderWeekTurns(days);
+    this.renderWeekTurns(days, { loading: !hasCache });
     this.syncWeekNavButtons();
+    this.setViewLoading(this.weekContainer, !hasCache);
+
+    if (hasCache) {
+      this.restoreSelection();
+      this.finishViewTransition(this.weekContainer);
+      if (typeof lucide !== "undefined") lucide.createIcons();
+      return;
+    }
+
+    await this.fetchAndCacheBookings(days[0], days[6], cacheKey);
+    if (gen !== this.renderGeneration) return;
+
+    this.hydrateWeekTurns(days);
+    this.setViewLoading(this.weekContainer, false);
+    this.finishViewTransition(this.weekContainer);
     this.restoreSelection();
     if (typeof lucide !== "undefined") lucide.createIcons();
   },
 
+  // costruisce le intestazioni dei giorni nella vista settimana
   renderWeekColumns(days) {
     const columnsEl = document.getElementById("week-calendar-columns");
     if (!columnsEl) return;
@@ -574,7 +940,8 @@ const calendarRender = {
     });
   },
 
-  renderWeekTurns(days) {
+  // crea e popola le colonne dei turni settimanali
+  renderWeekTurns(days, { loading = false } = {}) {
     const turnsEl = document.getElementById("week-calendar-turns");
     if (!turnsEl) return;
     turnsEl.replaceChildren();
@@ -583,7 +950,7 @@ const calendarRender = {
     schedulesEl.id = "week-schedules";
     schedulesEl.className = "week-calendar-day";
 
-    WEEK_TURNS.forEach((turn) => {
+    this.turns.forEach((turn) => {
       const schedDiv = document.createElement("div");
       schedDiv.className = "schedule";
       const span = document.createElement("span");
@@ -603,64 +970,62 @@ const calendarRender = {
       if (dayStatus === "past") col.classList.add("past");
       if (dayStatus === "locked") col.classList.add("locked");
 
-      WEEK_TURNS.forEach((turn) => {
-        col.appendChild(this.createTurnElement(date, turn));
+      this.turns.forEach((turn) => {
+        col.appendChild(
+          loading
+            ? this.createTurnSkeleton(date, turn)
+            : this.createTurnElement(date, turn),
+        );
       });
 
       turnsEl.appendChild(col);
     });
   },
 
+  // crea un nuovo elemento turno per la settimana
   createTurnElement(date, turn) {
-    const day = this.formatDateISO(date);
-    const booking = this.getSlotBooking(day, turn.id);
-    const status = this.getSlotStatus(date, turn.id);
-
     const el = document.createElement("div");
-    el.className = "turn";
-    el.dataset.day = day;
-    el.dataset.turn = turn.id;
-    el.dataset.userId = booking?.id_utente ?? "";
-    el.dataset.status = status;
-
-    if (status === "available") {
-      const icon = document.createElement("i");
-      icon.setAttribute("data-lucide", "plus");
-      el.appendChild(icon);
-    } else if (status === "occupied") {
-      el.appendChild(this.createUserPreviewEl(booking));
-    }
-
+    this.fillTurnElement(el, date, turn);
     return el;
   },
 
-  // navigazione giornaliera ----------------------------------------------------------------------------------------
+  // navigazione giornaliera ------------------
 
+  // renderizza la vista giorno, completa di turni e stato prenotazioni
   async renderDay() {
+    const gen = ++this.renderGeneration;
     this.dayViewDate = this.clampDayDate(this.dayViewDate);
 
     const date = this.dayViewDate;
-    await this.loadBookings(date, date);
-
-    const weekStart = this.getWeekStart(date);
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(weekStart);
-      d.setDate(d.getDate() + i);
-      return d;
-    });
+    const cacheKey = this.getBookingsCacheKey(date, date);
+    const hasCache = this.applyBookingsCache(date, date);
 
     if (this.titleEl) {
       this.titleEl.textContent = this.formatDayTitle(date);
     }
 
-    // this.renderDayColumns(days);
-    this.renderDayTurns(date);
+    this.renderDayTurns(date, { loading: !hasCache });
     this.syncDayNavButtons();
+    this.setViewLoading(this.dayContainer, !hasCache);
 
+    if (hasCache) {
+      this.restoreSelection();
+      this.finishViewTransition(this.dayContainer);
+      if (typeof lucide !== "undefined") lucide.createIcons();
+      return;
+    }
+
+    await this.fetchAndCacheBookings(date, date, cacheKey);
+    if (gen !== this.renderGeneration) return;
+
+    this.hydrateDayTurns(date);
+    this.setViewLoading(this.dayContainer, false);
+    this.finishViewTransition(this.dayContainer);
     this.restoreSelection();
     if (typeof lucide !== "undefined") lucide.createIcons();
   },
 
+  // crea le intestazioni dei giorni nella vista giorno
   renderDayColumns(days) {
     const columnsEl = document.getElementById("day-calendar-columns");
     if (!columnsEl) return;
@@ -689,63 +1054,30 @@ const calendarRender = {
     });
   },
 
-  renderDayTurns(date) {
+  // crea e popola la lista dei turni nella vista giorno
+  renderDayTurns(date, { loading = false } = {}) {
     const turnsEl = document.getElementById("day-schedules");
     if (!turnsEl) return;
 
     turnsEl.replaceChildren();
 
-    WEEK_TURNS.forEach((turn, i) => {
-      turnsEl.appendChild(this.createDayTurnElement(date, turn, i));
+    this.turns.forEach((turn, i) => {
+      turnsEl.appendChild(
+        loading
+          ? this.createDayTurnSkeleton(date, turn, i)
+          : this.createDayTurnElement(date, turn, i),
+      );
     });
   },
 
+  // crea un nuovo elemento turno per la vista giorno
   createDayTurnElement(date, turn, index) {
-    const day = this.formatDateISO(date);
-    const booking = this.getSlotBooking(day, turn.id);
-    const status = this.getSlotStatus(date, turn.id);
-
     const el = document.createElement("div");
-    el.className = "day-turn";
-    el.dataset.day = day;
-    el.dataset.turn = turn.id;
-    el.dataset.userId = booking?.id_utente ?? "";
-    el.dataset.status = status;
-
-    const checkDiv = document.createElement("div");
-    checkDiv.className = "check-day-turn";
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = status === "occupied";
-    checkbox.tabIndex = -1;
-
-    const orderSpan = document.createElement("span");
-    orderSpan.textContent = `${index + 1}°`;
-
-    checkDiv.append(checkbox, orderSpan);
-
-    const timeDiv = document.createElement("div");
-    timeDiv.className = "time-day-turn";
-    const timeSpan = document.createElement("span");
-    timeSpan.textContent = turn.label;
-    timeDiv.appendChild(timeSpan);
-
-    const userDiv = document.createElement("div");
-    userDiv.className = "user-day-turn";
-
-    if (status === "available") {
-      const icon = document.createElement("i");
-      icon.setAttribute("data-lucide", "plus");
-      userDiv.appendChild(icon);
-    } else if (status === "occupied") {
-      userDiv.appendChild(this.createUserPreviewEl(booking));
-    }
-
-    el.append(checkDiv, timeDiv, userDiv);
+    this.fillDayTurnElement(el, date, turn, index);
     return el;
   },
 
+  // formatta il titolo della vista giorno (es. 'Lunedì 3 Giugno 2024')
   formatDayTitle(date) {
     const weekday = WEEKDAYS_FULL[(date.getDay() + 6) % 7];
     const weekdayLabel = weekday.charAt(0).toUpperCase() + weekday.slice(1);
@@ -756,12 +1088,14 @@ const calendarRender = {
     return base;
   },
 
+  // controlla se la data è domani
   isTomorrow(date) {
     const tomorrow = new Date(this.today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     return this.isSameDate(date, tomorrow);
   },
 
+  // formatta il titolo della vista settimana (adatta a mesi diversi)
   formatWeekTitle(start, end) {
     const sameMonth =
       start.getMonth() === end.getMonth() &&
@@ -774,33 +1108,40 @@ const calendarRender = {
     return `${start.getDate()} ${MONTHS[start.getMonth()]} – ${end.getDate()} ${MONTHS[end.getMonth()]} ${end.getFullYear()}`;
   },
 
-  // prenotazioni ------------------------------------------------------------------------------------
+  // prenotazioni ------------------
 
+  // controlla se uno slot è selezionato nella selezione attuale
   isSlotSelected(day, turnId) {
     return this.selectedSlots.some(
       (s) => s.day === day && s.turnId === turnId,
     );
   },
 
+  // restituisce il nome breve utente (es. 'L. Rossi')
   formatUserShortName(profilo) {
     if (!profilo?.nome || !profilo?.cognome) return "";
     const initial = profilo.nome.charAt(0).toUpperCase();
     return `${initial}. ${profilo.cognome}`;
   },
 
+  // converte la data da formato locale (gg.mm.aaaa) a db (aaaa-mm-gg)
   formatDateForDb(dayStr) {
     const [d, m, y] = dayStr.split(".");
     return `${y}-${m}-${d}`;
   },
 
-  createUserPreviewEl(profilo) {
+  // crea il preview utente con immagine e nome breve
+  createUserPreviewEl(profilo, { animate = false } = {}) {
     const user = profilo ?? window.ldrProfilo;
     const container = document.createElement("div");
-    container.className = "horizontal-container";
+    container.className = animate
+      ? "horizontal-container user-preview-enter"
+      : "horizontal-container";
 
     const img = document.createElement("img");
     img.className = "profile-pic";
-    img.src = this.stockProfilePic;
+    // usa la foto del profilo specifico o lo stock di default
+    img.src = user?.foto_profilo || this.stockProfilePic;
     img.alt = "";
 
     const nameSpan = document.createElement("span");
@@ -810,7 +1151,8 @@ const calendarRender = {
     return container;
   },
 
-  markSlotSelected(turnEl) {
+  // marcare uno slot come selezionato nella ui
+  markSlotSelected(turnEl, { animate = true } = {}) {
     turnEl.classList.add("selected");
 
     const input = turnEl.querySelector('input[type="checkbox"]');
@@ -818,15 +1160,16 @@ const calendarRender = {
 
     const userDiv = turnEl.querySelector(".user-day-turn");
     if (userDiv) {
-      userDiv.replaceChildren(this.createUserPreviewEl());
+      userDiv.replaceChildren(this.createUserPreviewEl(null, { animate }));
       return;
     }
 
     if (turnEl.classList.contains("turn")) {
-      turnEl.replaceChildren(this.createUserPreviewEl());
+      turnEl.replaceChildren(this.createUserPreviewEl(null, { animate }));
     }
   },
 
+  // deselezionare uno slot (rimuovere stato e icona/nome)
   markSlotDeselected(turnEl) {
     turnEl.classList.remove("selected");
 
@@ -852,6 +1195,7 @@ const calendarRender = {
     }
   },
 
+  // gestisce il click su uno slot e aggiorna la selezione
   selectSlot(turnEl) {
     const day = turnEl.dataset.day;
     const turnId = turnEl.dataset.turn;
@@ -874,31 +1218,65 @@ const calendarRender = {
     }
   },
 
+  // deseleziona visivamente tutti gli slot selezionati
   clearSelectionVisual() {
     document
       .querySelectorAll(".day-turn.selected, .turn.selected")
       .forEach((el) => this.markSlotDeselected(el));
   },
 
+  // svuota la selezione corrente e la barra
   clearSelection() {
     this.clearSelectionVisual();
     this.selectedSlots = [];
     this.hideBookingBar();
   },
 
+  // mostra la barra di conferma prenotazione
   showBookingBar() {
-    this.bookingBar?.classList.remove("hidden");
-    this.bookingBar?.setAttribute("aria-hidden", "false");
+    if (!this.bookingBar) return;
+
+    const alreadyVisible = this.bookingBar.classList.contains("is-visible");
+
+    this.bookingBar.classList.remove("hidden");
+    this.bookingBar.setAttribute("aria-hidden", "false");
     document.body.classList.add("booking-active");
+
+    if (!alreadyVisible) {
+      requestAnimationFrame(() => {
+        this.bookingBar?.classList.add("is-visible");
+      });
+    }
+
     if (typeof lucide !== "undefined") lucide.createIcons();
   },
 
+  // nasconde la barra di conferma prenotazione
   hideBookingBar() {
-    this.bookingBar?.classList.add("hidden");
-    this.bookingBar?.setAttribute("aria-hidden", "true");
+    if (!this.bookingBar) return;
+
+    this.bookingBar.classList.remove("is-visible");
+    this.bookingBar.setAttribute("aria-hidden", "true");
     document.body.classList.remove("booking-active");
+
+    const bar = this.bookingBar;
+    const onEnd = (e) => {
+      if (e.target !== bar || e.propertyName !== "transform") return;
+      bar.removeEventListener("transitionend", onEnd);
+      if (!bar.classList.contains("is-visible")) {
+        bar.classList.add("hidden");
+      }
+    };
+
+    bar.addEventListener("transitionend", onEnd);
+    setTimeout(() => {
+      if (!bar.classList.contains("is-visible")) {
+        bar.classList.add("hidden");
+      }
+    }, 400);
   },
 
+  // ripristina la selezione dopo un cambiamento di vista/render
   restoreSelection() {
     if (!this.selectedSlots.length) return;
 
@@ -912,7 +1290,7 @@ const calendarRender = {
       const el = document.querySelector(selector);
 
       if (el?.dataset.status === "available") {
-        this.markSlotSelected(el);
+        this.markSlotSelected(el, { animate: false });
         remaining.push({ day, turnId });
       }
     });
@@ -923,6 +1301,7 @@ const calendarRender = {
     else this.hideBookingBar();
   },
 
+  // effettua la conferma delle prenotazioni sugli slot selezionati
   async confirmBooking() {
     if (!this.selectedSlots.length || this.btnBookingConfirm?.disabled) return;
 
@@ -940,6 +1319,7 @@ const calendarRender = {
 
     this.btnBookingConfirm.disabled = true;
 
+    // prende gli indici dei turni selezionati, senza duplicati
     const indici = [
       ...new Set(this.selectedSlots.map((s) => parseInt(s.turnId, 10))),
     ];
@@ -955,6 +1335,7 @@ const calendarRender = {
     const turnoByIndice = new Map(turni.map((t) => [t.indice, t.id_turno]));
     const prenotazioni = [];
 
+    // prepara le prenotazioni
     for (const slot of this.selectedSlots) {
       const indice = parseInt(slot.turnId, 10);
       const id_turno = turnoByIndice.get(indice);
@@ -970,6 +1351,7 @@ const calendarRender = {
       });
     }
 
+    // crea le prenotazioni nel db
     const { error } = await createPrenotazioni(prenotazioni);
 
     this.btnBookingConfirm.disabled = false;
@@ -980,12 +1362,16 @@ const calendarRender = {
       return;
     }
 
+    // aggiorna tutto dopo la prenotazione
     this.clearSelection();
+    this.invalidateBookingsCache();
+    window.ldrBookings?.refresh();
     this.render();
   },
 
-  // funzioni utili ----------------------------------------------------------------------------------------
+  // funzioni utili ------------------
 
+  // controlla se due date sono lo stesso giorno
   isSameDate(a, b) {
     return (
       a.getFullYear() === b.getFullYear() &&
@@ -994,12 +1380,14 @@ const calendarRender = {
     );
   },
 
+  // controlla se una data è prima di un riferimento (solo data, no ora)
   isBeforeDate(date, ref) {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
     return d < ref;
   },
 
+  // formatta data oggetto in stringa 'gg.mm.aaaa'
   formatDateISO(date) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -1007,10 +1395,13 @@ const calendarRender = {
     return `${d}.${m}.${y}`;
   },
 
+  // trasforma 'gg.mm.aaaa' in oggetto Date
   parseDateISO(iso) {
     const [d, m, y] = iso.split(".").map(Number);
     return new Date(y, m - 1, d);
   },
 };
 
+// avvia il calendario al caricamento della pagina
 document.addEventListener("DOMContentLoaded", () => calendarRender.init());
+window.calendarRender = calendarRender;

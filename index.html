@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -43,7 +43,7 @@
             <!-- prenotazioni -->
             <button class="w-text" data-modal="le-mie-prenotazioni">
                 <i data-lucide="calendar-clock"></i>
-                <span>0/7</span>
+                <span data-booking-count>0/7</span>
             </button>
 
             <!-- inbox -->
@@ -53,7 +53,7 @@
 
             <!-- profilo utente -->
             <button data-modal="account" class="no-style">
-                <img class="profile-pic" src="/src/img/yellow-profile-picture.webp" alt="">
+                <img class="profile-pic" data-profile-pic src="/src/img/yellow-profile-picture.webp" alt="">
             </button>
 
         </div>
@@ -63,8 +63,8 @@
 
             <div id="modal-le-mie-prenotazioni" class="modal">
                 <div class="modal-header auto-gap">
-                    <span class="modal-title">Le mie prenotazioni</span>
-                    <span class="modal-subtitle">0/7</span>
+                    <span class="modal-title">Le mie renotazioni</span>
+                    <span class="modal-subtitle" data-booking-count>0/7</span>
                 </div>
                 <div class="lista-notifiche">
                     <span class="modal-advise disabled">
@@ -103,12 +103,12 @@
     <nav>
 
         <div class="horizontal-container">
-            <button class="w-text active">
+            <button type="button" class="w-text active" data-main-view="calendar">
                 <span>Calendario</span>
             </button>
     
-            <button class="w-text">
-                <span>Le mie prenotazioni</span>
+            <button type="button" class="w-text" data-main-view="bookings">
+                <span>Prenotazioni</span>
             </button>
         </div>
 
@@ -249,12 +249,15 @@
 
             <div id="day-calendar-container" class="hidden">
 
-                <!-- colonne del calendario -->
-                <!-- <div id="day-calendar-columns"></div> -->
-
                 <div id="day-schedules" class="day-calendar"></div>
 
             </div>
+
+        <!-- vista "le mie prenotazioni" -->
+        <div id="my-bookings" class="hidden"></div>
+
+        <!-- impostazioni account utente -->
+        <div id="account-settings" class="hidden"></div>
 
     </main>
 
@@ -351,6 +354,48 @@
                     <i data-lucide="plus"></i>
                     <span>Conferma prenotazione</span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- modifica turno -->
+    <div id="modal-modifica-prenotazione" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+                <span class="modal-title">Modifica la prenotazione</span>
+                <span class="modal-subtitle">Dettagli turno e opzioni di modifica</span>
+            </div>
+            <div class="full-modal-content">
+                <div class="form-block">
+                    <label for="modifica-turno-data"><span>Data</span></label>
+                    <input id="modifica-turno-data" name="data" type="text" readonly>
+                </div>
+                <div class="form-block">
+                    <label for="modifica-turno-orario"><span>Turno</span></label>
+                    <input id="modifica-turno-orario" name="turno" type="text" readonly>
+                </div>
+
+                <div class="form-block">
+                    <label for="modifica-turno-cedi"><span>Cedi turno a</span></label>
+                    <select id="modifica-turno-cedi" name="cedi">
+                        <option value="" selected>Seleziona utente</option>
+                        <!-- Popolato dinamicamente con la lista degli utenti -->
+                    </select>
+                    <button type="button" class="w-text" id="btn-cedi-turno" disabled>
+                        <i data-lucide="swap"></i>
+                        <span>Cedi turno</span>
+                    </button>
+                </div>
+
+                <div class="form-block" style="margin-top: 1.5em;">
+                    <button type="button" class="w-text danger" id="btn-rinuncia-turno">
+                        <i data-lucide="calendar-off"></i>
+                        <span>Rinuncia turno</span>
+                    </button>
+                </div>
+            </div>
+            <div class="full-modal-footer">
+                <button type="button" class="w-text" data-modal="close-modal">Annulla</button>
             </div>
         </div>
     </div>
