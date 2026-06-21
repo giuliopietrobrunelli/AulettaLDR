@@ -43,7 +43,7 @@
             <!-- prenotazioni -->
             <button class="w-text" data-modal="le-mie-prenotazioni">
                 <i data-lucide="calendar-clock"></i>
-                <span data-booking-count>0/7</span>
+                <span data-booking-count="">0/7</span>
             </button>
 
             <!-- inbox -->
@@ -63,7 +63,7 @@
 
             <div id="modal-le-mie-prenotazioni" class="modal">
                 <div class="modal-header auto-gap">
-                    <span class="modal-title">Le mie renotazioni</span>
+                    <span class="modal-title">Le mie prenotazioni</span>
                     <span class="modal-subtitle" data-booking-count>0/7</span>
                 </div>
                 <div class="lista-notifiche">
@@ -358,44 +358,83 @@
         </div>
     </div>
 
-    <!-- modifica turno -->
+    <!-- Modifica Turno -->
     <div id="modal-modifica-prenotazione" class="full-modal">
         <div class="full-modal-body">
             <div class="modal-header">
-                <span class="modal-title">Modifica la prenotazione</span>
-                <span class="modal-subtitle">Dettagli turno e opzioni di modifica</span>
+                <span class="modal-title">Modifica la Prenotazione</span>
+                <span class="modal-subtitle">Dettagli del Turno e Opzioni di Modifica</span>
             </div>
-            <div class="full-modal-content">
+
+            <!-- Informazioni Prenotazione -->
+            <div class="form-section">
                 <div class="form-block">
-                    <label for="modifica-turno-data"><span>Data</span></label>
-                    <input id="modifica-turno-data" name="data" type="text" readonly>
-                </div>
-                <div class="form-block">
-                    <label for="modifica-turno-orario"><span>Turno</span></label>
-                    <input id="modifica-turno-orario" name="turno" type="text" readonly>
+                    <label for="modifica-turno-data"><span>Data:</span></label>
+                    <input id="modifica-turno-data" name="data" type="text" readonly="readonly" tabindex="-1" style="pointer-events:none; background-color:#f5f5f5;">
                 </div>
 
                 <div class="form-block">
-                    <label for="modifica-turno-cedi"><span>Cedi turno a</span></label>
+                    <label for="modifica-turno-orario"><span>Turno:</span></label>
+                    <input id="modifica-turno-orario" name="turno" type="text" readonly="readonly" tabindex="-1" style="pointer-events:none; background-color:#f5f5f5;">
+                </div>
+            </div>
+
+            <!-- Azioni -->
+            <div class="form-section">
+                <div class="form-block">
+                    <label for="modifica-turno-cedi"><span>Cedi Turno a:</span></label>
                     <select id="modifica-turno-cedi" name="cedi">
                         <option value="" selected>Seleziona utente</option>
-                        <!-- Popolato dinamicamente con la lista degli utenti -->
                     </select>
-                    <button type="button" class="w-text" id="btn-cedi-turno" disabled>
-                        <i data-lucide="swap"></i>
-                        <span>Cedi turno</span>
-                    </button>
                 </div>
+                <button type="button" class="w-text action-btn" id="btn-cedi-turno" disabled>
+                    <i data-lucide="handshake"></i> Cedi Turno
+                </button>
+            </div>
 
-                <div class="form-block" style="margin-top: 1.5em;">
-                    <button type="button" class="w-text danger" id="btn-rinuncia-turno">
-                        <i data-lucide="calendar-off"></i>
-                        <span>Rinuncia turno</span>
-                    </button>
+            <!-- Bottone Rinuncia Turno -->
+            <div class="form-section">
+                <label for="btn-rinuncia-turno"><span>Rinuncia al tuo turno</span></label>
+                <button type="button" class="w-text danger" id="btn-rinuncia-turno">
+                    <i data-lucide="calendar-off"></i> Rinuncia Turno
+                </button>
+            </div>
+
+            <!-- Footer Modale -->
+            <div class="full-modal-footer">
+                <button type="button" class="w-text button-secondary" data-modal="close-modal">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prenotazione avvenuta con successo -->
+    <div id="modal-booking-success" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header result-modal-header">
+                <div class="horizontal-container">
+                    <i data-lucide="check"></i>
+                    <span class="modal-big-title">Prenotazione effettuata con successo</span>
+                </div>
+            </div>
+            <div class="full-modal-content" id="booking-summary-list">
+            </div>
+            <div class="full-modal-footer">
+                <button type="button" class="w-text" data-modal="close-modal">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Limite prenotazioni settimanali raggiunto -->
+    <div id="modal-booking-denied" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header result-modal-header">
+                <div class="horizontal-container">
+                    <i data-lucide="x"></i>
+                    <span class="modal-big-title">Limite prenotazioni settimanali raggiunto</span>
                 </div>
             </div>
             <div class="full-modal-footer">
-                <button type="button" class="w-text" data-modal="close-modal">Annulla</button>
+                <button type="button" class="w-text" data-modal="close-modal">Chiudi</button>
             </div>
         </div>
     </div>

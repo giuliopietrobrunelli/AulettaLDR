@@ -570,15 +570,20 @@ main {
     opacity: .2;
 }
 
-.day-turn[data-status="available"] {
+.day-turn[data-status="available"],
+.day-turn[data-status="auto-confirm"] {
     cursor: pointer;
 }
 .day-turn[data-status="available"]:hover .check-day-turn,
 .day-turn[data-status="available"]:hover .time-day-turn,
-.day-turn[data-status="available"]:hover .user-day-turn {
+.day-turn[data-status="available"]:hover .user-day-turn,
+.day-turn[data-status="auto-confirm"]:hover .check-day-turn,
+.day-turn[data-status="auto-confirm"]:hover .time-day-turn,
+.day-turn[data-status="auto-confirm"]:hover .user-day-turn {
     background-color: var(--gray);
 }
-.day-turn[data-status="available"]:hover .user-day-turn .lucide {
+.day-turn[data-status="available"]:hover .user-day-turn .lucide,
+.day-turn[data-status="auto-confirm"]:hover .user-day-turn .lucide {
     opacity: .6 !important;
 }
 .day-turn[data-status="past"],
@@ -779,12 +784,6 @@ main {
     justify-content: flex-end;
 }
 
-body.booking-active {
-    padding-bottom: 80px;
-    transition: padding-bottom 0.38s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-
 /* Footer */
 
 footer {
@@ -844,6 +843,30 @@ footer {
     justify-content: space-between;
 }
 
+.modal-header.result-modal-header {
+    justify-content: center;
+    align-items: center;
+    background-color: var(--black-2);
+    background-size: 20px 20px;
+    background-color: var(--aula);
+    opacity: 1;
+    background-image: linear-gradient(var(--black-3) 1px, transparent 1px), linear-gradient(to right, var(--black-3) 1px, var(--aula) 1px);
+}
+
+.modal-header.result-modal-header .lucide {
+    background-color: var(--aula);
+    padding: 4px;
+}
+
+.modal-big-title {
+    font-size: 16px;
+    color: var(--black);
+    font-style: italic;
+    font-weight: 400;
+    background: var(--aula);
+    padding: 5px 8px;
+}
+
 .modal-title {
     font-size: 12px;
     font-weight: 500;
@@ -901,6 +924,31 @@ footer {
     width: 14px;
     height: 14px;
     color: var(--white-2);
+}
+
+.booking-week-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 10px;
+}
+.booking-week-row span {
+    color: var(--white);
+    font-size: 12px;
+}
+.booking-week-row.past {
+    opacity: .5;
+}
+  
+.booking-week-count.full {
+    color: var(--aula);
+    font-weight: 600;
+}
+
+#modal-le-mie-prenotazioni .lista-notifiche {
+    padding-block: 8px;
+    padding-inline: 6px;
+    box-sizing: border-box;
 }
 
 /* Modali a schemo intero */
@@ -1046,6 +1094,17 @@ footer {
     width: 1000px;
 }
 
+.form-section {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 20px;
+    gap: 5px;
+}
+
+#modifica-turno-cedi {
+    width: 100%;
+}
+
 #login-form, #register-form, #set-password-form {
     width: 450px;
     max-width: 100%;
@@ -1112,6 +1171,9 @@ input:focus {
     border: .5px solid var(--black);
     outline: none;
 }
+input[type="checkbox"] {
+    width: fit-content;
+}
 
 .form-error {
     width: 100%;
@@ -1148,6 +1210,11 @@ input:focus {
     font-size: 24px;
     width: 100%;
     margin-block: 5px;
+}
+
+.booking-summary-row {
+    display: flex;
+    justify-content: space-between;
 }
 
 .reservation-card {
@@ -1231,11 +1298,16 @@ input:focus {
     opacity: .6;
 }
 
+.account-section-indicator {
+    font-size: 24px;
+}
+
 .account-info-section {
     width: 100%;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    margin-bottom: 20px;
 }
 
 .account-field.readonly label {
@@ -1264,8 +1336,8 @@ input:focus {
 }
 
 .account-profile-pic {
-    width: 72px;
-    height: 72px;
+    width: 50px;
+    height: 50px;
 }
 
 .account-message {

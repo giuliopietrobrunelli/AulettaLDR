@@ -51,7 +51,7 @@ const calendarRender = {
   // generazione di rendering, per gestire eventuale asincronia
   renderGeneration: 0,
   // immagine di profilo di default usata quando non ci sono altre foto
-  stockProfilePic: "/src/img/yellow-profile-picture.webp",
+  stockProfilePic: "/src/img/default-profile-picture.webp",
   // array dei turni disponibili, caricati dal db
   turns: [],
 
@@ -124,7 +124,7 @@ const calendarRender = {
         this.openDayView(this.parseDateISO(header.dataset.date));
         return;
       }
-      const turn = e.target.closest('.turn[data-status="available"]');
+      const turn = e.target.closest('.turn[data-status="available"], .turn[data-status="auto-confirm"]');
       if (turn) this.selectSlot(turn);
     });
 
@@ -135,7 +135,7 @@ const calendarRender = {
         this.setDayViewDate(this.parseDateISO(header.dataset.date));
         return;
       }
-      const turn = e.target.closest('.day-turn[data-status="available"]');
+      const turn = e.target.closest('.day-turn[data-status="available"], .day-turn[data-status="auto-confirm"]');
       if (turn) this.selectSlot(turn);
     });
 
@@ -159,6 +159,8 @@ const calendarRender = {
     this.turns = data.map((t) => ({
       id: String(t.indice),
       label: this.formatTurnLabel(t),
+      orario_inizio: t.orario_inizio,
+      orario_fine: t.orario_fine,
     }));
   },
 
@@ -381,6 +383,17 @@ const calendarRender = {
     if (this.getSlotBooking(this.formatDateISO(date), turnId)) return "occupied";
     if (this.isBeforeDate(date, this.today)) return "past";
     if (!this.isBookableDate(date)) return "locked";
+  
+    // controllo orario solo per oggi
+    if (this.isSameDate(date, this.today)) {
+      const turn = this.turns.find(t => t.id === turnId);
+      if (turn?.orario_inizio && turn?.orario_fine) {
+        const timeStatus = this.getTurnTimeStatus(turn);
+        if (timeStatus === 'past') return 'past';
+        if (timeStatus === 'auto-confirm') return 'auto-confirm';
+      }
+    }
+  
     return "available";
   },
 
@@ -583,7 +596,7 @@ const calendarRender = {
     el.dataset.status = status;
     el.replaceChildren();
 
-    if (status === "available") {
+    if (status === "available" || status === "auto-confirm") {
       const icon = document.createElement("i");
       icon.setAttribute("data-lucide", "plus");
       el.appendChild(icon);
@@ -626,7 +639,7 @@ const calendarRender = {
     const userDiv = document.createElement("div");
     userDiv.className = "user-day-turn";
 
-    if (status === "available") {
+    if (status === "available" || status === "auto-confirm") {
       const icon = document.createElement("i");
       icon.setAttribute("data-lucide", "plus");
       userDiv.appendChild(icon);
@@ -753,13 +766,17 @@ const calendarRender = {
     this.syncMonthNavButtons();
     this.finishViewTransition(rowsEl);
 
-    if (hasCache) return;
+    if (hasCache) {
+      window.ldrBookings?.refreshBookingsModal?.();
+      return;
+    }
 
     await this.ensureDbReady();
     await this.fetchAndCacheBookings(cells[0], cells[cells.length - 1], cacheKey);
     if (gen !== this.renderGeneration) return;
 
     this.updateMonthBookings(rowsEl);
+    window.ldrBookings?.refreshBookingsModal?.();
   },
 
   // costruisce la lista dei giorni da mostrare nella griglia mese
@@ -894,6 +911,7 @@ const calendarRender = {
       this.restoreSelection();
       this.finishViewTransition(this.weekContainer);
       if (typeof lucide !== "undefined") lucide.createIcons();
+      window.ldrBookings?.refreshBookingsModal?.(days[0]);
       return;
     }
 
@@ -905,6 +923,7 @@ const calendarRender = {
     this.finishViewTransition(this.weekContainer);
     this.restoreSelection();
     if (typeof lucide !== "undefined") lucide.createIcons();
+    window.ldrBookings?.refreshBookingsModal?.(days[0]);
   },
 
   // costruisce le intestazioni dei giorni nella vista settimana
@@ -1012,6 +1031,7 @@ const calendarRender = {
       this.restoreSelection();
       this.finishViewTransition(this.dayContainer);
       if (typeof lucide !== "undefined") lucide.createIcons();
+      window.ldrBookings?.refreshBookingsModal?.(date);
       return;
     }
 
@@ -1023,6 +1043,7 @@ const calendarRender = {
     this.finishViewTransition(this.dayContainer);
     this.restoreSelection();
     if (typeof lucide !== "undefined") lucide.createIcons();
+    window.ldrBookings?.refreshBookingsModal?.(date);
   },
 
   // crea le intestazioni dei giorni nella vista giorno
@@ -1172,12 +1193,14 @@ const calendarRender = {
   // deselezionare uno slot (rimuovere stato e icona/nome)
   markSlotDeselected(turnEl) {
     turnEl.classList.remove("selected");
-
+  
+    const isSelectable = turnEl.dataset.status === "available" || turnEl.dataset.status === "auto-confirm";
+  
     const input = turnEl.querySelector('input[type="checkbox"]');
-    if (input && turnEl.dataset.status === "available") input.checked = false;
-
+    if (input && isSelectable) input.checked = false;
+  
     const userDiv = turnEl.querySelector(".user-day-turn");
-    if (userDiv && turnEl.dataset.status === "available") {
+    if (userDiv && isSelectable) {
       userDiv.replaceChildren();
       const icon = document.createElement("i");
       icon.setAttribute("data-lucide", "plus");
@@ -1185,8 +1208,8 @@ const calendarRender = {
       if (typeof lucide !== "undefined") lucide.createIcons();
       return;
     }
-
-    if (turnEl.classList.contains("turn") && turnEl.dataset.status === "available") {
+  
+    if (turnEl.classList.contains("turn") && isSelectable) {
       turnEl.replaceChildren();
       const icon = document.createElement("i");
       icon.setAttribute("data-lucide", "plus");
@@ -1199,8 +1222,8 @@ const calendarRender = {
   selectSlot(turnEl) {
     const day = turnEl.dataset.day;
     const turnId = turnEl.dataset.turn;
-    if (!day || !turnId || turnEl.dataset.status !== "available") return;
-
+    if (!day || !turnId || (turnEl.dataset.status !== "available" && turnEl.dataset.status !== "auto-confirm")) return;
+    
     if (this.isSlotSelected(day, turnId)) {
       this.selectedSlots = this.selectedSlots.filter(
         (s) => !(s.day === day && s.turnId === turnId),
@@ -1289,7 +1312,7 @@ const calendarRender = {
           : `.turn[data-day="${day}"][data-turn="${turnId}"]`;
       const el = document.querySelector(selector);
 
-      if (el?.dataset.status === "available") {
+      if (el?.dataset.status === "available" || el?.dataset.status === "auto-confirm") {
         this.markSlotSelected(el, { animate: false });
         remaining.push({ day, turnId });
       }
@@ -1317,6 +1340,49 @@ const calendarRender = {
       return;
     }
 
+    const { getPrenotazioniUtente } = window.ldrDb ?? {};
+    const { MAX_WEEKLY_BOOKINGS, countWeeklyBookings } = window.ldrBookingConfig ?? {};
+
+    if (getPrenotazioniUtente && countWeeklyBookings) {
+      const weekStart = this.formatDateForDb(this.formatDateISO(this.getWeekStart(this.today)));
+      const { data: miePrenotazioni } = await getPrenotazioniUtente(profilo.id_utente, weekStart);
+
+      // raggruppa i nuovi slot per settimana (inizio settimana come chiave)
+      const nuovePerSettimana = new Map();
+      for (const slot of this.selectedSlots) {
+        const date = this.parseDateISO(slot.day);
+        const ws = this.formatDateISO(this.getWeekStart(date));
+        nuovePerSettimana.set(ws, (nuovePerSettimana.get(ws) ?? 0) + 1);
+      }
+
+      for (const [ws, nuove] of nuovePerSettimana) {
+        const wsDate = this.parseDateISO(ws);
+        const wsStart = new Date(wsDate);
+        const wsEnd = new Date(wsDate);
+        wsEnd.setDate(wsEnd.getDate() + 6);
+
+        // conta solo le prenotazioni già esistenti in quella specifica settimana
+        const esistenti = (miePrenotazioni ?? []).filter(p => {
+          const d = new Date(p.data_prenotazione.split('T')[0]);
+          return d >= wsStart && d <= wsEnd;
+        }).length;
+
+        if (esistenti + nuove > MAX_WEEKLY_BOOKINGS) {
+          const modal = document.getElementById('modal-booking-denied');
+          if (modal) {
+            if (window.modal && typeof window.modal.open === "function") {
+              window.modal.open('booking-denied');
+            } else {
+              modal.classList.add('showing');
+              modal.style.display = 'block';
+              modal.setAttribute('aria-hidden', 'false');
+            }
+          }
+          return;
+        }
+      }
+    }
+
     this.btnBookingConfirm.disabled = true;
 
     // prende gli indici dei turni selezionati, senza duplicati
@@ -1335,7 +1401,8 @@ const calendarRender = {
     const turnoByIndice = new Map(turni.map((t) => [t.indice, t.id_turno]));
     const prenotazioni = [];
 
-    // prepara le prenotazioni
+    // prepara le prenotazioni e raccogli dati per la modal riepilogo
+    const datiModal = [];
     for (const slot of this.selectedSlots) {
       const indice = parseInt(slot.turnId, 10);
       const id_turno = turnoByIndice.get(indice);
@@ -1344,10 +1411,45 @@ const calendarRender = {
         this.btnBookingConfirm.disabled = false;
         return;
       }
+
+      const slotEl = document.querySelector(
+        `[data-day="${slot.day}"][data-turn="${slot.turnId}"]`
+      );
+      const autoConfirm = slotEl?.dataset.status === 'auto-confirm';
+
       prenotazioni.push({
         id_utente: profilo.id_utente,
         id_turno,
         data_prenotazione: this.formatDateForDb(slot.day),
+        stato: autoConfirm ? "confermata" : "non_confermata",
+      });
+
+      // Prepara dati dettagliati (incluse date, orari, indici) per la modal
+      const dateObj = this.parseDateISO(slot.day);
+      const weekdayFull = WEEKDAYS_FULL[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1];
+      const day = dateObj.getDate();
+      const month = MONTHS[dateObj.getMonth()].toLowerCase();
+      const year = dateObj.getFullYear();
+      // Trova il turno associato
+      const turno = turni.find(t => t.id_turno === id_turno);
+      console.log('turno trovato:', turno, '| id_turno cercato:', id_turno);
+      let fasciaOraria = "";
+
+      const formatTime = (time) => time?.slice(0, 5) ?? '';
+      if (turno && turno.orario_inizio && turno.orario_fine) {
+        fasciaOraria = `${formatTime(turno.orario_inizio)} - ${formatTime(turno.orario_fine)}`;
+      } else if (slot.timeLabel) {
+        fasciaOraria = slot.timeLabel;
+      }
+
+      datiModal.push({
+        weekday: weekdayFull.charAt(0).toUpperCase() + weekdayFull.slice(1),
+        day,
+        month,
+        year,
+        fasciaOraria,
+        indice,
+        autoConfirm,
       });
     }
 
@@ -1367,7 +1469,47 @@ const calendarRender = {
     this.invalidateBookingsCache();
     window.ldrBookings?.refresh();
     this.render();
-  },
+
+    // mostra la modal di conferma prenotazione con i dati giusti
+    const modal = document.getElementById('modal-booking-success');
+    if (modal) {
+      const summaryList = modal.querySelector('#booking-summary-list');
+      if (summaryList) {
+        summaryList.innerHTML = '';
+        for (const dati of datiModal) {
+          const row = document.createElement('div');
+          row.className = 'booking-summary-row';
+
+          const dateSpan = document.createElement('span');
+          dateSpan.className = 'summary-date';
+          dateSpan.textContent = `${dati.weekday} ${dati.day} ${dati.month} ${dati.year} — ${dati.indice}° Turno`;
+
+          const timeSpan = document.createElement('span');
+          timeSpan.className = 'summary-time';
+          timeSpan.textContent = dati.fasciaOraria;
+
+          if (dati.autoConfirm) {
+            const badge = document.createElement('span');
+            badge.className = 'summary-badge-autoconfirm';
+            badge.textContent = 'confermato ora';
+            row.appendChild(badge);
+          }
+
+          row.appendChild(dateSpan);
+          row.appendChild(timeSpan);
+          summaryList.appendChild(row);
+        }
+      }
+
+      if (window.modal && typeof window.modal.open === "function") {
+        window.modal.open('booking-success');
+      } else {
+        modal.classList.add('showing');
+        modal.style.display = 'block';
+        modal.setAttribute('aria-hidden', 'false');
+      }
+    }
+},
 
   // funzioni utili ------------------
 
@@ -1400,6 +1542,33 @@ const calendarRender = {
     const [d, m, y] = iso.split(".").map(Number);
     return new Date(y, m - 1, d);
   },
+
+  // controlla se un turno oggi è passato, a metà (auto-confirm) o futuro
+  getTurnTimeStatus(turn) {
+    console.log('getTurnTimeStatus:', turn.id, turn.orario_inizio, turn.orario_fine);
+    const now = new Date();
+    const toMinutes = (t) => {
+      if (!t) return 0;
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const startMin = toMinutes(turn.orario_inizio);
+  
+    const fine = turn.orario_fine;
+    const fineMin = toMinutes(fine);
+    // se manca l'orario di fine, è zero, o è mezzanotte → dura fino a fine giornata
+    const endMin = (!fine || fineMin === 0 || fineMin <= startMin)
+      ? 24 * 60
+      : fineMin;
+  
+    const midMin = Math.floor((startMin + endMin) / 2);
+  
+    if (nowMin >= endMin) return 'past';
+    if (nowMin >= midMin) return 'auto-confirm';
+    return 'future';
+  },
+
 };
 
 // avvia il calendario al caricamento della pagina

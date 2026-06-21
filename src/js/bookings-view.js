@@ -14,14 +14,17 @@ const MONTHS = [
   'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
   'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
 ];
+const MONTHS_SHORT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 
 // array dei giorni della settimana in italiano
 const WEEKDAYS_FULL = [
   'domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato',
 ];
+const WEEKDAYS_SHORT = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
+
 
 // massimo numero prenotazioni settimanali consentite
-const MAX_WEEKLY_BOOKINGS = 7;
+export const MAX_WEEKLY_BOOKINGS = 7;
 
 // cache dei turni caricati dal db
 let turniCache = null;
@@ -136,7 +139,7 @@ function getStatoInfo(prenotazione, isActive) {
 }
 
 // conta il numero di prenotazioni dell'utente nella settimana attuale
-function countWeeklyBookings(prenotazioni) {
+export function countWeeklyBookings(prenotazioni) {
   const now = new Date();
   const weekStart = getWeekStart(now);
   const weekEnd = new Date(weekStart);
@@ -289,6 +292,74 @@ function createBookingsRow(title, cards) {
   return row;
 }
 
+// aggiorna la modal riepilogo settimanale prenotazioni per il mese visualizzato
+async function renderBookingsModal(profilo, viewDate) {
+  const modal = document.getElementById('modal-le-mie-prenotazioni');
+  if (!modal) return;
+
+  const lista = modal.querySelector('.lista-notifiche');
+  if (!lista) return;
+
+  // usa la data passata, oppure il mese del calendario, oppure oggi
+  const date = viewDate ?? window.calendarRender?.getMonthViewDate?.() ?? new Date();
+  const year = date.getFullYear();
+  const month = date.getMonth();
+
+  // calcola tutte le settimane che intersecano il mese
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+
+  const weeks = [];
+  let cursor = getWeekStart(firstDay);
+  while (cursor <= lastDay) {
+    const end = new Date(cursor);
+    end.setDate(end.getDate() + 6);
+    weeks.push({ start: new Date(cursor), end });
+    cursor = new Date(cursor);
+    cursor.setDate(cursor.getDate() + 7);
+  }
+
+  // carica le prenotazioni dell'utente per tutto il periodo necessario
+  const rangeStart = formatDbDate(weeks[0].start);
+  const rangeEnd = formatDbDate(weeks[weeks.length - 1].end);
+  const { data: prenotazioni } = await getPrenotazioniUtente(profilo.id_utente, rangeStart, rangeEnd);
+
+  lista.replaceChildren();
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  for (const { start, end } of weeks) {
+    const startCopy = new Date(start); startCopy.setHours(0, 0, 0, 0);
+    const endCopy = new Date(end); endCopy.setHours(0, 0, 0, 0);
+
+    const count = (prenotazioni ?? []).filter(p => {
+      const d = parseDbDate(p.data_prenotazione);
+      return d >= startCopy && d <= endCopy;
+    }).length;
+
+    const row = document.createElement('div');
+    row.className = 'booking-week-row';
+
+    // Se la settimana è già passata, aggiungi la classe "past"
+    if (endCopy < now) {
+      row.classList.add('past');
+    }
+
+    const label = document.createElement('span');
+    label.className = 'booking-week-label';
+    label.textContent = `${start.getDate()} ${MONTHS_SHORT[start.getMonth()]} –  ${end.getDate()} ${MONTHS_SHORT[end.getMonth()]}`;
+
+    const counter = document.createElement('span');
+    counter.className = 'booking-week-count';
+    if (count >= MAX_WEEKLY_BOOKINGS) counter.classList.add('full');
+    counter.textContent = `${count}/${MAX_WEEKLY_BOOKINGS}`;
+
+    row.append(label, counter);
+    lista.appendChild(row);
+  }
+}
+
 // rende la vista delle prenotazioni dell'utente
 export async function renderBookingsView() {
   const container = document.getElementById('my-bookings');
@@ -308,10 +379,11 @@ export async function renderBookingsView() {
   // carico turni e prenotazioni odierne/mie
   const turni = await loadTurni();
   const today = formatDbDate(new Date());
+  const weekStart = formatDbDate(getWeekStart(new Date()));
 
   const [{ data: oggiPrenotazioni }, { data: miePrenotazioni }] = await Promise.all([
     getPrenotazioniByDateRange(today, today),
-    getPrenotazioniUtente(profilo.id_utente, today),
+    getPrenotazioniUtente(profilo.id_utente, weekStart),
   ]);
 
   // prendo eventuale prenotazione corrente
@@ -379,7 +451,7 @@ export async function renderBookingsView() {
 
   // se non ci sono prenotazioni, mostro messaggio vuoto
   if (!fragments.length) {
-    const empty = document.createElement('p');
+    const empty = document.createElement('span');
     empty.className = 'bookings-empty disabled';
     empty.textContent = currentBooking
       ? 'Nessuna altra prenotazione in programma.'
@@ -388,6 +460,9 @@ export async function renderBookingsView() {
   } else {
     fragments.forEach((el) => container.appendChild(el));
   }
+
+  await renderBookingsModal(profilo);
+
 }
 
 // ─── modal modifica prenotazione ────────────────────────────────────────────
@@ -444,7 +519,14 @@ async function openModificaModal(prenotazione) {
     // reset della select e del suo handler
     selectCedi.value = '';
     selectCedi.onchange = () => {
-      if (btnCedi) btnCedi.disabled = !selectCedi.value;
+      if (btnCedi) {
+        btnCedi.disabled = !selectCedi.value;
+        if (selectCedi.value) {
+          btnCedi.classList.add("active");
+        } else {
+          btnCedi.classList.remove("active");
+        }
+      }
     };
   }
 
@@ -470,13 +552,17 @@ async function handleCediTurno(id_prenotazione, selectCedi) {
   if (!confermato) return;
 
   const btnCedi = document.getElementById('btn-cedi-turno');
-  if (btnCedi) btnCedi.disabled = true;
+  if (btnCedi) {
+    btnCedi.disabled = true;
+  }
 
   const { error } = await cediPrenotazione(id_prenotazione, id_destinatario);
 
   if (error) {
     alert('impossibile cedere il turno. riprova più tardi.');
-    if (btnCedi) btnCedi.disabled = false;
+    if (btnCedi) {
+      btnCedi.disabled = false;
+    }
     return;
   }
 
@@ -512,7 +598,14 @@ export function initBookingsView() {
   if (refreshTimer) clearInterval(refreshTimer);
   refreshTimer = setInterval(() => refreshAulettaState(), 60_000);
 
-  window.ldrBookings = { refresh: refreshBookingsData, refreshAulettaState };
+  window.ldrBookings = {
+    refresh: refreshBookingsData,
+    refreshAulettaState,
+    refreshBookingsModal: async (viewDate) => {
+      const profilo = window.ldrProfilo;
+      if (profilo?.id_utente) await renderBookingsModal(profilo, viewDate);
+    },
+  };
 }
 
 // aggiorna solo lo stato dell'auletta, senza forzare sempre la vista
@@ -537,7 +630,6 @@ export async function refreshAulettaState() {
   }
 }
 
-// aggiorna i dati delle prenotazioni, svuota cache e aggiorna la vista
 export async function refreshBookingsData() {
   turniCache = null;
   window.calendarRender?.invalidateBookingsCache?.();
@@ -547,9 +639,11 @@ export async function refreshBookingsData() {
 
   const turni = await loadTurni();
   const today = formatDbDate(new Date());
+  const weekStart = formatDbDate(getWeekStart(new Date()));
+
   const [{ data: oggiPrenotazioni }, { data: miePrenotazioni }] = await Promise.all([
     getPrenotazioniByDateRange(today, today),
-    getPrenotazioniUtente(profilo.id_utente, today),
+    getPrenotazioniUtente(profilo.id_utente, weekStart),
   ]);
 
   const currentTurn = getCurrentTurn(turni);
@@ -560,8 +654,15 @@ export async function refreshBookingsData() {
   updateAulettaState(currentBooking, profilo);
   updateBookingCount(countWeeklyBookings(miePrenotazioni ?? []));
 
-  // aggiorna la vista delle prenotazioni solo se è visibile
   if (!document.getElementById('my-bookings')?.classList.contains('hidden')) {
     await renderBookingsView();
   }
+
+  await renderBookingsModal(profilo);
+
 }
+
+window.ldrBookingConfig = {
+  MAX_WEEKLY_BOOKINGS: 7,
+  countWeeklyBookings,
+};

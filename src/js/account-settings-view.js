@@ -50,17 +50,15 @@ export function renderAccountSettings() {
     return;
   }
 
-  // titolo della pagina opzioni account
-  const title = document.createElement('h1');
+  // titolo della sezione
+  const title = document.createElement('span');
   title.textContent = 'Opzioni account';
+  title.classList.add("account-section-indicator");
   container.appendChild(title);
 
   // blocco per la foto profilo
   const profileBlock = document.createElement('div');
-  profileBlock.className = 'account-profile-block form-block';
-
-  const profileLabel = document.createElement('label');
-  profileLabel.innerHTML = '<span>Immagine profilo</span>';
+  profileBlock.className = 'account-profile-block';
 
   const profileRow = document.createElement('div');
   profileRow.className = 'horizontal-container account-profile-row';
@@ -81,7 +79,7 @@ export function renderAccountSettings() {
   const btnUpload = document.createElement('button');
   btnUpload.type = 'button';
   btnUpload.className = 'w-text';
-  btnUpload.innerHTML = '<span>Cambia immagine</span>';
+  btnUpload.innerHTML = 'Cambia immagine profilo';
 
   // apre il selettore file al click sul bottone
   btnUpload.addEventListener('click', () => fileInput.click());
@@ -117,7 +115,7 @@ export function renderAccountSettings() {
   });
 
   profileRow.append(img, btnUpload, fileInput);
-  profileBlock.append(profileLabel, profileRow);
+  profileBlock.append(profileRow);
   container.appendChild(profileBlock);
 
   // sezione info anagrafica (nome, cognome, tessera, email)
@@ -131,19 +129,15 @@ export function renderAccountSettings() {
   );
   container.appendChild(infoSection);
 
-  // divisore grafico
-  const divider = document.createElement('div');
-  divider.className = 'divider';
-  container.appendChild(divider);
-
-  // titolo delle impostazioni
-  const settingsTitle = document.createElement('h3');
-  settingsTitle.textContent = 'Impostazioni';
-  container.appendChild(settingsTitle);
-
   // blocco impostazioni calendario
   const settingsBlock = document.createElement('div');
   settingsBlock.className = 'form-block';
+
+  // titolo della sezione
+  const title2 = document.createElement('span');
+  title2.textContent = 'Preferenze e impostazioni';
+  title2.classList.add("account-section-indicator");
+  container.appendChild(title2);
 
   // label della select vista calendario di default
   const viewLabel = document.createElement('label');
