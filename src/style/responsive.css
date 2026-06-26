@@ -50,7 +50,7 @@
         text-wrap: balance;
     }
 
-    #day-schedules, #my-bookings, #calendar-header, header, nav, footer {
+    #account-settings, #day-schedules, #my-bookings, #calendar-header, header, nav, footer {
         padding-inline: 20px;
         box-sizing: border-box;
     }
