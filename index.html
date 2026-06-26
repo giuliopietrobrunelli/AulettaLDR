@@ -5,7 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <title>Auletta LDR — prenota l'auletta</title>
-
+    
+    <!-- manifest -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/src/img/logo-prenotaldr-giallo.webp">
+    
     <!-- fogli di stile -->
     <link rel="stylesheet" href="/src/style/main.css">
     <link rel="stylesheet" href="/src/style/responsive.css">
@@ -74,6 +80,7 @@
         <!-- modali dell'header (messe qui per questioni di UI) -->
         <div class="header-modals">
 
+            <!-- limiti prenotazione -->
             <div id="modal-le-mie-prenotazioni" class="modal">
                 <div class="modal-header auto-gap">
                     <span class="modal-title">Le mie prenotazioni</span>
@@ -86,6 +93,7 @@
                 </div>
             </div>
 
+            <!-- notifiche -->
             <div id="modal-notifiche" class="modal">
                 <div class="modal-header">
                     <span class="modal-title">Notifiche</span>
@@ -98,6 +106,7 @@
                 </div>
             </div>
 
+            <!-- account -->
             <div id="modal-account" class="modal">
                 <div class="modal-header">
                     <span class="modal-title">———</span>
@@ -144,6 +153,7 @@
             <div id="indicatore-data-prenota-turni-container" class="horizontal-container">
                 <button type="button" id="day-back" class="mini hidden" aria-label="Torna alla vista precedente">
                     <i data-lucide="arrow-left"></i>
+                    <!-- <span>Torna indietro</span> -->
                 </button>
                 <h1 id="current-date"></h1>
             </div>
@@ -310,7 +320,23 @@
             </button>
             <button type="button" id="booking-confirm" class="w-text active">
                 <i data-lucide="notebook-pen"></i>
-                <span>Segna la prenotazione</span>
+                <span>Conferma</span>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- barra navigazione mobile -->
+    <div id="navigation-bar" class="navigation-bar is-visible" aria-hidden="true">
+        <div class="navigation-bar-inner horizontal-container">
+            <button type="button" class="active" data-main-view="calendar">
+                <i data-lucide="calendar-days"></i>
+                <span>Calendario</span>
+            </button>
+    
+            <button type="button" class="" data-main-view="bookings">
+                <i data-lucide="calendar-clock"></i>
+                <span>Prenotazioni</span>
             </button>
         </div>
 
@@ -356,13 +382,6 @@
                         <label for="prenota-turno"><span>Turno</span></label>
                         <select id="prenota-turno" name="turno">
                             <option value="" disabled selected>Seleziona un orario</option>
-                            <option value="1">1° : 08:00 - 10:00</option>
-                            <option value="2">2° : 10:00 - 12:00</option>
-                            <option value="3">3° : 13:30 - 15:30</option>
-                            <option value="4">4° : 15:30 - 17:30</option>
-                            <option value="5">5° : 17:30 - 19:30</option>
-                            <option value="6">6° : 19:30 - 21:00</option>
-                            <option value="7">7° : 21:00 in poi</option>
                         </select>
                     </div>
 
@@ -459,10 +478,64 @@
         </div>
     </div>
 
-    <!-- prova toast -->
-    <!-- <div class="toast-container pos-bottom-center" role="region" aria-label="Notifiche">
-        <div class="toast-container pos-bottom-center" role="region" aria-label="Notifiche"><div class="toast toast--error" role="status" aria-live="polite" aria-label="Successo: Impostazione salvata." style="position: relative;"><span class="toast__icona" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="calendar-check" aria-hidden="true" class="lucide lucide-calendar-check"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path><path d="m9 16 2 2 4-4"></path></svg></span><span class="toast__testo">Impostazione salvata.</span><button class="toast__chiudi" aria-label="Chiudi notifica"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="x" aria-hidden="true" class="lucide lucide-x"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button><div class="toast__progress" style="animation-duration: 4000ms;"></div></div></div>
-    </div> -->
+    <!-- modali per menu -------------------------------------------------------------------------------------------------------- -->
+
+    <div id="modal-menu" class="full-modal">
+        <div id="side-menu-drawer">
+            <div class="side-menu-header">
+                <div class="side-menu-user">
+                    <img class="profile-pic" data-profile-pic alt="">
+                    <div class="side-menu-user-info">
+                        <span class="semibold" data-get-info="username-name"></span>
+                        <span class="side-menu-role disabled" data-get-info="username-role"></span>
+                    </div>
+                </div>
+                <button type="button" class="no-style side-menu-close" aria-label="Chiudi menu" data-modal="close-modal">
+                    <i data-lucide="x" class="lucide"></i>
+                </button>
+            </div>
+    
+            <nav class="side-menu-nav">
+                <span class="side-menu-section-label">Navigazione</span>
+                <button type="button" class="side-menu-btn active" data-main-view="calendar" data-modal="close-all">
+                    <i data-lucide="calendar-days" class="lucide"></i>
+                    <span>Calendario</span>
+                </button>
+                <button type="button" class="side-menu-btn" data-main-view="bookings" data-modal="close-all">
+                    <i data-lucide="calendar-clock" class="lucide"></i>
+                    <span>Le mie prenotazioni</span>
+                </button>
+    
+                <div class="divider"></div>
+                <span class="side-menu-section-label">Account</span>
+    
+                <button type="button" class="side-menu-btn" data-goto="opzioni">
+                    <i data-lucide="circle-user" class="lucide"></i>
+                    <span>Impostazioni account</span>
+                </button>
+                <button type="button" class="side-menu-btn" data-modal="le-mie-prenotazioni">
+                    <i data-lucide="bar-chart-2" class="lucide"></i>
+                    <span>Riepilogo prenotazioni e limiti</span>
+                </button>
+                <button type="button" class="side-menu-btn" data-modal="notifiche">
+                    <i data-lucide="inbox" class="lucide"></i>
+                    <span>Notifiche</span>
+                </button>
+                <button type="button" class="side-menu-btn" data-modal="feedback">
+                    <i data-lucide="megaphone" class="lucide"></i>
+                    <span>Lascia un feedback</span>
+                </button>
+    
+                <div class="divider"></div>
+    
+                <button type="button" class="side-menu-btn side-menu-btn--danger" onclick="ldrLogout()">
+                    <i data-lucide="log-out" class="lucide"></i>
+                    <span>Esci</span>
+                </button>
+            </nav>
+        </div>
+    </div>
+
 
     <!-- scripts -->
 

@@ -1,7 +1,7 @@
 /** Responsive styles for screens larger than 880px */
 @media (min-width: 881px) {
     
-    #mobile-header {
+    #mobile-header, #navigation-bar {
         display: none;
     }
 
@@ -61,7 +61,7 @@
     }
 
     nav {
-        /* display: none; */
+        display: none;
     }
 
     #logo img {
@@ -165,5 +165,16 @@
         box-sizing: border-box;
     }
 
+    .booking-bar {
+        transition: transform .6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease-in-out, visibility 0.38s;
+    }
+
+    .booking-bar.is-visible {
+        transform: translateY(0px);
+    }
+
+    .toast-container.pos-bottom-center {
+        bottom: 55px;
+    }
 
 }

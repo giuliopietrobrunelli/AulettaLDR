@@ -3,9 +3,10 @@ import {
   getPrenotazioniUtente,
   getAllTurni,
   confermaPresenza,
-  getAllUtenti,
+  createPrenotazione,
   annullaPrenotazione,
   cediPrenotazione,
+  getAllUtentiRegistrati,
 } from './db.js';
 import { getProfilePicUrl } from './profile-utils.js';
 import { showToast } from './toast.js';
@@ -480,7 +481,7 @@ let utentiCache = null;
 // carica l'elenco utenti dal db e salva in cache
 async function loadUtenti() {
   if (utentiCache) return utentiCache;
-  const { data, error } = await getAllUtenti();
+  const { data, error } = await getAllUtentiRegistrati();
   if (error) { console.error('impossibile caricare gli utenti:', error); return []; }
   utentiCache = data ?? [];
   return utentiCache;
@@ -520,7 +521,7 @@ async function openModificaModal(prenotazione) {
     utenti.forEach((u) => {
       const opt = document.createElement('option');
       opt.value = u.id_utente;
-      opt.textContent = `${u.cognome} ${u.nome} — tessera n.${u.numero_tessera}`;
+      opt.textContent = `${u.cognome} ${u.nome}`;
       selectCedi.appendChild(opt);
     });
     // reset della select e del suo handler
@@ -671,6 +672,155 @@ export async function refreshBookingsData() {
 
   await renderBookingsModal(profilo);
 
+}
+
+export async function initPrenotaModal() {
+  const modalPrenota = document.getElementById('modal-prenota');
+  if (!modalPrenota) return;
+
+  const prenotaDataInput   = document.getElementById('prenota-data');
+  const prenotaTurnoSelect = document.getElementById('prenota-turno');
+  const btnConferma        = document.getElementById('btn-modal-conferma-prenota');
+  const btnAnnulla         = modalPrenota.querySelector('[data-modal="close-modal"]');
+
+  // Usa loadTurni() già esistente nel file (con cache)
+  await loadTurni();
+
+  // Data minima = oggi
+  const oggiStr = new Date().toISOString().split('T')[0];
+  prenotaDataInput.min = oggiStr;
+
+  // Usa AbortController per evitare listener duplicati se initPrenotaModal 
+  // venisse chiamata più volte
+  if (modalPrenota._prenotaAbort) modalPrenota._prenotaAbort.abort();
+  const ac = new AbortController();
+  modalPrenota._prenotaAbort = ac;
+  const signal = ac.signal;
+
+  // ── listener cambio data ──────────────────────────────────────────────────
+  prenotaDataInput.addEventListener('change', async () => {
+    const dataSelezionata = prenotaDataInput.value;
+    if (!dataSelezionata) {
+      resetTurnoSelect(prenotaTurnoSelect, btnConferma);
+      return;
+    }
+
+    prenotaTurnoSelect.disabled = true;
+    prenotaTurnoSelect.innerHTML = '<option value="" disabled selected>Caricamento turni...</option>';
+
+    try {
+      const { data: prenotazioni, error } = await getPrenotazioniByDateRange(dataSelezionata, dataSelezionata);
+      if (error) throw error;
+
+      const turniOccupatiIds = new Set((prenotazioni ?? []).map(p => p.id_turno));
+      prenotaTurnoSelect.innerHTML = '<option value="" disabled selected>Seleziona un orario</option>';
+
+      const adesso    = new Date();
+      const minutiOra = adesso.getHours() * 60 + adesso.getMinutes();
+
+      // turniCache è già popolata da loadTurni()
+      for (const turno of turniCache) {
+        const opt = document.createElement('option');
+        opt.value = turno.id_turno;
+
+        const inizio = turno.orario_inizio.slice(0, 5);
+        const fine   = turno.orario_fine ? turno.orario_fine.slice(0, 5) : 'in poi';
+        opt.textContent = `${turno.indice}° : ${inizio} - ${fine}`;
+
+        const isOccupato = turniOccupatiIds.has(turno.id_turno);
+        const isPassato  = dataSelezionata === oggiStr
+          && parseTimeMinutes(turno.orario_inizio) <= minutiOra;
+
+        if (isOccupato) {
+          opt.disabled = true;
+          opt.textContent += ' (Occupato)';
+        } else if (isPassato) {
+          opt.disabled = true;
+          opt.textContent += ' (Passato)';
+        }
+
+        prenotaTurnoSelect.appendChild(opt);
+      }
+
+      prenotaTurnoSelect.disabled = false;
+    } catch (err) {
+      console.error('Errore disponibilità turni:', err);
+      showToast('error', 'Impossibile verificare la disponibilità.', 'x');
+      resetTurnoSelect(prenotaTurnoSelect, btnConferma);
+    }
+
+    validatePrenotaForm(prenotaDataInput, prenotaTurnoSelect, btnConferma);
+  }, { signal });
+
+  // ── listener cambio turno ─────────────────────────────────────────────────
+  prenotaTurnoSelect.addEventListener('change', () => {
+    validatePrenotaForm(prenotaDataInput, prenotaTurnoSelect, btnConferma);
+  }, { signal });
+
+  // ── chiusura modal ────────────────────────────────────────────────────────
+  const chiudiModalPrenota = () => {
+    document.getElementById('prenota-form')?.reset();
+    resetTurnoSelect(prenotaTurnoSelect, btnConferma);
+    window.modal?.closeAll();
+  };
+
+  btnAnnulla?.addEventListener('click', chiudiModalPrenota, { signal });
+
+  // ── conferma prenotazione ─────────────────────────────────────────────────
+  btnConferma.addEventListener('click', async () => {
+    if (btnConferma.disabled) return;
+
+    const profilo          = window.ldrProfilo;
+    const data_prenotazione = prenotaDataInput.value;
+    const id_turno          = prenotaTurnoSelect.value;
+
+    if (!profilo?.id_utente || !id_turno || !data_prenotazione) {
+      showToast('error', 'Dati incompleti o utente non autenticato.', 'x');
+      return;
+    }
+
+    btnConferma.disabled  = true;
+    const testoOriginale  = btnConferma.innerHTML;
+    btnConferma.textContent = 'Salvataggio...';
+
+    try {
+      const { error } = await createPrenotazione({
+        id_utente: profilo.id_utente,
+        id_turno,
+        data_prenotazione,
+      });
+      if (error) throw error;
+
+      showToast('success', 'Prenotazione registrata!', 'check');
+      chiudiModalPrenota();
+
+      await refreshBookingsData(); // già invalida la cache internamente
+      window.calendarRender?.render?.(); // ridisegna con i dati aggiornati
+
+    } catch (err) {
+      console.error('Errore salvataggio prenotazione:', err);
+      showToast('error', 'Errore durante il salvataggio. Riprova.', 'x');
+      btnConferma.innerHTML = testoOriginale;
+      validatePrenotaForm(prenotaDataInput, prenotaTurnoSelect, btnConferma);
+    }
+  }, { signal });
+}
+
+function validatePrenotaForm(inputData, selectTurno, btn) {
+  if (inputData.value && selectTurno.value) {
+    btn.disabled = false;
+    btn.classList.add('active');
+  } else {
+    btn.disabled = true;
+    btn.classList.remove('active');
+  }
+}
+
+function resetTurnoSelect(select, btn) {
+  select.innerHTML = '<option value="" disabled selected>Seleziona un orario</option>';
+  select.disabled = false;
+  btn.disabled = true;
+  btn.classList.remove('active');
 }
 
 window.ldrBookingConfig = {

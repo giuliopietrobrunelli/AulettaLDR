@@ -31,13 +31,13 @@
     el.style.position = 'relative';
 
     // aggiungi l'icona al toast
-    const spanIcon = document.createElement('span');
-    spanIcon.className = 'toast__icon';
-    spanIcon.setAttribute('aria-hidden', 'true');
-    const svgIcon = document.createElement('i');
-    svgIcon.setAttribute('data-lucide', iconName);
-    spanIcon.appendChild(svgIcon);
-    el.appendChild(spanIcon);
+    // const spanIcon = document.createElement('span');
+    // spanIcon.className = 'toast__icon';
+    // spanIcon.setAttribute('aria-hidden', 'true');
+    // const svgIcon = document.createElement('i');
+    // svgIcon.setAttribute('data-lucide', iconName);
+    // spanIcon.appendChild(svgIcon);
+    // el.appendChild(spanIcon);
 
     // aggiungi il testo del messaggio
     const spanText = document.createElement('span');
@@ -46,16 +46,16 @@
     el.appendChild(spanText);
 
     // se closable, aggiungi bottone per chiudere
-    if (cfg.closable) {
-      const btn = document.createElement('button');
-      btn.className = 'toast__close';
-      btn.setAttribute('aria-label', 'chiudi notifica');
-      const svgX = document.createElement('i');
-      svgX.setAttribute('data-lucide', 'x');
-      btn.appendChild(svgX);
-      btn.onclick = () => removeToast(el);
-      el.appendChild(btn);
-    }
+    // if (cfg.closable) {
+    //   const btn = document.createElement('button');
+    //   btn.className = 'toast__close';
+    //   btn.setAttribute('aria-label', 'chiudi notifica');
+    //   const svgX = document.createElement('i');
+    //   svgX.setAttribute('data-lucide', 'x');
+    //   btn.appendChild(svgX);
+    //   btn.onclick = () => removeToast(el);
+    //   el.appendChild(btn);
+    // }
 
     // aggiungi barra di progresso animata se durata > 0
     if (cfg.duration > 0) {

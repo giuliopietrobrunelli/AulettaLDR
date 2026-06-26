@@ -1,0 +1,21 @@
+{
+    "name": "Auletta LDR",
+    "short_name": "LDR",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#000000",
+    "orientation": "portrait",
+    "icons": [
+      {
+        "src": "/src/img/logo-prenotaldr-giallo.webp",
+        "sizes": "192x192",
+        "type": "image/png"
+      },
+      {
+        "src": "/src/img/logo-prenotaldr-giallo.webp",
+        "sizes": "512x512",
+        "type": "image/png"
+      }
+    ]
+  }

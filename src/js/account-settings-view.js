@@ -117,49 +117,49 @@ export function renderAccountSettings() {
   );
   container.appendChild(infoSection);
 
-  // titolo per la sezione preferenze
-  const title2 = document.createElement('span');
-  title2.textContent = 'Preferenze e impostazioni';
-  title2.classList.add('account-section-indicator');
-  container.appendChild(title2);
+  // // titolo per la sezione preferenze
+  // const title2 = document.createElement('span');
+  // title2.textContent = 'Preferenze e impostazioni';
+  // title2.classList.add('account-section-indicator');
+  // container.appendChild(title2);
 
-  // blocco preferenze utente
-  const settingsBlock = document.createElement('div');
-  settingsBlock.className = 'form-block';
+  // // blocco preferenze utente
+  // const settingsBlock = document.createElement('div');
+  // settingsBlock.className = 'form-block';
 
-  // campo per selezionare la vista calendario predefinita
-  const viewLabel = document.createElement('label');
-  viewLabel.setAttribute('for', 'default-calendar-view');
-  viewLabel.innerHTML = '<span>Vista calendario predefinita</span>';
+  // // campo per selezionare la vista calendario predefinita
+  // const viewLabel = document.createElement('label');
+  // viewLabel.setAttribute('for', 'default-calendar-view');
+  // viewLabel.innerHTML = '<span>Vista calendario predefinita</span>';
 
-  const viewSelect = document.createElement('select');
-  viewSelect.id = 'default-calendar-view';
-  viewSelect.innerHTML = `
-    <option value="month">Mensile</option>
-    <option value="week">Settimanale</option>
-  `;
-  viewSelect.value = profilo.vista_predefinita === 'week' ? 'week' : 'month';
+  // const viewSelect = document.createElement('select');
+  // viewSelect.id = 'default-calendar-view';
+  // viewSelect.innerHTML = `
+  //   <option value="month">Mensile</option>
+  //   <option value="week">Settimanale</option>
+  // `;
+  // viewSelect.value = profilo.vista_predefinita === 'week' ? 'week' : 'month';
 
-  // quando cambia la preferenza aggiorna il profilo
-  viewSelect.addEventListener('change', async () => {
-    const vista_predefinita = viewSelect.value;
-    viewSelect.disabled = true;
+  // // quando cambia la preferenza aggiorna il profilo
+  // viewSelect.addEventListener('change', async () => {
+  //   const vista_predefinita = viewSelect.value;
+  //   viewSelect.disabled = true;
 
-    const { data, error } = await updateProfiloUtente(profilo.id_utente, { vista_predefinita });
+  //   const { data, error } = await updateProfiloUtente(profilo.id_utente, { vista_predefinita });
 
-    viewSelect.disabled = false;
+  //   viewSelect.disabled = false;
 
-    // se errore, mostra notifica e ripristina il valore precedente
-    if (error || !data) {
-      showToast('error', "Impossibile salvare l'impostazione.", 'calendar-x');
-      viewSelect.value = profilo.vista_predefinita === 'week' ? 'week' : 'month';
-      return;
-    }
+  //   // se errore, mostra notifica e ripristina il valore precedente
+  //   if (error || !data) {
+  //     showToast('error', "Impossibile salvare l'impostazione.", 'calendar-x');
+  //     viewSelect.value = profilo.vista_predefinita === 'week' ? 'week' : 'month';
+  //     return;
+  //   }
 
-    // aggiorna il profilo con la nuova impostazione
-    window.ldrProfilo = data;
-    showToast('success', 'Impostazione salvata.', 'calendar-check');
-  });
+  //   // aggiorna il profilo con la nuova impostazione
+  //   window.ldrProfilo = data;
+  //   showToast('success', 'Impostazione salvata.', 'calendar-check');
+  // });
 
   settingsBlock.append(viewLabel, viewSelect);
   container.appendChild(settingsBlock);

@@ -10,7 +10,7 @@ import {
   updateProfiloUtente,
   uploadFotoProfilo,
 } from './db.js';
-import { initBookingsView, refreshBookingsData } from './bookings-view.js';
+import { initBookingsView, refreshBookingsData, initPrenotaModal } from './bookings-view.js';
 import { initMainView, setMainView, registerAccountSettingsRenderer } from './main-view.js';
 import { initAccountSettings, renderAccountSettings } from './account-settings-view.js';
 import { syncProfilePictures } from './profile-utils.js';
@@ -63,6 +63,15 @@ async function caricaProfiloUtente() {
   await refreshBookingsData();
 }
 
+if ("serviceWorker" in navigator) {
+
+  navigator.serviceWorker.register("/sw.js")
+  .then(() => {
+    console.log("PWA pronta");
+  });
+ 
+ }
+
 // esegue l'inizializzazione dell'app al caricamento della pagina
 document.addEventListener('DOMContentLoaded', () => {
   registerAccountSettingsRenderer(renderAccountSettings);
@@ -70,4 +79,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initBookingsView();
   initAccountSettings(setMainView);
   caricaProfiloUtente();
+  initPrenotaModal();
 });
