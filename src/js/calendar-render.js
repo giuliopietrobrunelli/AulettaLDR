@@ -281,7 +281,7 @@ const calendarRender = {
     }
   },
 
-  // navigazione mensile ------------------
+  // ─── navigazione mensile ────────────────────────────────────────────
 
   // restituisce la data del primo giorno del mese visualizzato
   getMonthViewDate() {
@@ -834,7 +834,7 @@ const calendarRender = {
     return el;
   },
 
-  // navigazione settimanale ------------------
+  // ─── navigazione settimanle ────────────────────────────────────────────
 
   // restituisce il primo giorno della settimana di una data
   getWeekStart(date) {
@@ -1008,7 +1008,7 @@ const calendarRender = {
     return el;
   },
 
-  // navigazione giornaliera ------------------
+  // ─── navigazione giornaliera ────────────────────────────────────────────
 
   // renderizza la vista giorno, completa di turni e stato prenotazioni
   async renderDay() {
@@ -1129,7 +1129,7 @@ const calendarRender = {
     return `${start.getDate()} ${MONTHS[start.getMonth()]} – ${end.getDate()} ${MONTHS[end.getMonth()]} ${end.getFullYear()}`;
   },
 
-  // prenotazioni ------------------
+  // ─── gestione delle prenotazione ────────────────────────────────────────────
 
   // controlla se uno slot è selezionato nella selezione attuale
   isSlotSelected(day, turnId) {

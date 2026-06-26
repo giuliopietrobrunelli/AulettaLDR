@@ -1,6 +1,6 @@
 import { supabase } from './supabase-client.js';
 
-// utente
+// ─── get informazioni utente loggato e altri utenti ────────────────────────────────────────────
 
 // restituisce le info del profilo utente loggato
 export async function getProfiloUtente() {
@@ -41,7 +41,63 @@ export async function getProfiloUtente() {
   return { data: null, error: new Error('profilo non trovato') };
 }
 
-// turni e prenotazioni
+// restituisce tutti gli utenti escluso quello loggato (per la funzione cedi turno)
+export async function getAllUtenti() {
+  const { data: { session } } = await supabase.auth.getSession();
+  const myId = session?.user?.id;
+
+  return await supabase
+    .from('Utente')
+    .select('id_utente, nome, cognome, numero_tessera')
+    .neq('id_utente', myId ?? '')
+    .order('cognome');
+}
+
+// restituisce tutti gli utenti escluso quello loggato (per la funzione cedi turno)
+export async function getAllUtentiRegistrati() {
+  const { data: { session } } = await supabase.auth.getSession();
+  const myId = session?.user?.id;
+
+  return await supabase
+    .from('Utente')
+    .select('id_utente, nome, cognome, numero_tessera')
+    .neq('id_utente', myId ?? '')
+    .eq('registrato', true)
+    .order('cognome');
+}
+
+// aggiorna i campi di profilo di un utente dato l'id
+export async function updateProfiloUtente(id_utente, fields) {
+  return await supabase
+    .from('Utente')
+    .update(fields)
+    .eq('id_utente', id_utente)
+    .select()
+    .single();
+}
+
+// carica e aggiorna la foto profilo utente nello storage
+export async function uploadFotoProfilo(id_utente, file) {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'webp';
+  const allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+  if (!allowed.includes(ext)) {
+    return { data: null, error: new Error('formato immagine non supportato') };
+  }
+
+  const path = `${id_utente}/avatar.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from('profili-utente')
+    .upload(path, file, { upsert: true, contentType: file.type });
+
+  if (uploadError) return { data: null, error: uploadError };
+
+  const { data: urlData } = supabase.storage.from('profili-utente').getPublicUrl(path);
+  const foto_profilo = `${urlData.publicUrl}?t=${Date.now()}`;
+
+  return await updateProfiloUtente(id_utente, { foto_profilo });
+}
+
+// ─── get informazioni sui turni ────────────────────────────────────────────
 
 // restituisce i turni corrispondenti agli indici dati
 export async function getTurniByIndici(indici) {
@@ -134,49 +190,6 @@ export async function confermaPresenza(id_prenotazione) {
     .eq('id_prenotazione', id_prenotazione)
     .select()
     .single();
-}
-
-// aggiorna i campi di profilo di un utente dato l'id
-export async function updateProfiloUtente(id_utente, fields) {
-  return await supabase
-    .from('Utente')
-    .update(fields)
-    .eq('id_utente', id_utente)
-    .select()
-    .single();
-}
-
-// carica e aggiorna la foto profilo utente nello storage
-export async function uploadFotoProfilo(id_utente, file) {
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'webp';
-  const allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-  if (!allowed.includes(ext)) {
-    return { data: null, error: new Error('formato immagine non supportato') };
-  }
-
-  const path = `${id_utente}/avatar.${ext}`;
-  const { error: uploadError } = await supabase.storage
-    .from('profili-utente')
-    .upload(path, file, { upsert: true, contentType: file.type });
-
-  if (uploadError) return { data: null, error: uploadError };
-
-  const { data: urlData } = supabase.storage.from('profili-utente').getPublicUrl(path);
-  const foto_profilo = `${urlData.publicUrl}?t=${Date.now()}`;
-
-  return await updateProfiloUtente(id_utente, { foto_profilo });
-}
-
-// restituisce tutti gli utenti escluso quello loggato (per la funzione cedi turno)
-export async function getAllUtenti() {
-  const { data: { session } } = await supabase.auth.getSession();
-  const myId = session?.user?.id;
-
-  return await supabase
-    .from('Utente')
-    .select('id_utente, nome, cognome, numero_tessera')
-    .neq('id_utente', myId ?? '')
-    .order('cognome');
 }
 
 // annulla una prenotazione soltanto se è dell'utente loggato

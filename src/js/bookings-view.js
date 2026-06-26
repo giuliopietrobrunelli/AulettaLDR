@@ -8,23 +8,23 @@ import {
   cediPrenotazione,
 } from './db.js';
 import { getProfilePicUrl } from './profile-utils.js';
+import { showToast } from './toast.js';
 
-// array dei nomi dei mesi in italiano
+// array dei nomi dei mesi
 const MONTHS = [
   'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
   'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
 ];
 const MONTHS_SHORT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 
-// array dei giorni della settimana in italiano
+// array dei giorni della settimana
 const WEEKDAYS_FULL = [
   'domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato',
 ];
 const WEEKDAYS_SHORT = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
 
-
 // massimo numero prenotazioni settimanali consentite
-export const MAX_WEEKLY_BOOKINGS = 7;
+export const MAX_WEEKLY_BOOKINGS = 7; // temp, verrà gestito dall'interfaccia admin!!!
 
 // cache dei turni caricati dal db
 let turniCache = null;
@@ -211,39 +211,43 @@ function createReservationCard(prenotazione, { isActive = false, isOwn = false }
   const card = document.createElement('div');
   card.className = 'reservation-card';
   if (isActive) card.classList.add('reservation-card-active');
-
+  
   const info = document.createElement('div');
   info.className = 'reservation-info';
-
+  
   const turnInfo = document.createElement('div');
   turnInfo.className = 'reservation-turn-info';
-
+  
   const title = document.createElement('h2');
   title.className = 'semibold';
   title.textContent = `${turn?.indice ?? '?'}° Turno`;
-
+  
   const time = document.createElement('span');
   time.textContent = formatTurnLabel(turn);
-
+  
   turnInfo.append(title, time);
-
+  
   const meta = document.createElement('div');
   meta.className = 'reservation-meta horizontal-container';
   meta.appendChild(createStatusBadge(prenotazione, isActive));
-
+  
   info.append(turnInfo, meta);
+  
+  card.appendChild(info);
 
   if (isActive) {
+    const occupiedby = document.createElement('div');
+    occupiedby.className = 'horizontal-container action-container';
     const user = isOwn ? window.ldrProfilo : prenotazione.Utente;
-    if (user) info.appendChild(createUserRow(user));
+    if (user) occupiedby.appendChild(createUserRow(user));
+    card.appendChild(occupiedby);
   }
 
-  card.appendChild(info);
 
   // azioni disponibili sulla propria prenotazione
   if (isOwn) {
     const actions = document.createElement('div');
-    actions.className = 'horizontal-container';
+    actions.className = 'horizontal-container action-container';
 
     // bottone per confermare presenza (solo attivo e non già confermata)
     if (isActive && !prenotazione.data_conferma && prenotazione.stato !== 'confermata') {
@@ -255,11 +259,14 @@ function createReservationCard(prenotazione, { isActive = false, isOwn = false }
         btnConfirm.disabled = true;
         const { error } = await confermaPresenza(prenotazione.id_prenotazione);
         if (error) {
-          alert('impossibile confermare la presenza. riprova più tardi.');
+          // alert('impossibile confermare la presenza. riprova più tardi.');
+          showToast('error', 'Impossibile confermare la presenza', 'x');
           btnConfirm.disabled = false;
           return;
         }
+        showToast('success', 'Presenza confermata', 'check');
         await refreshBookingsData();
+
       });
       actions.appendChild(btnConfirm);
     }
@@ -559,7 +566,8 @@ async function handleCediTurno(id_prenotazione, selectCedi) {
   const { error } = await cediPrenotazione(id_prenotazione, id_destinatario);
 
   if (error) {
-    alert('impossibile cedere il turno. riprova più tardi.');
+    // alert('impossibile cedere il turno. riprova più tardi.');
+    showToast('error', 'Impossibile cedere il turno', 'x');
     if (btnCedi) {
       btnCedi.disabled = false;
     }
@@ -567,6 +575,7 @@ async function handleCediTurno(id_prenotazione, selectCedi) {
   }
 
   window.modal?.closeAll();
+  showToast('success', 'Richiesta inviata', 'check');
   utentiCache = null;
   await refreshBookingsData();
 }
@@ -582,12 +591,14 @@ async function handleRinunciaTurno(id_prenotazione) {
   const { error } = await annullaPrenotazione(id_prenotazione);
 
   if (error) {
-    alert('impossibile rinunciare al turno. riprova più tardi.');
+    // alert('impossibile rinunciare al turno. riprova più tardi.');
+    showToast('error', 'Impossibile rinunciare al turno', 'x');
     if (btnRinuncia) btnRinuncia.disabled = false;
     return;
   }
 
   window.modal?.closeAll();
+  showToast('success', 'Prenotazione cancellata', 'check');
   await refreshBookingsData();
 }
 

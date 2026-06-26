@@ -1,13 +1,13 @@
 import { updateProfiloUtente, uploadFotoProfilo } from './db.js';
 import { getProfilePicUrl, syncProfilePictures } from './profile-utils.js';
+import { showToast } from './toast.js';
 
-// dimensione massima per l'avatar (3 mb)
+// massimo 3mb per la foto profilo
 const MAX_AVATAR_SIZE = 3 * 1024 * 1024;
 
-// riferimento alla funzione di navigazione, viene settato all'inizializzazione
 let navigateToView = null;
 
-// crea un campo in sola lettura da mostrare all'utente
+// crea un campo che mostra un'informazione di sola lettura
 function createReadonlyField(label, value) {
   const block = document.createElement('div');
   block.className = 'form-block account-field readonly';
@@ -23,17 +23,7 @@ function createReadonlyField(label, value) {
   return block;
 }
 
-// mostra un messaggio di feedback all'utente (esito positivo o errore)
-function showAccountMessage(container, text, isError = false) {
-  container.querySelector('.account-message')?.remove();
-  const msg = document.createElement('p');
-  msg.className = `account-message ${isError ? 'form-error' : 'form-success'}`;
-  msg.textContent = text;
-  container.prepend(msg);
-  setTimeout(() => msg.remove(), 3500);
-}
-
-// renderizza la sezione delle impostazioni account
+// mostra la vista delle impostazioni account
 export function renderAccountSettings() {
   const container = document.getElementById('account-settings');
   if (!container) return;
@@ -41,7 +31,7 @@ export function renderAccountSettings() {
   const profilo = window.ldrProfilo;
   container.replaceChildren();
 
-  // se l'utente non è loggato mostra un messaggio bloccante
+  // se nessun profilo, mostra un messaggio che invita ad accedere
   if (!profilo?.id_utente) {
     const empty = document.createElement('p');
     empty.className = 'bookings-empty disabled';
@@ -50,67 +40,65 @@ export function renderAccountSettings() {
     return;
   }
 
-  // titolo della sezione
+  // titolo informazioni account
   const title = document.createElement('span');
-  title.textContent = 'Opzioni account';
-  title.classList.add("account-section-indicator");
+  title.textContent = 'Informazioni account';
+  title.classList.add('account-section-indicator');
   container.appendChild(title);
 
-  // blocco per la foto profilo
+  // blocco per mostrare e cambiare la foto profilo
   const profileBlock = document.createElement('div');
   profileBlock.className = 'account-profile-block';
 
   const profileRow = document.createElement('div');
   profileRow.className = 'horizontal-container account-profile-row';
 
-  // elemento img della foto profilo
   const img = document.createElement('img');
   img.className = 'account-profile-pic profile-pic';
   img.src = getProfilePicUrl(profilo);
   img.alt = '';
 
-  // campo input file per selezionare immagine
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
   fileInput.accept = 'image/jpeg,image/png,image/webp,image/gif';
   fileInput.hidden = true;
 
-  // bottone per selezionare nuova immagine
   const btnUpload = document.createElement('button');
   btnUpload.type = 'button';
   btnUpload.className = 'w-text';
   btnUpload.innerHTML = 'Cambia immagine profilo';
 
-  // apre il selettore file al click sul bottone
+  // al click sul bottone si apre la selezione file
   btnUpload.addEventListener('click', () => fileInput.click());
 
-  // gestione caricamento nuova foto profilo
+  // quando si sceglie una immagine
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
     fileInput.value = '';
     if (!file) return;
 
-    // verifica dimensione immagine
+    // se il file è troppo grande mostra un avviso
     if (file.size > MAX_AVATAR_SIZE) {
-      showAccountMessage(container, 'Immagine troppo grande (max 3 MB).', true);
+      showToast('warning', 'Immagine troppo grande (max 3 MB).', 'image');
       return;
     }
 
     btnUpload.disabled = true;
+    // carica la nuova foto profilo
     const { data, error } = await uploadFotoProfilo(profilo.id_utente, file);
 
-    // gestione errore durante upload
+    // gestisci eventuali errori di upload
     if (error || !data) {
-      showAccountMessage(container, "Impossibile caricare l'immagine. Riprova più tardi.", true);
+      showToast('error', "Impossibile caricare l'immagine. Riprova più tardi.", 'image-off');
       btnUpload.disabled = false;
       return;
     }
 
-    // aggiorna la foto in memoria, nell'interfaccia e sincronizza globalmente
+    // aggiorna la foto profilo e sincronizza ovunque
     window.ldrProfilo = data;
     img.src = getProfilePicUrl(data);
     syncProfilePictures(data);
-    showAccountMessage(container, 'Immagine profilo aggiornata.');
+    showToast('success', 'Immagine profilo aggiornata.', 'user-round-check');
     btnUpload.disabled = false;
   });
 
@@ -118,7 +106,7 @@ export function renderAccountSettings() {
   profileBlock.append(profileRow);
   container.appendChild(profileBlock);
 
-  // sezione info anagrafica (nome, cognome, tessera, email)
+  // mostra i campi con le info anagrafiche utente
   const infoSection = document.createElement('div');
   infoSection.className = 'account-info-section';
   infoSection.append(
@@ -129,22 +117,21 @@ export function renderAccountSettings() {
   );
   container.appendChild(infoSection);
 
-  // blocco impostazioni calendario
+  // titolo per la sezione preferenze
+  const title2 = document.createElement('span');
+  title2.textContent = 'Preferenze e impostazioni';
+  title2.classList.add('account-section-indicator');
+  container.appendChild(title2);
+
+  // blocco preferenze utente
   const settingsBlock = document.createElement('div');
   settingsBlock.className = 'form-block';
 
-  // titolo della sezione
-  const title2 = document.createElement('span');
-  title2.textContent = 'Preferenze e impostazioni';
-  title2.classList.add("account-section-indicator");
-  container.appendChild(title2);
-
-  // label della select vista calendario di default
+  // campo per selezionare la vista calendario predefinita
   const viewLabel = document.createElement('label');
   viewLabel.setAttribute('for', 'default-calendar-view');
   viewLabel.innerHTML = '<span>Vista calendario predefinita</span>';
 
-  // select per scegliere la vista predefinita
   const viewSelect = document.createElement('select');
   viewSelect.id = 'default-calendar-view';
   viewSelect.innerHTML = `
@@ -153,35 +140,36 @@ export function renderAccountSettings() {
   `;
   viewSelect.value = profilo.vista_predefinita === 'week' ? 'week' : 'month';
 
-  // salva la vista selezionata quando cambia
+  // quando cambia la preferenza aggiorna il profilo
   viewSelect.addEventListener('change', async () => {
     const vista_predefinita = viewSelect.value;
     viewSelect.disabled = true;
 
-    const { data, error } = await updateProfiloUtente(profilo.id_utente, {
-      vista_predefinita,
-    });
+    const { data, error } = await updateProfiloUtente(profilo.id_utente, { vista_predefinita });
 
     viewSelect.disabled = false;
 
+    // se errore, mostra notifica e ripristina il valore precedente
     if (error || !data) {
-      showAccountMessage(container, "Impossibile salvare l'impostazione.", true);
+      showToast('error', "Impossibile salvare l'impostazione.", 'calendar-x');
       viewSelect.value = profilo.vista_predefinita === 'week' ? 'week' : 'month';
       return;
     }
 
+    // aggiorna il profilo con la nuova impostazione
     window.ldrProfilo = data;
-    showAccountMessage(container, 'Impostazione salvata.');
+    showToast('success', 'Impostazione salvata.', 'calendar-check');
   });
 
   settingsBlock.append(viewLabel, viewSelect);
   container.appendChild(settingsBlock);
 }
 
-// inizializza la vista opzioni account e collega la navigazione
+// inizializza la gestione delle impostazioni account
 export function initAccountSettings(onNavigate) {
   navigateToView = onNavigate;
 
+  // gestisce il click sui link per andare alle opzioni account
   document.querySelectorAll('[data-goto="opzioni"]').forEach((el) => {
     el.addEventListener('click', (e) => {
       e.preventDefault();
@@ -190,5 +178,6 @@ export function initAccountSettings(onNavigate) {
     });
   });
 
+  // nasconde la sezione account all'inizio
   document.getElementById('account-settings')?.classList.add('hidden');
 }

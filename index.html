@@ -8,6 +8,10 @@
 
     <!-- fogli di stile -->
     <link rel="stylesheet" href="/src/style/main.css">
+    <link rel="stylesheet" href="/src/style/responsive.css">
+
+    <!-- favicon -->
+    <link rel="icon" type="image/webp" href="/src/img/logo-prenotaldr-giallo.webp">
 
     <!-- font da googlefonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,12 +31,12 @@
                 <a href="index.html">
                     <img src="/src/img/logo-prenotaldr-giallo.webp" alt="">
                 </a>
-                <h2>Ciao <span data-get-info="username-name"></span>, al momento l'auletta è <span class="available" id="auletta-state">libera</span></h2>
+                <h2 id="saluto-header">Ciao <span class="italic" data-get-info="username-name"></span>, al momento l'auletta è <span class="available" id="auletta-state">libera</span></h2>
             </div>
         </div>
 
         <!-- container azioni header -->
-        <div class="horizontal-container">
+        <div id="desktop-header" class="horizontal-container">
             
             <!-- feedback -->
             <button class="w-text" data-modal="feedback">
@@ -53,7 +57,16 @@
 
             <!-- profilo utente -->
             <button data-modal="account" class="no-style">
-                <img class="profile-pic" data-profile-pic src="/src/img/yellow-profile-picture.webp" alt="">
+                <img class="profile-pic" data-profile-pic alt="">
+            </button>
+
+        </div>
+
+        <div id="mobile-header" class="horizontal-container">
+
+            <!-- menu -->
+            <button data-modal="menu">
+                <i data-lucide="menu"></i>
             </button>
 
         </div>
@@ -91,7 +104,7 @@
                     <span class="modal-subtitle">n.000</span>
                 </div>
                 <div class="lista-notifiche">
-                    <span class="modal-option" data-goto="opzioni"><i data-lucide="circle-user"></i> Opzioni account</span>
+                    <span class="modal-option" data-goto="opzioni"><i data-lucide="circle-user"></i> Account e preferenze</span>
                     <span class="modal-option" onclick="ldrLogout()" style="cursor:pointer"><i data-lucide="log-out"></i> Effettua Log-out</span>
                 </div>
             </div>
@@ -104,12 +117,19 @@
 
         <div class="horizontal-container">
             <button type="button" class="w-text active" data-main-view="calendar">
+                <i data-lucide="calendar-days"></i>
                 <span>Calendario</span>
             </button>
     
             <button type="button" class="w-text" data-main-view="bookings">
+                <i data-lucide="calendar-clock"></i>
                 <span>Prenotazioni</span>
             </button>
+
+            <!-- <button type="button" class="w-text" data-main-view="rankings">
+                <i data-lucide="medal"></i>
+                <span>Classifiche</span>
+            </button> -->
         </div>
 
     </nav>
@@ -121,7 +141,7 @@
         <div id="calendar-header">
 
             <!-- indicatore data (mese o giorno del mese) -->
-            <div class="horizontal-container">
+            <div id="indicatore-data-prenota-turni-container" class="horizontal-container">
                 <button type="button" id="day-back" class="mini hidden" aria-label="Torna alla vista precedente">
                     <i data-lucide="arrow-left"></i>
                 </button>
@@ -145,9 +165,9 @@
                 <div class="vertical-separator"></div>
           
                 <!-- seleziona il tipo di vista del calendario -->
-                <button type="button" class="w-text" data-calendar-switch="week">
-                    <i data-lucide="calendar"></i>
-                    <span>Vista settimanale</span>
+                <button id="cambia-vista-mensile" type="button" class="w-text" data-calendar-switch="week">
+                    <i data-lucide="calendar-1"></i>
+                    <span>Vista mensile</span>
                 </button>
 
                 <!-- effettua una nuova prenotazione -->
@@ -176,8 +196,8 @@
           
                 <!-- seleziona il tipo di vista del calendario -->
                 <button type="button" class="w-text" data-calendar-switch="month">
-                    <i data-lucide="calendar"></i>
-                    <span>Vista mensile</span>
+                    <i data-lucide="calendar-range"></i>
+                    <span>Vista settimanale</span>
                 </button>
 
                 <!-- effettua una nuova prenotazione -->
@@ -438,6 +458,11 @@
             </div>
         </div>
     </div>
+
+    <!-- prova toast -->
+    <!-- <div class="toast-container pos-bottom-center" role="region" aria-label="Notifiche">
+        <div class="toast-container pos-bottom-center" role="region" aria-label="Notifiche"><div class="toast toast--error" role="status" aria-live="polite" aria-label="Successo: Impostazione salvata." style="position: relative;"><span class="toast__icona" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="calendar-check" aria-hidden="true" class="lucide lucide-calendar-check"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path><path d="m9 16 2 2 4-4"></path></svg></span><span class="toast__testo">Impostazione salvata.</span><button class="toast__chiudi" aria-label="Chiudi notifica"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="x" aria-hidden="true" class="lucide lucide-x"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button><div class="toast__progress" style="animation-duration: 4000ms;"></div></div></div>
+    </div> -->
 
     <!-- scripts -->
 

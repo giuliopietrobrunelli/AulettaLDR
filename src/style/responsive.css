@@ -1,0 +1,169 @@
+/** Responsive styles for screens larger than 880px */
+@media (min-width: 881px) {
+    
+    #mobile-header {
+        display: none;
+    }
+
+
+}
+
+
+/** Responsive styles for screens smaller than 880px */
+@media (max-width: 880px) {
+
+    #desktop-header {
+        display: none;
+    }
+
+    /* calendario */
+
+    .calendar-day {
+        min-height: 155px;
+    }
+
+    .booked-day-recap {
+        flex-wrap: wrap;
+        max-width: 120px;
+        box-sizing: border-box;
+    }
+    .booked-day-recap img {
+        width: 30px;
+        height: 30px;
+    }
+    
+}
+
+/** Responsive styles for mobile devices (screens smaller than 600px) */
+@media (max-width: 600px) {
+
+    body {
+        padding-inline: 0px;
+    }
+
+    input {
+        font-size: 16px;
+    }
+
+    h1 {
+        font-size: 38px;
+        text-wrap: balance;
+    }
+
+    #day-schedules, #my-bookings, #calendar-header, header, nav, footer {
+        padding-inline: 20px;
+        box-sizing: border-box;
+    }
+
+    #saluto-header {
+        margin-left: 5px;
+        font-weight: 600;
+    }
+
+    nav {
+        /* display: none; */
+    }
+
+    #logo img {
+        max-width: 40px;
+    }
+
+    #logo h2 {
+        text-wrap: balance;
+    }
+
+    a {
+        max-height: 40px;
+    }
+    button {
+        min-height: 40px;
+        padding: 6px 14px;
+    }
+    button span {
+        font-size: 13px;
+    }
+    button.mini {
+        max-height: 40px;
+        min-height: 40px;
+    }
+    button.mini .lucide {
+        width: 18px;
+        height: 18px;
+    }
+
+    #calendar-header {
+        flex-direction: column;
+        justify-content: start;
+        align-items: start;
+        gap: 20px;
+    }
+
+    #login-form, #register-form, #set-password-form {
+        width: 100%;
+        padding: 30px 20px;
+        box-sizing: border-box;
+    }
+    .full-page-form-body {
+        width: min-content;
+        width: 100%;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+
+    /* calendario */
+
+    .calendar-day {
+        min-height: 90px;
+    }
+
+    .booked-day-recap img {
+        width: 20px;
+        height: 20px;
+        margin-left: -12px;
+    }
+
+    .booked-day-recap {
+        padding-right: 5px;
+        padding-bottom: 5px;
+    }
+
+    #cambia-vista-mensile {
+        display: none;
+    }
+
+    .calendar-day.past {
+        text-decoration: line-through;
+        opacity: 0.4;
+    }
+
+    #indicatore-data-prenota-turni-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: start;
+        align-items: start;
+    }
+
+    /* prenotazioni */
+
+    .reservation-card {
+        align-items: center;
+        align-items: start;
+        flex-direction: column;
+        padding-right: 0px;
+        gap: 0px;
+    }
+    .reservation-info {
+        box-sizing: border-box;
+        width: 100%;
+    }
+
+    .reservation-card .action-container {
+        padding: 10px 0px 10px 10px;
+        border-top: .5px solid var(--black-3);
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+
+}

@@ -30,6 +30,25 @@
 
 html {
     scrollbar-width: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 1;
+    background-color: var(--white);
+    background-image: radial-gradient(circle, #f0efef 1.2px, transparent 1.2px);
+    background-size: 15px 15px;
+    overflow-x: hidden;
+}
+html.black {
+    background-color: var(--black);
+    opacity: 1;
+    background-image:  linear-gradient(#262525 1px, transparent 1px), linear-gradient(to right, #262525 1px, #1e1d1d 1px);
+    background-size: 40px 40px;
+}
+
+html,
+body {
+    touch-action: manipulation;
 }
 
 body {
@@ -42,14 +61,16 @@ body {
     height: 100%;
     min-height: 100dvh;
     width: 100%;
+    max-width: 1000px;
     margin: 0;
     padding: 20px;
     box-sizing: border-box;
+    background-color: var(--white);
 }
 
 header, nav, main, footer {
     width: 100%;
-    max-width: 1000px;
+    max-width: 100%;
 }
 
 span, a, button, h1, h2, h3, h4, h5, input, select {
@@ -59,6 +80,10 @@ span, a, button, h1, h2, h3, h4, h5, input, select {
     margin: 0;
 }
 
+button, select {
+    color: var(--black);
+}
+
 a {
     text-decoration: underline;
     cursor: pointer;
@@ -66,11 +91,14 @@ a {
     max-height: 30px;
 }
 
+.bold {
+    font-weight: 700;
+}
 .semibold {
     font-weight: 500;
 }
-.bold {
-    font-weight: 700;
+.italic {
+    font-style: italic;
 }
 .disabled {
     opacity: .5;
@@ -210,6 +238,7 @@ header {
 }
 #logo img {
     max-width: 30px;
+    border-radius: 20%;
 }
 
 #auletta-state {
@@ -562,8 +591,8 @@ main {
 }
 .user-day-turn {
     flex: 1;
-    min-height: 35px;
-    max-height: 35.5px;
+    min-height: 37px;
+    max-height: 37px;
     box-sizing: border-box;
 }
 .user-day-turn .lucide {
@@ -1059,39 +1088,13 @@ footer {
 /* login e register */
 
 .full-page-form-body {
-    display: grid;
-    place-content: center;
-    position: relative;
-    isolation: isolate;
-    min-height: 100dvh;
-    width: 100%;
-    margin: 0;
-    padding: 20px;
-    gap: 0;
-    box-sizing: border-box;
-    --grid-tile: 6vmin;
-}
-
-.full-page-form-body.black .full-page-form-body::before {
-    background-color: var(--black);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Cpath fill='none' stroke='%23ffffffff0' stroke-width='1' d='M0 0h50M0 0v50'/%3E%3C/svg%3E");
-}
-.full-page-form-body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background-color: var(--white);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Cpath fill='none' stroke='%23d9d9d9' stroke-width='1' d='M0 0h50M0 0v50'/%3E%3C/svg%3E");
-    background-size: var(--grid-tile) var(--grid-tile);
-}
-.full-page-form-body.black {
-    background-color: var(--white);
-}
-.full-page-form-body.black body {
-    background-color: var(--white);
-    width: 1000px;
+    width: min-content;
+    min-width: unset;
+    padding: 0px;
+    margin: 0px;
+    justify-content: center;
+    align-items: center;
+    background: transparent;
 }
 
 .form-section {
@@ -1343,3 +1346,129 @@ input[type="checkbox"] {
 .account-message {
     margin: 0;
 }
+
+/* toast */
+
+.toast-container {
+    position: fixed;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+  }
+  .toast-container.pos-bottom-center {
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: center;
+  }
+  .toast-container.pos-bottom-left {
+    bottom: 28px;
+    left: 28px;
+    align-items: flex-start;
+  }
+  .toast-container.pos-bottom-right {
+    bottom: 28px;
+    right: 28px;
+    align-items: flex-end;
+  }
+  
+  .toast {
+    pointer-events: all;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: max-content;
+    max-width: max-content;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 500;
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.12);
+    cursor: default;
+    user-select: none;
+    will-change: transform, opacity;
+    animation: toastIn .32s cubic-bezier(.22,.61,.36,1) both;
+  }
+  .toast.toast--exit {
+    animation: toastOut .28s cubic-bezier(.55,0,1,.45) both;
+  }
+  
+  .toast--success { background: #1a9e41; }
+  .toast--error   { background: #d94f4f; }
+  .toast--warning { background: #c97d10; }
+  .toast--info    { background: #2f6fd4; }
+  
+  .toast__icon {
+    flex-shrink: 0;
+    width: 25px;
+    height: 25px;
+    border-radius: 20%;
+    background: rgba(255,255,255,.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .toast__icon svg {
+    width: 15px;
+    height: 15px;
+    stroke: #fff;
+    stroke-width: 2.2;
+  }
+  
+  .toast__text {
+    flex: 1;
+    font-weight: 500;
+  }
+  
+  .toast__close {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,.7);
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color .15s;
+  }
+  .toast__close:hover {
+    background-color: transparent;
+    opacity: .5;
+   }
+  .toast__close svg {
+    width: 15px;
+    height: 15px;
+    stroke: currentColor;
+    stroke-width: 2.2;
+  }
+  
+  .toast__progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    width: 100%;
+    border-radius: 0 0 10px 10px;
+    background: rgba(255,255,255,.45);
+    transform-origin: left;
+    animation: toastProgress linear both;
+  }
+  
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(14px) scale(.96); }
+    to   { opacity: 1; transform: translateY(0)    scale(1);   }
+  }
+  @keyframes toastOut {
+    from { opacity: 1; transform: translateY(0)    scale(1);   }
+    to   { opacity: 0; transform: translateY(10px) scale(.94); }
+  }
+  @keyframes toastProgress {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+  }
