@@ -39,15 +39,17 @@
 
     body {
         padding-inline: 0px;
+        gap: 20px;
     }
 
-    input {
-        font-size: 16px;
+    input, textarea {
+        font-size: 16px !important; 
     }
 
     h1 {
         font-size: 38px;
         text-wrap: balance;
+        font-weight: 500;
     }
 
     #account-settings, #day-schedules, #my-bookings, #calendar-header, header, nav, footer {
@@ -55,9 +57,12 @@
         box-sizing: border-box;
     }
 
+    #account-settings, #calendar-container, #day-schedules, #my-bookings {
+        padding-bottom: 20px;
+    }
+
     #saluto-header {
         margin-left: 5px;
-        font-weight: 600;
     }
 
     nav {
@@ -79,8 +84,8 @@
         min-height: 40px;
         padding: 6px 14px;
     }
-    button span {
-        font-size: 13px;
+    button span, button {
+        font-size: 14px;
     }
     button.mini {
         max-height: 40px;
@@ -91,13 +96,7 @@
         height: 18px;
     }
 
-    #calendar-header {
-        flex-direction: column;
-        justify-content: start;
-        align-items: start;
-        gap: 20px;
-    }
-
+    
     #login-form, #register-form, #set-password-form {
         width: 100%;
         padding: 30px 20px;
@@ -110,8 +109,20 @@
         box-sizing: border-box;
     }
 
-
+    #saluto-header {
+        display: none;
+    }
+    
+    
     /* calendario */
+
+    
+    #calendar-header {
+        flex-direction: column;
+        justify-content: start;
+        align-items: start;
+        gap: 20px;
+    }
 
     .calendar-day {
         min-height: 90px;
@@ -132,16 +143,20 @@
         display: none;
     }
 
-    .calendar-day.past {
+    .calendar-day.past span, .calendar-day.past booked-day-recap{
         text-decoration: line-through;
-        opacity: 0.4;
+        opacity: 0.1;
     }
 
     #indicatore-data-prenota-turni-container {
         display: flex;
-        flex-direction: column;
+        /* flex-direction: column; */
         justify-content: start;
-        align-items: start;
+        align-items: center;
+    }
+
+    #day-view-actions {
+        width: 100%;
     }
 
     /* prenotazioni */
@@ -174,7 +189,65 @@
     }
 
     .toast-container.pos-bottom-center {
-        bottom: 55px;
+        bottom: 115px;
+    }
+
+    .booking-summary-row {
+        flex-direction: column;
+    }
+
+    /* modali */
+
+    .header-modals {
+        position: fixed;
+        top: 0;
+        left: 0;
+        display: flex;
+        justify-content: center;
+        align-items: end;
+        z-index: 999;
+        pointer-events: none;
+        inset: 0;
+        margin-top: 0px;
+        box-sizing: border-box;
+        pointer-events:none;
+    }
+
+    .modal {
+        position: relative;
+        bottom: 0;
+        right: 0;
+        height: 50%;
+        width: 100%;
+        transform: scale(0.96) translateY(100%);
+        pointer-events: none;
+        box-shadow: 0 16px 60px 0 rgba(0,0,0,0.46), 0 4px 20px 0 rgba(0,0,0,0.28);
+   
+   
+    }
+    .modal span, .modal-title {
+        font-size: 15px;
+    }
+    .modal-header,
+    .lista-notifiche {
+        padding-inline: 25px !important;
+        padding-block: 10px !important;
+    }
+    .booking-week-row,
+    .modal-advise {
+        padding-inline: 0px;
+        padding-block: 5px;
+    }
+
+    .modal.showing {
+        pointer-events: auto;
+    }
+
+    #navigation-bar {
+        z-index: 999;
+    }
+    #booking-bar {
+        z-index: 9999;
     }
 
 }

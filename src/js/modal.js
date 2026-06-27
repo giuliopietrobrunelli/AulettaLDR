@@ -1,5 +1,6 @@
 // tempo di transizione per chiudere il modal in millisecondi
-const MODAL_TRANSITION_MS = 230;
+// const MODAL_TRANSITION_MS = 230;
+const MODAL_TRANSITION_MS = 0;
 
 const modal = {
   // insiemi per tracciare gli id dei modal piccoli e a schermo intero

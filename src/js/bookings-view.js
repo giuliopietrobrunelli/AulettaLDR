@@ -162,22 +162,22 @@ function updateBookingCount(count) {
 
 // aggiorna lo stato attuale dell'auletta (libera, tua, occupata)
 function updateAulettaState(currentBooking, profilo) {
-  const el = document.getElementById('auletta-state');
-  if (!el) return;
+  const els = document.querySelectorAll('[data-get-info="auletta-state"]');
+  els.forEach((el) => {
+    if (!currentBooking) {
+      el.textContent = 'libera';
+      el.className = 'available';
+      return;
+    }
 
-  if (!currentBooking) {
-    el.textContent = 'libera';
-    el.className = 'available';
-    return;
-  }
-
-  if (currentBooking.id_utente === profilo?.id_utente) {
-    el.textContent = 'occupata da te';
-    el.className = 'mine';
-  } else {
-    el.textContent = 'occupata';
-    el.className = 'occupied';
-  }
+    if (currentBooking.id_utente === profilo?.id_utente) {
+      el.textContent = 'occupata da te';
+      el.className = 'mine';
+    } else {
+      el.textContent = 'occupata';
+      el.className = 'occupied';
+    }
+  });
 }
 
 // genera il badge di stato (confermata/non confermata)
@@ -250,6 +250,8 @@ function createReservationCard(prenotazione, { isActive = false, isOwn = false }
     const actions = document.createElement('div');
     actions.className = 'horizontal-container action-container';
 
+    let shouldShowActions = false;
+
     // bottone per confermare presenza (solo attivo e non già confermata)
     if (isActive && !prenotazione.data_conferma && prenotazione.stato !== 'confermata') {
       const btnConfirm = document.createElement('button');
@@ -260,27 +262,44 @@ function createReservationCard(prenotazione, { isActive = false, isOwn = false }
         btnConfirm.disabled = true;
         const { error } = await confermaPresenza(prenotazione.id_prenotazione);
         if (error) {
-          // alert('impossibile confermare la presenza. riprova più tardi.');
           showToast('error', 'Impossibile confermare la presenza', 'x');
           btnConfirm.disabled = false;
           return;
         }
         showToast('success', 'Presenza confermata', 'check');
         await refreshBookingsData();
-
       });
       actions.appendChild(btnConfirm);
+      shouldShowActions = true;
     }
 
-    // bottone per aprire la modifica della prenotazione
-    const btnEdit = document.createElement('button');
-    btnEdit.type = 'button';
-    btnEdit.className = 'w-text';
-    btnEdit.innerHTML = '<span>Modifica</span>';
-    btnEdit.addEventListener('click', () => openModificaModal(prenotazione));
-    actions.appendChild(btnEdit);
+    // per aprire la modifica della prenotazione
+    const now = new Date();
+    const turnoStart = new Date(prenotazione.data_prenotazione);
+    // turnoStart deve essere valorizzato a data+ora esatta inizio turno
+    // se Turno.ora_inizio esiste la uso (stringa "HH:mm"), la aggiungo alla data_prenotazione
+    if (prenotazione.Turno && prenotazione.Turno.ora_inizio) {
+      const [h, m] = prenotazione.Turno.ora_inizio.split(":").map(Number);
+      turnoStart.setHours(h, m, 0, 0);
+    }
+    const diffMinuti = (turnoStart - now) / 60000; // minuti alla partenza del turno
 
-    card.appendChild(actions);
+    if (
+      prenotazione.stato !== "confermata" &&
+      diffMinuti > -30 // cioè, siamo a meno di 30min dall'inizio e non più tardi
+    ) {
+      const btnEdit = document.createElement('button');
+      btnEdit.type = 'button';
+      btnEdit.className = 'w-text';
+      btnEdit.innerHTML = '<span>Modifica</span>';
+      btnEdit.addEventListener('click', () => openModificaModal(prenotazione));
+      actions.appendChild(btnEdit);
+      shouldShowActions = true;
+    }
+
+    if (shouldShowActions) {
+      card.appendChild(actions);
+    }
   }
 
   return card;
@@ -488,15 +507,21 @@ async function loadUtenti() {
 }
 
 // apre il modal per modificare una prenotazione
-async function openModificaModal(prenotazione) {
+export async function openModificaModal(prenotazione) {
+  console.log('openModificaModal chiamata con:', prenotazione);
+
   const modal = document.getElementById('modal-modifica-prenotazione');
-  if (!modal) return;
+  if (!modal) {
+    console.error('modal-modifica-prenotazione non trovata nel DOM');
+    return; }
 
   const inputData   = document.getElementById('modifica-turno-data');
   const inputTurno  = document.getElementById('modifica-turno-orario');
   const selectCedi  = document.getElementById('modifica-turno-cedi');
   const btnCedi     = document.getElementById('btn-cedi-turno');
   const btnRinuncia = document.getElementById('btn-rinuncia-turno');
+
+  console.log('elementi modal:', { inputData, inputTurno, selectCedi, btnCedi, btnRinuncia });
 
   // resetto i bottoni ad ogni apertura modal
   if (btnCedi)     { btnCedi.disabled = true;     btnCedi.onclick = null; }
