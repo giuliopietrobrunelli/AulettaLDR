@@ -222,11 +222,12 @@
         transform: scale(0.96) translateY(100%);
         pointer-events: none;
         box-shadow: 0 16px 60px 0 rgba(0,0,0,0.46), 0 4px 20px 0 rgba(0,0,0,0.28);
-   
-   
     }
-    .modal span, .modal-title {
+    .modal-title {
         font-size: 15px;
+    }
+    .modal span {
+        font-size: 18px;
     }
     .modal-header,
     .lista-notifiche {

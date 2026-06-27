@@ -249,10 +249,10 @@ function createReservationCard(prenotazione, { isActive = false, isOwn = false }
   if (isOwn) {
     const actions = document.createElement('div');
     actions.className = 'horizontal-container action-container';
-
+  
     let shouldShowActions = false;
-
-    // bottone per confermare presenza (solo attivo e non già confermata)
+  
+    // bottone conferma presenza (solo se turno attivo e non già confermata)
     if (isActive && !prenotazione.data_conferma && prenotazione.stato !== 'confermata') {
       const btnConfirm = document.createElement('button');
       btnConfirm.type = 'button';
@@ -272,22 +272,17 @@ function createReservationCard(prenotazione, { isActive = false, isOwn = false }
       actions.appendChild(btnConfirm);
       shouldShowActions = true;
     }
-
-    // per aprire la modifica della prenotazione
+  
+    // bottone modifica — disponibile fino a 30 min dopo l'inizio del turno
     const now = new Date();
-    const turnoStart = new Date(prenotazione.data_prenotazione);
-    // turnoStart deve essere valorizzato a data+ora esatta inizio turno
-    // se Turno.ora_inizio esiste la uso (stringa "HH:mm"), la aggiungo alla data_prenotazione
-    if (prenotazione.Turno && prenotazione.Turno.ora_inizio) {
-      const [h, m] = prenotazione.Turno.ora_inizio.split(":").map(Number);
+    const turnoStart = parseDbDate(prenotazione.data_prenotazione);
+    if (prenotazione.Turno?.orario_inizio) {
+      const [h, m] = prenotazione.Turno.orario_inizio.split(':').map(Number);
       turnoStart.setHours(h, m, 0, 0);
     }
-    const diffMinuti = (turnoStart - now) / 60000; // minuti alla partenza del turno
-
-    if (
-      prenotazione.stato !== "confermata" &&
-      diffMinuti > -30 // cioè, siamo a meno di 30min dall'inizio e non più tardi
-    ) {
+    const diffMinuti = (now - turnoStart) / 60000; // positivo = turno già iniziato
+  
+    if (diffMinuti < 30 && prenotazione.stato !== 'confermata') {
       const btnEdit = document.createElement('button');
       btnEdit.type = 'button';
       btnEdit.className = 'w-text';
@@ -296,7 +291,7 @@ function createReservationCard(prenotazione, { isActive = false, isOwn = false }
       actions.appendChild(btnEdit);
       shouldShowActions = true;
     }
-
+  
     if (shouldShowActions) {
       card.appendChild(actions);
     }
@@ -508,20 +503,15 @@ async function loadUtenti() {
 
 // apre il modal per modificare una prenotazione
 export async function openModificaModal(prenotazione) {
-  console.log('openModificaModal chiamata con:', prenotazione);
 
   const modal = document.getElementById('modal-modifica-prenotazione');
-  if (!modal) {
-    console.error('modal-modifica-prenotazione non trovata nel DOM');
-    return; }
+  if (!modal) { return; }
 
   const inputData   = document.getElementById('modifica-turno-data');
   const inputTurno  = document.getElementById('modifica-turno-orario');
   const selectCedi  = document.getElementById('modifica-turno-cedi');
   const btnCedi     = document.getElementById('btn-cedi-turno');
   const btnRinuncia = document.getElementById('btn-rinuncia-turno');
-
-  console.log('elementi modal:', { inputData, inputTurno, selectCedi, btnCedi, btnRinuncia });
 
   // resetto i bottoni ad ogni apertura modal
   if (btnCedi)     { btnCedi.disabled = true;     btnCedi.onclick = null; }
@@ -633,7 +623,15 @@ async function handleRinunciaTurno(id_prenotazione) {
 // inizializza la vista prenotazioni e il timer di refresh automatico
 export function initBookingsView() {
   if (refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(() => refreshAulettaState(), 60_000);
+  
+  // ogni 60 secondi invalida la cache e aggiorna tutto (per via delle possibili prenotazioni revocate)
+  refreshTimer = setInterval(async () => {
+    // invalida cache calendario così vede le prenotazioni rimosse
+    window.calendarRender?.invalidateBookingsCache?.();
+    window.calendarRender?.render?.();
+    // aggiorna anche la vista prenotazioni
+    await refreshAulettaState();
+  }, 60_000);
 
   window.ldrBookings = {
     refresh: refreshBookingsData,
