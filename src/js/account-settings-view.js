@@ -1,6 +1,7 @@
 import { updateProfiloUtente, uploadFotoProfilo } from './db.js';
 import { getProfilePicUrl, syncProfilePictures } from './profile-utils.js';
 import { showToast } from './toast.js';
+import { initPushNotifications } from './app.js'
 
 // massimo 3mb per la foto profilo
 const MAX_AVATAR_SIZE = 3 * 1024 * 1024;
@@ -117,6 +118,40 @@ export function renderAccountSettings() {
   );
   container.appendChild(infoSection);
 
+  // titolo informazioni account
+  const title2 = document.createElement('span');
+  title2.textContent = 'Preferenze';
+  title2.classList.add('account-section-indicator');
+  container.appendChild(title2);
+
+  // blocco notifiche push
+  const pushBlock = document.createElement('div');
+  pushBlock.className = 'form-block account-push-block';
+
+  const pushLabel = document.createElement('label');
+  pushLabel.innerHTML = `<span>Notifiche push</span>`;
+
+  const pushDesc = document.createElement('span');
+  pushDesc.className = 'setting-desc disabled';
+  pushDesc.textContent = 'Ricevi notifiche sul tuo dispositivo per prenotazioni e aggiornamenti.';
+  const pushDesc2 = document.createElement('span');
+  pushDesc2.className = 'setting-desc disabled';
+  pushDesc2.innerHTML = 'Per dispositivi iOS richiede che la pagina sia stata aggiunta alla home <span class="italic">(Condividi -> Aggiungi alla schermata Home)</span>.';
+
+  const btnNotifiche = document.createElement('button');
+  btnNotifiche.type = 'button';
+  btnNotifiche.className = 'w-text';
+  btnNotifiche.id = 'btn-abilita-notifiche';
+  btnNotifiche.innerHTML = `
+      <span>Abilita notifiche</span>
+  `;
+
+  btnNotifiche?.addEventListener('click', () => initPushNotifications());
+
+
+  pushBlock.append(pushLabel, pushDesc, pushDesc2, btnNotifiche);
+  container.appendChild(pushBlock);
+
   // // titolo per la sezione preferenze
   // const title2 = document.createElement('span');
   // title2.textContent = 'Preferenze e impostazioni';
@@ -161,8 +196,8 @@ export function renderAccountSettings() {
   //   showToast('success', 'Impostazione salvata.', 'calendar-check');
   // });
 
-  settingsBlock.append(viewLabel, viewSelect);
-  container.appendChild(settingsBlock);
+  // settingsBlock.append(viewLabel, viewSelect);
+  // container.appendChild(settingsBlock);
 }
 
 // inizializza la gestione delle impostazioni account

@@ -37,7 +37,7 @@
                 <a href="index.html">
                     <img src="/src/img/logo-prenotaldr-giallo.webp" alt="">
                 </a>
-                <h2 id="saluto-header">Ciao <span class="italic" data-get-info="username-name"></span>, al momento l'auletta è <span class="available" id="auletta-state">libera</span></h2>
+                <h2 id="saluto-header">Ciao <span class="italic" data-get-info="username-name"></span>, al momento l'auletta è <span class="available italic" data-get-info="auletta-state"></span></h2>
             </div>
         </div>
 
@@ -69,6 +69,17 @@
         </div>
 
         <div id="mobile-header" class="horizontal-container">
+
+             <!-- prenotazioni -->
+             <button class="w-text" data-modal="le-mie-prenotazioni">
+                <i data-lucide="calendar-clock"></i>
+                <span data-booking-count="">0/7</span>
+            </button>
+
+            <!-- inbox -->
+            <button data-modal="notifiche">
+                <i data-lucide="inbox"></i>
+            </button>
 
             <!-- menu -->
             <button data-modal="menu">
@@ -151,15 +162,14 @@
 
             <!-- indicatore data (mese o giorno del mese) -->
             <div id="indicatore-data-prenota-turni-container" class="horizontal-container">
-                <button type="button" id="day-back" class="mini hidden" aria-label="Torna alla vista precedente">
+                <!-- <button type="button" id="day-back" class="mini hidden" aria-label="Torna alla vista precedente">
                     <i data-lucide="arrow-left"></i>
-                    <!-- <span>Torna indietro</span> -->
-                </button>
+                </button> -->
                 <h1 id="current-date"></h1>
             </div>
 
             <!-- azioni vista mensile -->
-            <div class="horizontal-container" data-view="month">
+            <div class="horizontal-container hidden" data-view="month">
 
                 <!-- naviga al giorno corrente o al mese precedente/successivo -->
                 <button type="button" id="calendar-prev" class="mini" aria-label="Vai al mese precedente">
@@ -189,7 +199,7 @@
             </div>
 
             <!-- azioni vista settimanale -->
-            <div class="horizontal-container" data-view="week">
+            <div class="horizontal-container hidden" data-view="week">
 
                 <!-- naviga al giorno corrente o al mese precedente/successivo -->
                 <button type="button" id="week-prev" class="mini" aria-label="Vai alla settimana precedente">
@@ -219,7 +229,7 @@
             </div>
 
             <!-- azioni vista giornaliera -->
-            <div class="horizontal-container hidden" data-view="day">
+            <div id="day-view-actions" class="horizontal-container hidden" data-view="day">
 
                 <button type="button" id="day-prev" class="mini" aria-label="Vai al giorno precedente">
                     <i data-lucide="chevron-left"></i>
@@ -289,6 +299,10 @@
         <!-- impostazioni account utente -->
         <div id="account-settings" class="hidden"></div>
 
+        <!-- toast container -->
+        <div class="toast-container pos-bottom-center" role="region" aria-label="notifiche">
+        </div>
+
     </main>
 
     <!-- footer fisso -->
@@ -340,6 +354,14 @@
             </button>
         </div>
 
+    </div>
+
+    <!-- barra navigazione mobile -->
+    <div id="back-to-bar" class="back-to-bar" aria-hidden="true">
+        <button type="button" id="day-back" class="mini" aria-label="Torna indietro">
+            <i data-lucide="arrow-left"></i>
+            <span>Indietro</span>
+        </button>
     </div>
 
     <!-- modali a "schermo intero" -------------------------------------------------------------------------------------------------------- -->
@@ -486,7 +508,7 @@
                 <div class="side-menu-user">
                     <img class="profile-pic" data-profile-pic alt="">
                     <div class="side-menu-user-info">
-                        <span class="semibold" data-get-info="username-name"></span>
+                        <h2 id="saluto-menu">Ciao <span class="italic" data-get-info="username-name"></span>, al momento l'auletta è <span class="available italic" data-get-info="auletta-state"></span></h2>
                         <span class="side-menu-role disabled" data-get-info="username-role"></span>
                     </div>
                 </div>
@@ -536,14 +558,13 @@
         </div>
     </div>
 
-
     <!-- scripts -->
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>lucide.createIcons();</script>
     
     <script src="/src/js/modal.js"></script>
-    <script src="/src/js/calendar-render.js"></script>
+    <script type="module" src="/src/js/calendar-render.js"></script>
 
     <script type="module" src="/src/js/auth.js"></script>
     <script type="module" src="/src/js/app.js"></script>

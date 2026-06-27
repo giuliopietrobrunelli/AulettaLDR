@@ -1,3 +1,5 @@
+import { openModificaModal } from "./bookings-view.js"
+
 // array dei nomi dei mesi in italiano
 const MONTHS = [
   "Gennaio",
@@ -65,6 +67,7 @@ const calendarRender = {
     this.dayViewDate = new Date(this.today);
 
     // riferimenti agli elementi principali del dom
+    // Wrapper per animare il cambio del titolo
     this.titleEl = document.getElementById("current-date");
     this.monthContainer = document.getElementById("calendar-container");
     this.weekContainer = document.getElementById("week-calendar-container");
@@ -72,6 +75,7 @@ const calendarRender = {
     this.monthToolbar = document.querySelector('[data-view="month"]');
     this.weekToolbar = document.querySelector('[data-view="week"]');
     this.dayToolbar = document.querySelector('[data-view="day"]');
+    this.backToBar = document.getElementById("back-to-bar");
 
     // bottoni di navigazione e conferma/cancellazione prenotazione
     this.btnMonthPrev = document.getElementById("calendar-prev");
@@ -135,6 +139,16 @@ const calendarRender = {
         this.setDayViewDate(this.parseDateISO(header.dataset.date));
         return;
       }
+
+      const ownTurn = e.target.closest('.day-turn[data-status="own"]');
+      if (ownTurn) {
+        const day    = ownTurn.dataset.day;
+        const turnId = ownTurn.dataset.turn;
+        const booking = this.getSlotBooking(day, turnId);
+        openModificaModal(booking);
+        return;
+      }
+
       const turn = e.target.closest('.day-turn[data-status="available"], .day-turn[data-status="auto-confirm"]');
       if (turn) this.selectSlot(turn);
     });
@@ -191,6 +205,7 @@ const calendarRender = {
     this.weekToolbar?.classList.toggle("hidden", !isWeek);
     this.dayToolbar?.classList.toggle("hidden", !isDay);
     this.btnDayBack?.classList.toggle("hidden", !isDay);
+    this.backToBar?.classList.toggle("is-visible", isDay);
 
     // imposta la settimana di partenza in modalità settimana
     if (isWeek) {
@@ -380,7 +395,13 @@ const calendarRender = {
 
   // restituisce stato di uno slot (disponibile, occupato, passato, bloccato)
   getSlotStatus(date, turnId) {
-    if (this.getSlotBooking(this.formatDateISO(date), turnId)) return "occupied";
+    const slotBooking = this.getSlotBooking(this.formatDateISO(date), turnId);
+    if (slotBooking) {
+      if (window.ldrProfilo && slotBooking.id_utente === window.ldrProfilo.id_utente) {
+        return "own";
+      }
+      return "occupied";
+    }
     if (this.isBeforeDate(date, this.today)) return "past";
     if (!this.isBookableDate(date)) return "locked";
   
@@ -411,22 +432,26 @@ const calendarRender = {
   // costruisce una mappa prenotazioni a partire dai dati db
   parseBookingsToMap(data) {
     const map = new Map();
-
     for (const prenotazione of data ?? []) {
       const indice = prenotazione.Turno?.indice;
       if (!indice || !prenotazione.data_prenotazione) continue;
-
+  
       const day = this.formatDateISOFromDb(prenotazione.data_prenotazione);
       const turnId = String(indice);
-
+  
       map.set(`${day}.${turnId}`, {
-        id_utente: prenotazione.id_utente,
-        nome: prenotazione.Utente?.nome ?? "",
-        cognome: prenotazione.Utente?.cognome ?? "",
-        foto_profilo: prenotazione.Utente?.foto_profilo ?? null,
+        id_utente:         prenotazione.id_utente,
+        nome:              prenotazione.Utente?.nome ?? '',
+        cognome:           prenotazione.Utente?.cognome ?? '',
+        foto_profilo:      prenotazione.Utente?.foto_profilo ?? null,
+        id_prenotazione:   prenotazione.id_prenotazione,
+        data_prenotazione: prenotazione.data_prenotazione,
+        stato:             prenotazione.stato,
+        data_conferma:     prenotazione.data_conferma ?? null,
+        Turno:             prenotazione.Turno ?? null,
+        Utente:            prenotazione.Utente ?? null,
       });
     }
-
     return map;
   },
 
@@ -602,6 +627,12 @@ const calendarRender = {
       el.appendChild(icon);
     } else if (status === "occupied") {
       el.appendChild(this.createUserPreviewEl(booking));
+    } else if (status == "own") {
+      el.appendChild(this.createUserPreviewEl(booking));
+      el.addEventListener('click', () => {
+        console.log('click su turno own, booking:', booking);
+        openModificaModal(booking);
+      });
     }
   },
 
@@ -623,7 +654,7 @@ const calendarRender = {
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
-    checkbox.checked = status === "occupied";
+    checkbox.checked = status === "occupied" || status === "own";
     checkbox.tabIndex = -1;
 
     const orderSpan = document.createElement("span");
@@ -643,7 +674,7 @@ const calendarRender = {
       const icon = document.createElement("i");
       icon.setAttribute("data-lucide", "plus");
       userDiv.appendChild(icon);
-    } else if (status === "occupied") {
+    } else if (status === "occupied" || status === "own") {
       userDiv.appendChild(this.createUserPreviewEl(booking));
     }
 
@@ -1100,13 +1131,24 @@ const calendarRender = {
 
   // formatta il titolo della vista giorno (es. 'Lunedì 3 Giugno 2024')
   formatDayTitle(date) {
-    const weekday = WEEKDAYS_FULL[(date.getDay() + 6) % 7];
+    const weekday = WEEKDAYS[(date.getDay() + 6) % 7];
     const weekdayLabel = weekday.charAt(0).toUpperCase() + weekday.slice(1);
-    const base = `${weekdayLabel} ${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+    // const base = `${weekdayLabel} ${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
 
-    if (this.isSameDate(date, this.today)) return `Oggi, ${base}`;
-    if (this.isTomorrow(date)) return `Domani, ${base}`;
-    return base;
+    // if (this.isSameDate(date, this.today)) return `Oggi, ${base}`;
+    // if (this.isTomorrow(date)) return `Domani, ${base}`;
+    // return base;
+
+    const base = `${date.getDate()} ${MONTHS[date.getMonth()]}`;
+
+    if (this.isSameDate(date, this.today)) {return `Oggi, ${base}`;}
+    else if (this.isTomorrow(date)) {return `Domani, ${base}`;}
+    else {
+      return `${weekdayLabel}, ${base}`;
+    }
+
+    // return base;
+
   },
 
   // controlla se la data è domani
