@@ -22,6 +22,7 @@ export function setMainView(view) {
 
   // mostra o nasconde le varie sezioni in base alla vista attiva
   document.getElementById('calendar-header')?.classList.toggle('hidden', !isCalendar);
+  document.getElementById('back-to-bar')?.classList.toggle('hidden', !isCalendar);
   document.getElementById('my-bookings')?.classList.toggle('hidden', !isBookings);
   document.getElementById('account-settings')?.classList.toggle('hidden', !isAccount);
 

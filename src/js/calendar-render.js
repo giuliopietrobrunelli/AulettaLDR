@@ -145,7 +145,19 @@ const calendarRender = {
         const day    = ownTurn.dataset.day;
         const turnId = ownTurn.dataset.turn;
         const booking = this.getSlotBooking(day, turnId);
-        openModificaModal(booking);
+
+        if (booking) {
+          const [d, m, y] = day.split('.').map(Number);
+          const [h, min]  = (booking.Turno?.orario_inizio ?? '00:00').split(':').map(Number);
+          const turnoStart = new Date(y, m - 1, d, h, min, 0, 0);
+          const now = new Date();
+          const diffMinuti = (now - turnoStart) / 60000; // positivo = turno già iniziato
+
+          // modificabile se non ancora iniziato, o entro 30 min dall'inizio
+          if (diffMinuti < 30 && booking.stato !== 'confermata') {
+            openModificaModal(booking);
+          }
+        }
         return;
       }
 
@@ -1587,7 +1599,6 @@ const calendarRender = {
 
   // controlla se un turno oggi è passato, a metà (auto-confirm) o futuro
   getTurnTimeStatus(turn) {
-    console.log('getTurnTimeStatus:', turn.id, turn.orario_inizio, turn.orario_fine);
     const now = new Date();
     const toMinutes = (t) => {
       if (!t) return 0;
