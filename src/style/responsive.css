@@ -1,8 +1,8 @@
 /** Responsive styles for screens larger than 880px */
 @media (min-width: 881px) {
     
-    #mobile-header, #navigation-bar {
-        display: none;
+    #mobile-header, #navigation-bar, #modal-menu {
+        display: none !important;
     }
 
 
@@ -12,8 +12,12 @@
 /** Responsive styles for screens smaller than 880px */
 @media (max-width: 880px) {
 
-    #desktop-header {
+    #desktop-header, #week-calendar-columns, #week-calendar-turns, #week-view-actions {
         display: none;
+    }
+
+    #week-view-unavailable {
+        display: grid !important;
     }
 
     /* calendario */
@@ -30,6 +34,10 @@
     .booked-day-recap img {
         width: 30px;
         height: 30px;
+    }
+
+    .divider {
+        min-height: 1px;
     }
     
 }
@@ -97,7 +105,10 @@
     }
 
     
-    #login-form, #register-form, #set-password-form {
+    #login-form, 
+    #register-form, 
+    #set-password-form, 
+    #register-by-name-form {
         width: 100%;
         padding: 30px 20px;
         box-sizing: border-box;

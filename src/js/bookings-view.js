@@ -621,17 +621,30 @@ async function handleRinunciaTurno(id_prenotazione) {
 // ────────────────────────────────────────────────────────────────────────────
 
 // inizializza la vista prenotazioni e il timer di refresh automatico
+// export function initBookingsView() {
+//   if (refreshTimer) clearInterval(refreshTimer);
+  
+//   // ogni 60 secondi invalida la cache e aggiorna tutto (per via delle possibili prenotazioni revocate)
+//   refreshTimer = setInterval(async () => {
+//     // invalida cache calendario così vede le prenotazioni rimosse
+//     window.calendarRender?.invalidateBookingsCache?.();
+//     window.calendarRender?.render?.();
+//     // aggiorna anche la vista prenotazioni
+//     await refreshAulettaState();
+//   }, 60_000);
+
+//   window.ldrBookings = {
+//     refresh: refreshBookingsData,
+//     refreshAulettaState,
+//     refreshBookingsModal: async (viewDate) => {
+//       const profilo = window.ldrProfilo;
+//       if (profilo?.id_utente) await renderBookingsModal(profilo, viewDate);
+//     },
+//   };
+// }
 export function initBookingsView() {
   if (refreshTimer) clearInterval(refreshTimer);
-  
-  // ogni 60 secondi invalida la cache e aggiorna tutto (per via delle possibili prenotazioni revocate)
-  refreshTimer = setInterval(async () => {
-    // invalida cache calendario così vede le prenotazioni rimosse
-    window.calendarRender?.invalidateBookingsCache?.();
-    window.calendarRender?.render?.();
-    // aggiorna anche la vista prenotazioni
-    await refreshAulettaState();
-  }, 60_000);
+  refreshTimer = setInterval(() => refreshAulettaState(), 60_000);
 
   window.ldrBookings = {
     refresh: refreshBookingsData,

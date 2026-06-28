@@ -199,7 +199,7 @@
             </div>
 
             <!-- azioni vista settimanale -->
-            <div class="horizontal-container hidden" data-view="week">
+            <div id="week-view-actions" class="horizontal-container hidden" data-view="week">
 
                 <!-- naviga al giorno corrente o al mese precedente/successivo -->
                 <button type="button" id="week-prev" class="mini" aria-label="Vai alla settimana precedente">
@@ -281,6 +281,14 @@
                 <div id="week-calendar-turns">
                     <div id="week-schedules" class="week-calendar-day">
                     </div>
+                </div>
+
+                <div id="week-view-unavailable">
+                    <h2>Vista settimanale non disponibile in questo formato.</h2>
+                    <button class="active" data-calendar-switch="month">
+                        <i data-lucide="arrow-left"></i>
+                        <span>Torna alla vista mensile</span>
+                    </button>
                 </div>
 
             </div>
