@@ -679,6 +679,7 @@ export async function refreshAulettaState() {
 }
 
 export async function refreshBookingsData() {
+  console.log("turni refreshati");
   turniCache = null;
   window.calendarRender?.invalidateBookingsCache?.();
 
@@ -707,7 +708,6 @@ export async function refreshBookingsData() {
   }
 
   await renderBookingsModal(profilo);
-
 }
 
 export async function initPrenotaModal() {

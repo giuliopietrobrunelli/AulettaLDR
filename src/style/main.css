@@ -1031,6 +1031,8 @@ footer {
     display: flex;
     flex-direction: column;
     width: 100%;
+    box-sizing: border-box;
+    overflow-y: scroll;
 }
 
 .modal-advise {
@@ -1041,6 +1043,44 @@ footer {
     padding: 10px 15px;
     font-size: 11px;
     color: var(--white);
+    box-sizing: border-box;
+}
+
+.modal-advise.take-action {
+    align-items: start;
+}
+.modal-advise.take-action .advise-indicator{
+    margin-top: 20px;
+}
+
+.modal-advise-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+    align-items: start;
+    background-color: var(--white-3);
+    padding: 10px;
+    box-sizing: border-box;
+    width: 100%;
+    border-radius: 4px;
+}
+.modal-advise-content span {
+    font-weight: 300;
+}
+.modal-advise-title {
+    font-weight: 500 !important;
+    padding-bottom: 5px;
+    font-size: 12px;
+}
+
+.modal-advise-actions {
+    width: 100%;
+    /* justify-content: end; */
+    /* padding-top: 20px; */
+    padding-top: 10px;
+}
+.modal-advise-actions button:nth-child(2) {
+    opacity: .5;
 }
 
 .advise-indicator {
@@ -1230,7 +1270,8 @@ footer {
 #login-form, 
 #register-form, 
 #register-by-name-form, 
-#set-password-form {
+#set-password-form,
+#reset-password-form {
     display: flex;
     flex-direction: column;
     width: 450px;
@@ -1248,7 +1289,8 @@ footer {
 #login-form .divider,
 #register-form .divider,
 #set-password-form .divider,
-#register-by-name-form .divider {
+#register-by-name-form .divider,
+#reset-password-form .divider{
     margin-block: 10px;
 }
 #change-initial-form, #change-type-form {
@@ -1260,7 +1302,8 @@ footer {
 #login-form a,
 #register-form a,
 #register-by-name-form a,
-#set-password-form a {
+#set-password-form a,
+#reset-password-form a {
     width: 100%;
     text-decoration: none;
     max-height: none;
@@ -1269,7 +1312,8 @@ footer {
 #login-form h1, 
 #register-form h1, 
 #set-password-form h1, 
-#register-by-name-form h1 {
+#register-by-name-form h1,
+#reset-password-form h1 {
     line-height: 1.1;
     text-wrap: balance;
 }

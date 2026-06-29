@@ -520,9 +520,10 @@ const calendarRender = {
   },
 
   // svuota la cache delle prenotazioni
-  invalidateBookingsCache() {
-    this.bookingsRangeCache.clear();
-    this.bookingsBySlot.clear();
+  async invalidateBookingsCache() {
+      console.log("invalidati e refresh");
+      this.bookingsRangeCache.clear();
+      this.bookingsBySlot.clear();
   },
 
   // assicura che il db sia pronto prima di fare richieste
@@ -1435,6 +1436,53 @@ const calendarRender = {
           return;
         }
       }
+    }
+
+    // controlla se ci sono slot auto-confirm e avvisa l'utente
+    const slotsAutoConfirm = this.selectedSlots.filter(slot => {
+      const el = document.querySelector(
+        `[data-day="${slot.day}"][data-turn="${slot.turnId}"]`
+      );
+      return el?.dataset.status === 'auto-confirm';
+    });
+
+    if (slotsAutoConfirm.length) {
+      const nomi = slotsAutoConfirm.map(slot => {
+        const turn = this.turns.find(t => t.id === slot.turnId);
+        return `${turn?.label ?? slot.turnId}`;
+      }).join(', ');
+
+      const testo = slotsAutoConfirm.length === 1
+        ? `Il turno delle ${nomi} è già iniziato da più di 30 minuti. Se lo prenoti verrà confermato automaticamente e non potrai rinunciarci.`
+        : `Uno deii turni selezionati è già iniziato da più di 30 minuti. Se lo prenoti verrà confermato automaticamente e non potrai rinunciarci.`;
+
+      document.getElementById('auto-confirm-warning-text').textContent = testo;
+
+      // aspetta la scelta dell'utente prima di procedere
+      const confermato = await new Promise((resolve) => {
+        const btnOk = document.getElementById('btn-auto-confirm-ok');
+        const btnAnnulla = document.getElementById('btn-auto-confirm-annulla');
+
+        const cleanup = () => {
+          btnOk.replaceWith(btnOk.cloneNode(true));
+          btnAnnulla.replaceWith(btnAnnulla.cloneNode(true));
+          window.modal?.closeAll();
+        };
+
+        document.getElementById('btn-auto-confirm-ok').onclick = () => {
+          cleanup();
+          resolve(true);
+        };
+        document.getElementById('btn-auto-confirm-annulla').onclick = () => {
+          cleanup();
+          resolve(false);
+        };
+
+        window.modal?.open('auto-confirm-warning');
+        lucide.createIcons();
+      });
+
+      if (!confermato) return;
     }
 
     this.btnBookingConfirm.disabled = true;

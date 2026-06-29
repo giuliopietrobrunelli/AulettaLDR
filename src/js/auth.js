@@ -6,6 +6,10 @@ const auth = {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) console.error('errore sessione:', error.message);
   
+    if (window.location.pathname.includes('reset-password')) {
+      this.initResetPasswordPage(session);
+      return;
+    }
     if (window.location.pathname.includes('set-password')) {
       this.initSetPassword(session);
       return;
@@ -28,7 +32,7 @@ const auth = {
 
   initRegisterByNamePage(session) {
     if (session) {
-      window.location.href = "/index.html";
+      window.location.href = "/";
       return;
     }
     this.setupRegisterByNameForm();
@@ -44,7 +48,7 @@ const auth = {
   // se utente già loggato, manda alla home, altrimenti mostra form login
   initLoginPage(session) {
     if (session) {
-      window.location.href = "/index.html";
+      window.location.href = "/";
       return;
     }
 
@@ -54,11 +58,21 @@ const auth = {
   // se utente già loggato, manda alla home, altrimenti mostra form registrazione
   initRegisterPage(session) {
     if (session) {
-      window.location.href = "/index.html";
+      window.location.href = "/";
       return;
     }
 
     this.setupRegisterForm();
+  },
+
+  initResetPasswordPage(session) {
+    if (!session) {
+      // se non c'è sessione il link è scaduto
+      const form = document.getElementById('reset-password-form');
+      if (form) this.showError(form, 'il link è scaduto o già usato. richiedine uno nuovo dalla pagina di login.');
+      return;
+    }
+    this.setupNewPasswordForm();
   },
 
   // login con email o numero tessera più password
@@ -136,8 +150,22 @@ const auth = {
       }
 
       // reindirizza alla home se login ok
-      window.location.href = "/index.html";
+      window.location.href = "/";
     });
+
+    // toggle tra login e reset
+    document.getElementById('btn-show-reset')?.addEventListener('click', () => {
+      document.getElementById('login-form').classList.toggle("hidden");
+      document.getElementById('reset-password-form').classList.toggle("hidden");
+    });
+
+    document.getElementById('btn-back-login')?.addEventListener('click', () => {
+      document.getElementById('reset-password-form').classList.toggle("hidden");
+      document.getElementById('login-form').classList.toggle("hidden");
+    });
+
+    // inizializza il form per il reset della password
+    this.setupResetPasswordForm();
   },
 
   // registrazione tramite numero tessera, invia magic link via email
@@ -301,6 +329,114 @@ const auth = {
     });
   },
 
+  // invio magic link per reset password via mail
+  setupResetPasswordForm() {
+    const form = document.getElementById('reset-password-form');
+    if (!form) return;
+  
+    const btnSubmit = form.querySelector('button[type="submit"]');
+  
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      this.clearError(form);
+      this.setLoading(btnSubmit, true);
+  
+      const identifier = form.querySelector('input[name="reset-identifier"]')?.value.trim();
+      if (!identifier) {
+        this.showError(form, 'inserisci email o numero tessera.');
+        this.setLoading(btnSubmit, false);
+        return;
+      }
+  
+      // risolve email da numero tessera se necessario
+      let email = identifier;
+      if (!identifier.includes('@')) {
+        const numeroTessera = parseInt(identifier, 10);
+        if (isNaN(numeroTessera)) {
+          this.showError(form, 'numero tessera non valido.');
+          this.setLoading(btnSubmit, false);
+          return;
+        }
+  
+        const { data: utente, error: dbError } = await supabase
+          .from('Utente')
+          .select('email, registrato')
+          .eq('numero_tessera', numeroTessera)
+          .single();
+  
+        if (dbError || !utente) {
+          this.showError(form, 'numero tessera non trovato.');
+          this.setLoading(btnSubmit, false);
+          return;
+        }
+  
+        if (!utente.registrato) {
+          this.showError(form, 'non hai ancora un account. registrati prima.');
+          this.setLoading(btnSubmit, false);
+          return;
+        }
+  
+        email = utente.email;
+      }
+  
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://prenotaulettaldr.illumedellaragione6.workers.dev/set-password',
+      });
+  
+      if (error) {
+        this.showError(form, 'errore nell\'invio della mail. riprova tra qualche minuto.');
+        this.setLoading(btnSubmit, false);
+        return;
+      }
+  
+      this.showSuccess(
+        form,
+        `abbiamo inviato un link a ${this.maskEmail(email)}. controlla la posta (anche nello spam).`
+      );
+      this.setLoading(btnSubmit, false);
+    });
+  },
+
+  setupNewPasswordForm() {
+    const form = document.getElementById('reset-password-form');
+    if (!form) return;
+  
+    const btnSubmit = form.querySelector('button[type="submit"]');
+    const inputPwd  = form.querySelector('input[name="password"]');
+    const inputConf = form.querySelector('input[name="conferma-password"]');
+  
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      this.clearError(form);
+  
+      const pwd  = inputPwd?.value;
+      const conf = inputConf?.value;
+  
+      if (!pwd || pwd.length < 8) {
+        this.showError(form, 'la password deve essere di almeno 8 caratteri.');
+        return;
+      }
+  
+      if (pwd !== conf) {
+        this.showError(form, 'le password non coincidono.');
+        return;
+      }
+  
+      this.setLoading(btnSubmit, true);
+  
+      const { error } = await supabase.auth.updateUser({ password: pwd });
+  
+      if (error) {
+        this.showError(form, 'errore nell\'impostazione della password. riprova.');
+        console.error('updateuser error:', error.message);
+        this.setLoading(btnSubmit, false);
+        return;
+      }
+  
+      window.location.href = '/';
+    });
+  },
+
   // gestione impostazione password dopo magic link via email
   async initSetPassword(session) {
     const form = document.getElementById('set-password-form');
@@ -343,7 +479,7 @@ const auth = {
         return;
       }
   
-      window.location.href = '/index.html';
+      window.location.href = '/';
     });
   },
 
