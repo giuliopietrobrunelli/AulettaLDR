@@ -136,6 +136,12 @@ function getStatoInfo(prenotazione, isActive) {
   if (prenotazione.data_conferma || prenotazione.stato === 'confermata') {
     return { label: 'Confermata', className: 'confermata' };
   }
+  if (prenotazione.stato === 'riservata'){
+    return{ label: 'Riservata', className: 'riservata' };
+  }
+  if (prenotazione.stato === 'annullata'){
+    return{ label: 'Annullata', className: 'annullata' };
+  }
   return { label: 'Non confermata', className: 'non-confermata' };
 }
 

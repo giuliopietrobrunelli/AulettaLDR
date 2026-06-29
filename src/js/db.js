@@ -223,3 +223,22 @@ export async function cediPrenotazione(id_prenotazione, id_utente_destinatario) 
     .select()
     .single();
 }
+
+// controllo se account loggato è amministratore
+export async function isAmministratore(id_utente) {
+  if (!id_utente) return {data: false, error: null};
+
+  const {data, error } = await supabase
+    .from('Amministratore')
+    .select('id_amministratore')
+    .eq('id_utente', id_utente);
+
+    if (error) return { data: false, error};
+    
+
+    if(data.length != 0){
+      return { data: true, error: null};
+    }
+
+    return { data: false, error: null};
+}

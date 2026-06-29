@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Admin — Auletta LDR</title>
+
+    <link rel="stylesheet" href="/src/style/main.css">
+    <link rel="stylesheet" href="/src/style/responsive.css">
+    <link rel="icon" type="image/webp" href="/src/img/logo-prenotaldr-giallo.webp">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        /* ── Layout dashboard ─────────────────────────────── */
+
+        body {
+            gap: 20px;
+            visibility: hidden;
+        }
+
+        body.admin-access-checked {
+            visibility: visible;
+        }
+
+        /* Sidebar + content layout */
+        #dash-layout {
+            display: flex;
+            width: 100%;
+            gap: 0;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Sidebar */
+        #dash-sidebar {
+            width: 200px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding-right: 20px;
+            border-right: .5px solid var(--gray2);
+        }
+
+        .dash-nav-label {
+            font-size: 10px;
+            font-family: var(--plex-sans);
+            opacity: .4;
+            padding: 10px 8px 4px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .dash-nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 4px;
+            background: transparent;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            min-height: unset;
+            transition: background-color 0.15s;
+        }
+
+        .dash-nav-btn:hover {
+            background-color: var(--gray);
+        }
+
+        .dash-nav-btn.active {
+            background-color: var(--black);
+        }
+
+        .dash-nav-btn.active span {
+            color: var(--white);
+        }
+
+        .dash-nav-btn.active .lucide {
+            color: var(--white);
+            opacity: 1;
+        }
+
+        .dash-nav-btn span {
+            font-size: 12px;
+            color: var(--black);
+        }
+
+        .dash-nav-btn .lucide {
+            width: 15px;
+            height: 15px;
+            opacity: .55;
+            flex-shrink: 0;
+        }
+
+        .dash-nav-btn:hover .lucide {
+            opacity: 1;
+        }
+
+        /* Content area */
+        #dash-content {
+            flex: 1;
+            min-width: 0;
+            padding-left: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Section panels (hidden by default) */
+        .dash-section {
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .dash-section.active {
+            display: flex;
+        }
+
+        /* ── Statistiche ──────────────────────────────────── */
+
+        .stats-grid {
+            display: grid;
+            /* grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); */
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .stat-card {
+            border: .5px solid var(--gray2);
+            border-radius: 4px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .stat-card-label {
+            font-size: 11px;
+            opacity: .5;
+            font-family: var(--plex-sans);
+        }
+
+        .stat-card-value {
+            font-size: 28px;
+            font-family: var(--plex-sans);
+            font-weight: 500;
+            line-height: 1;
+        }
+
+        .stat-card-sub {
+            font-size: 11px;
+            opacity: .45;
+            font-family: var(--plex-sans);
+        }
+
+        /* ── Tabelle utenti ───────────────────────────────── */
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-family: var(--plex-sans);
+            font-weight: 500;
+        }
+
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            border-bottom: .5px solid var(--gray2);
+            padding-bottom: 0;
+            margin-bottom: 4px;
+        }
+
+        .tab-bar button {
+            color: var(--black);
+        }
+
+        .tab-btn {
+            padding: 6px 12px;
+            border-radius: 4px 4px 0 0;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            font-size: 12px;
+            font-family: var(--plex-sans);
+            cursor: pointer;
+            min-height: unset;
+            color: var(--black);
+            opacity: .5;
+            transition: opacity .15s;
+        }
+
+        .tab-btn:hover {
+            background: transparent;
+            opacity: .8;
+        }
+
+        .tab-btn.active {
+            opacity: 1;
+            border-bottom: 2px solid var(--black);
+            font-weight: 500;
+            background: transparent;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .search-bar input {
+            max-width: 240px;
+            font-size: 12px;
+            padding: 6px 10px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--plex-sans);
+            font-size: 12px;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 8px 10px;
+            font-weight: 500;
+            font-size: 11px;
+            opacity: .5;
+            border-bottom: .5px solid var(--gray2);
+            white-space: nowrap;
+        }
+
+        .data-table td {
+            padding: 9px 10px;
+            border-bottom: .5px solid var(--gray2);
+            vertical-align: middle;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tr:hover td {
+            background-color: var(--gray);
+        }
+
+        .table-container {
+            border: .5px solid var(--gray2);
+            border-radius: 4px;
+            overflow: hidden;
+            overflow-x: auto;
+        }
+
+        .table-panel {
+            display: none;
+        }
+
+        .table-panel.active {
+            display: block;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .badge-green {
+            background: var(--green);
+            color: var(--green-text);
+        }
+
+        .badge-gray {
+            background: var(--gray);
+            color: var(--black);
+            opacity: .6;
+        }
+
+        .badge-yellow {
+            background: var(--aula);
+            color: var(--black);
+        }
+
+        .table-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn-icon {
+            padding: 4px 6px;
+            min-height: unset;
+            background: transparent;
+            border: .5px solid var(--gray2);
+        }
+
+        .btn-icon:hover {
+            background: var(--gray);
+        }
+
+        .btn-icon .lucide {
+            width: 13px;
+            height: 13px;
+        }
+
+        .empty-row td {
+            text-align: center;
+            padding: 30px;
+            opacity: .4;
+            font-style: italic;
+        }
+
+        /* ── Turni ────────────────────────────────────────── */
+
+        .turni-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .turno-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border: .5px solid var(--gray2);
+            border-radius: 4px;
+        }
+
+        .turno-index {
+            font-size: 13px;
+            font-weight: 500;
+            width: 24px;
+            flex-shrink: 0;
+            opacity: .5;
+        }
+
+        .turno-label {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .turno-time {
+            font-size: 12px;
+            opacity: .55;
+            font-style: italic;
+        }
+
+        /* ── Settings ─────────────────────────────────────── */
+
+        .settings-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-width: 420px;
+        }
+
+        .setting-row {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .setting-row label {
+            font-size: 12px;
+            opacity: .6;
+            font-family: var(--plex-sans);
+        }
+
+        .setting-row input {
+            font-size: 13px;
+        }
+
+        .setting-desc {
+            font-size: 11px;
+            opacity: .45;
+            font-family: var(--plex-sans);
+        }
+
+        /* ── Calendario admin ─────────────────────────────── */
+
+        #admin-calendar-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* ── Modali dashboard ─────────────────────────────── */
+
+        #modal-nuovo-utente .full-modal-content,
+        #modal-modifica-utente .full-modal-content,
+        #modal-prenota-admin .full-modal-content,
+        #modal-modifica-turno .full-modal-content {
+            gap: 12px;
+        }
+
+        #modal-nuovo-utente .form-block label span,
+        #modal-modifica-utente .form-block label span,
+        #modal-prenota-admin .form-block label span,
+        #modal-modifica-turno .form-block label span {
+            font-size: 12px;
+            opacity: .6;
+        }
+
+        /* ── Responsive sidebar ───────────────────────────── */
+
+        @media (max-width: 700px) {
+            #dash-layout {
+                flex-direction: column;
+            }
+
+            #dash-sidebar {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+                padding-right: 0;
+                padding-bottom: 12px;
+                border-right: none;
+                border-bottom: .5px solid var(--gray2);
+            }
+
+            .dash-nav-label {
+                display: none;
+            }
+
+            #dash-content {
+                padding-left: 0;
+                padding-top: 16px;
+            }
+        }
+
+        /* inline info box */
+        .info-box {
+            background: var(--gray);
+            border-radius: 4px;
+            padding: 10px 14px;
+            font-size: 12px;
+            opacity: .75;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── Header ────────────────────────────────────────────────── -->
+    <header>
+        <div id="logo">
+            <div class="horizontal-container">
+                <a href="index.html">
+                    <img src="/src/img/logo-prenotaldr-giallo.webp" alt="">
+                </a>
+                <h2>Dashboard <span class="semibold">Admin</span></h2>
+            </div>
+        </div>
+
+        <div class="horizontal-container">
+            <button class="w-text mini" onclick="location.href='index.html'">
+                <i data-lucide="arrow-left" class="lucide"></i>
+                <span>Torna all'app</span>
+            </button>
+            <button class="no-style" id="dash-profile-btn">
+                <img class="profile-pic" data-profile-pic alt="">
+            </button>
+        </div>
+    </header>
+
+    <!-- ── Nav principale ────────────────────────────────────────── -->
+    <nav>
+        <div class="horizontal-container">
+            <span class="semibold" style="font-size:12px; opacity:.4; margin-right:4px">Admin</span>
+            <div class="vertical-separator"></div>
+            <button type="button" class="w-text mini" id="btn-nav-utenti" onclick="showSection('utenti')">
+                <i data-lucide="users" class="lucide"></i>
+                <span>Utenti</span>
+            </button>
+            <button type="button" class="w-text mini" id="btn-nav-turni" onclick="showSection('turni')">
+                <i data-lucide="clock" class="lucide"></i>
+                <span>Turni</span>
+            </button>
+            <button type="button" class="w-text mini" id="btn-nav-calendario" onclick="showSection('calendario')">
+                <i data-lucide="calendar-days" class="lucide"></i>
+                <span>Calendario</span>
+            </button>
+            <button type="button" class="w-text mini" id="btn-nav-impostazioni" onclick="showSection('impostazioni')">
+                <i data-lucide="settings" class="lucide"></i>
+                <span>Impostazioni</span>
+            </button>
+            <button type="button" class="w-text mini" id="btn-nav-stats" onclick="showSection('stats')">
+                <i data-lucide="bar-chart-2" class="lucide"></i>
+                <span>Statistiche</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ── Main content ───────────────────────────────────────────── -->
+    <main style="flex:1;">
+
+        <!-- ════ SEZIONE: STATISTICHE ════ -->
+        <section class="dash-section" id="section-stats">
+
+            <div class="section-header">
+                <span class="section-title">Statistiche</span>
+                <button class="w-text mini" id="btn-refresh-stats" onclick="window.loadStats()">
+                    <i data-lucide="refresh-cw" class="lucide"></i>
+                    <span>Aggiorna</span>
+                </button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-card-label">Utenti registrati</span>
+                    <span class="stat-card-value" id="stat-registrati">—</span>
+                    <span class="stat-card-sub">con accesso attivo</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-card-label">Utenti totali</span>
+                    <span class="stat-card-value" id="stat-totali">—</span>
+                    <span class="stat-card-sub">nel database</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-card-label">Prenotazioni mese</span>
+                    <span class="stat-card-value" id="stat-prenot-mese">—</span>
+                    <span class="stat-card-sub" id="stat-prenot-mese-label">questo mese</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-card-label">Prenotazioni oggi</span>
+                    <span class="stat-card-value" id="stat-prenot-oggi">—</span>
+                    <span class="stat-card-sub">turni occupati</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-card-label">Tasso conferma</span>
+                    <span class="stat-card-value" id="stat-tasso">—</span>
+                    <span class="stat-card-sub">confermate / totali</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-card-label">Limite settimanale</span>
+                    <span class="stat-card-value" id="stat-limite">—</span>
+                    <span class="stat-card-sub">prenotazioni/settimana</span>
+                </div>
+            </div>
+
+            <!-- Ultime prenotazioni -->
+            <div class="section-header" style="margin-top:8px">
+                <span class="section-title" style="font-size:14px">Ultime prenotazioni</span>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Utente</th>
+                            <th>Data</th>
+                            <th>Turno</th>
+                            <th>Stato</th>
+                            <th>Creata il</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-ultime-prenot">
+                        <tr class="empty-row">
+                            <td colspan="5">Caricamento…</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
+        <!-- ════ SEZIONE: UTENTI ════ -->
+        <section class="dash-section active" id="section-utenti">
+
+            <div class="section-header">
+                <span class="section-title">Gestione utenti</span>
+                <div class="horizontal-container">
+                    <div class="search-bar">
+                        <input type="text" id="search-utenti" placeholder="Cerca per nome, email, tessera…"
+                            oninput="filterUtenti()">
+                    </div>
+                    <button class="w-text" onclick="openModal('nuovo-utente')">
+                        <i data-lucide="user-plus" class="lucide"></i>
+                        <span>Nuovo utente</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('registrati')">Registrati</button>
+                <button class="tab-btn" onclick="switchTab('non-registrati')">Non registrati</button>
+            </div>
+
+            <!-- Tabella registrati -->
+            <div class="table-panel active" id="tab-registrati">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>N°</th>
+                                <th>Nome</th>
+                                <th>Email</th>
+                                <th>Telefono</th>
+                                <th>Facoltà</th>
+                                <th>Cauzione</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-registrati">
+                            <tr class="empty-row">
+                                <td colspan="7">Caricamento…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tabella non registrati -->
+            <div class="table-panel" id="tab-non-registrati">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>N°</th>
+                                <th>Nome</th>
+                                <th>Email</th>
+                                <th>Telefono</th>
+                                <th>Facoltà</th>
+                                <th>Cauzione</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-non-registrati">
+                            <tr class="empty-row">
+                                <td colspan="7">Caricamento…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ════ SEZIONE: TURNI ════ -->
+        <section class="dash-section" id="section-turni">
+
+            <div class="section-header">
+                <span class="section-title">Gestione turni</span>
+                <button class="w-text" onclick="openModal('nuovo-turno')">
+                    <i data-lucide="plus" class="lucide"></i>
+                    <span>Nuovo turno</span>
+                </button>
+            </div>
+
+            <div class="info-box">
+                I turni definiscono le fasce orarie prenotabili dagli utenti. Modifica o rimuovi un turno con
+                attenzione: le prenotazioni esistenti non vengono cancellate automaticamente.
+            </div>
+
+            <div class="turni-list" id="turni-list">
+                <span style="font-size:12px; opacity:.4; font-style:italic">Caricamento turni…</span>
+            </div>
+
+            <!-- Prenotazione privilegiata admin -->
+            <div class="divider"></div>
+            <div class="section-header">
+                <span class="section-title" style="font-size:14px">Prenotazione privilegiata</span>
+                <button class="w-text" onclick="window.apriNuovaPrenotazioneAdmin()">
+                    <i data-lucide="calendar-plus" class="lucide"></i>
+                    <span>Prenota per utente</span>
+                </button>
+            </div>
+            <div class="info-box">
+                Come amministratore puoi prenotare un turno per qualsiasi utente, senza limitazioni di data o settimana.
+            </div>
+
+        </section>
+
+        <!-- ════ SEZIONE: CALENDARIO ════ -->
+        <section class="dash-section" id="section-calendario">
+
+            <!-- header con informazioni sul calendario (identico a index.html) -->
+            <div id="calendar-header">
+
+                <div id="indicatore-data-prenota-turni-container" class="horizontal-container">
+                    <button type="button" id="day-back" class="mini hidden" aria-label="Torna alla vista precedente">
+                        <i data-lucide="arrow-left"></i>
+                    </button>
+                    <h1 id="current-date"></h1>
+                </div>
+
+                <!-- azioni vista mensile -->
+                <div class="horizontal-container" data-view="month">
+                    <button type="button" id="calendar-prev" class="mini"><i data-lucide="chevron-left"></i></button>
+                    <button type="button" id="month-today" class="mini"><span>Oggi</span></button>
+                    <button type="button" id="calendar-next" class="mini"><i data-lucide="chevron-right"></i></button>
+                    <div class="vertical-separator"></div>
+                    <button type="button" class="w-text" data-calendar-switch="week">
+                        <i data-lucide="calendar-1"></i><span>Vista mensile</span>
+                    </button>
+                    <button type="button" class="w-text" onclick="openModal('prenota-admin')">
+                        <i data-lucide="plus"></i><span>Prenota</span>
+                    </button>
+                </div>
+
+                <!-- azioni vista settimanale -->
+                <div class="horizontal-container hidden" data-view="week">
+                    <button type="button" id="week-prev" class="mini"><i data-lucide="chevron-left"></i></button>
+                    <button type="button" id="week-today" class="mini"><span>Oggi</span></button>
+                    <button type="button" id="week-next" class="mini"><i data-lucide="chevron-right"></i></button>
+                    <div class="vertical-separator"></div>
+                    <button type="button" class="w-text" data-calendar-switch="month">
+                        <i data-lucide="calendar-range"></i><span>Vista settimanale</span>
+                    </button>
+                    <button type="button" class="w-text" onclick="openModal('prenota-admin')">
+                        <i data-lucide="plus"></i><span>Prenota</span>
+                    </button>
+                </div>
+
+                <!-- azioni vista giornaliera -->
+                <div class="horizontal-container hidden" data-view="day">
+                    <button type="button" id="day-prev" class="mini"><i data-lucide="chevron-left"></i></button>
+                    <button type="button" id="day-today" class="mini"><span>Oggi</span></button>
+                    <button type="button" id="day-next" class="mini"><i data-lucide="chevron-right"></i></button>
+                    <div class="vertical-separator"></div>
+                    <button type="button" class="w-text" onclick="openModal('prenota-admin')">
+                        <i data-lucide="plus"></i><span>Prenota</span>
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- Vista mensile -->
+            <div id="calendar-container">
+                <div id="calendar-columns">
+                    <h3>lun</h3>
+                    <h3>mar</h3>
+                    <h3>mer</h3>
+                    <h3>gio</h3>
+                    <h3>ven</h3>
+                    <h3>sab</h3>
+                    <h3>dom</h3>
+                </div>
+                <div id="calendar-rows"></div>
+            </div>
+
+            <!-- Vista settimanale -->
+            <div id="week-calendar-container" class="hidden">
+                <div id="week-calendar-columns"></div>
+                <div id="week-calendar-turns">
+                    <div id="week-schedules" class="week-calendar-day"></div>
+                </div>
+            </div>
+
+            <!-- Vista giornaliera -->
+            <div id="day-calendar-container" class="hidden">
+                <div id="day-schedules" class="day-calendar"></div>
+            </div>
+
+        </section>
+
+        <!-- ════ SEZIONE: IMPOSTAZIONI ════ -->
+        <section class="dash-section" id="section-impostazioni">
+
+            <div class="section-header">
+                <span class="section-title">Impostazioni piattaforma</span>
+            </div>
+
+            <div class="settings-grid">
+
+                <div class="setting-row">
+                    <label for="input-limite-settimanale">Limite prenotazioni settimanali</label>
+                    <div class="horizontal-container">
+                        <input type="number" id="input-limite-settimanale" min="1" max="30" value="7"
+                            style="max-width:100px">
+                        <button class="w-text" onclick="salvaLimite()">
+                            <i data-lucide="save" class="lucide"></i>
+                            <span>Salva</span>
+                        </button>
+                    </div>
+                    <span class="setting-desc">Numero massimo di prenotazioni che un utente può effettuare in una
+                        singola settimana (lun–dom).</span>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="setting-row">
+                    <label>Settimane visibili in anticipo</label>
+                    <div class="horizontal-container">
+                        <input type="number" id="input-settimane-anticipo" min="0" max="8" value="1"
+                            style="max-width:100px">
+                        <button class="w-text" onclick="salvaAnticipo()">
+                            <i data-lucide="save" class="lucide"></i>
+                            <span>Salva</span>
+                        </button>
+                    </div>
+                    <span class="setting-desc">Quante settimane prima del cambio mese gli utenti possono vedere e
+                        prenotare il mese successivo.</span>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- ── Footer ─────────────────────────────────────────────────── -->
+    <footer>
+        <h5>© 2010-2026 Il Lume della Ragione — Dashboard Admin</h5>
+        <h5 id="dash-admin-info" style="opacity:.4; font-style:italic"></h5>
+    </footer>
+
+    <!-- ── Booking bar (richiesta da calendar-render.js) ──────────── -->
+    <div id="booking-bar" class="booking-bar hidden" aria-hidden="true">
+        <div class="booking-bar-inner horizontal-container">
+            <button type="button" id="booking-cancel" class="w-text"><span>Annulla</span></button>
+            <button type="button" id="booking-confirm" class="w-text active">
+                <i data-lucide="notebook-pen"></i><span>Conferma</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════
+         MODALI
+    ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- Nuovo utente -->
+    <div id="modal-nuovo-utente" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+                <span class="modal-title">Nuovo utente</span>
+                <span class="modal-subtitle">Inserisci i dati del nuovo membro</span>
+            </div>
+            <div class="full-modal-content">
+                <div class="form-block">
+                    <label for="nu-nome"><span>Nome *</span></label>
+                    <input type="text" id="nu-nome" placeholder="Mario">
+                </div>
+                <div class="form-block">
+                    <label for="nu-cognome"><span>Cognome *</span></label>
+                    <input type="text" id="nu-cognome" placeholder="Rossi">
+                </div>
+                <div class="form-block">
+                    <label for="nu-email"><span>Email *</span></label>
+                    <input type="email" id="nu-email" placeholder="mario.rossi@email.com">
+                </div>
+                <div class="form-block">
+                    <label for="nu-tessera"><span>N° tessera *</span></label>
+                    <input type="number" id="nu-tessera" placeholder="1234">
+                </div>
+                <div class="form-block">
+                    <label for="nu-telefono"><span>Telefono</span></label>
+                    <input type="tel" id="nu-telefono" placeholder="3331234567">
+                </div>
+                <div class="form-block">
+                    <label for="nu-facolta"><span>Facoltà universitaria</span></label>
+                    <input type="text" id="nu-facolta" placeholder="Ingegneria">
+                </div>
+                <div class="form-block">
+                    <label style="flex-direction:row; align-items:center; gap:8px; cursor:pointer">
+                        <input type="checkbox" id="nu-cauzione" style="width:auto">
+                        <span>Cauzione versata</span>
+                    </label>
+                </div>
+                <div class="form-block">
+                    <label style="flex-direction:row; align-items:center; gap:8px; cursor:pointer">
+                        <input type="checkbox" id="nu-trattamento" style="width:auto">
+                        <span>Trattamento dati accettato</span>
+                    </label>
+                </div>
+                <p id="nuovo-utente-error" class="form-error" style="display:none"></p>
+            </div>
+            <div class="full-modal-footer">
+                <button type="button" class="w-text" onclick="closeModal('nuovo-utente')">Annulla</button>
+                <button type="button" class="w-text active" id="btn-salva-nuovo-utente" onclick="salvaNuovoUtente()">
+                    <i data-lucide="user-plus" class="lucide"></i>
+                    <span>Crea utente</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modifica utente -->
+    <div id="modal-modifica-utente" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+                <span class="modal-title">Modifica utente</span>
+                <span class="modal-subtitle" id="modifica-utente-subtitle">—</span>
+            </div>
+            <div class="full-modal-content">
+                <input type="hidden" id="mu-id">
+                <div class="form-block">
+                    <label for="mu-email"><span>Email</span></label>
+                    <input type="email" id="mu-email">
+                </div>
+                <div class="form-block">
+                    <label for="mu-telefono"><span>Telefono</span></label>
+                    <input type="tel" id="mu-telefono">
+                </div>
+                <div class="form-block">
+                    <label for="mu-facolta"><span>Facoltà universitaria</span></label>
+                    <input type="text" id="mu-facolta">
+                </div>
+                <div class="form-block">
+                    <label style="flex-direction:row; align-items:center; gap:8px; cursor:pointer">
+                        <input type="checkbox" id="mu-cauzione" style="width:auto">
+                        <span>Cauzione versata</span>
+                    </label>
+                </div>
+                <div class="form-block">
+                    <label style="flex-direction:row; align-items:center; gap:8px; cursor:pointer">
+                        <input type="checkbox" id="mu-registrato" style="width:auto">
+                        <span>Accesso attivo (registrato)</span>
+                    </label>
+                </div>
+                <p id="modifica-utente-error" class="form-error" style="display:none"></p>
+            </div>
+            <div class="full-modal-footer">
+                <button type="button" class="w-text danger" onclick="eliminaUtente()" id="btn-elimina-utente">
+                    <i data-lucide="trash-2" class="lucide"></i>
+                    <span>Elimina</span>
+                </button>
+                <div class="horizontal-container" style="gap:8px">
+                    <button type="button" class="w-text" onclick="closeModal('modifica-utente')">Annulla</button>
+                    <button type="button" class="w-text active" onclick="salvaModificaUtente()">
+                        <i data-lucide="save" class="lucide"></i>
+                        <span>Salva</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modifica / nuovo turno -->
+    <div id="modal-modifica-turno" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-turno-title">Turno</span>
+                <span class="modal-subtitle" id="modal-turno-subtitle">—</span>
+            </div>
+            <div class="full-modal-content">
+                <input type="hidden" id="mt-id">
+                <div class="form-block">
+                    <label for="mt-indice"><span>Indice (posizione)</span></label>
+                    <input type="number" id="mt-indice" min="1" max="10" placeholder="1">
+                </div>
+                <div class="form-block">
+                    <label for="mt-inizio"><span>Orario inizio *</span></label>
+                    <input type="time" id="mt-inizio">
+                </div>
+                <div class="form-block">
+                    <label for="mt-fine"><span>Orario fine *</span></label>
+                    <input type="time" id="mt-fine">
+                </div>
+                <p id="modifica-turno-error" class="form-error" style="display:none"></p>
+            </div>
+            <div class="full-modal-footer">
+                <button type="button" class="w-text danger" id="btn-elimina-turno" onclick="eliminaTurno()"
+                    style="display:none">
+                    <i data-lucide="trash-2" class="lucide"></i><span>Elimina</span>
+                </button>
+                <div class="horizontal-container" style="gap:8px">
+                    <button type="button" class="w-text" onclick="closeModal('modifica-turno')">Annulla</button>
+                    <button type="button" class="w-text active" onclick="salvaModificaTurno()">
+                        <i data-lucide="save" class="lucide"></i><span>Salva</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prenotazione privilegiata admin -->
+    <div id="modal-prenota-admin" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+                <span class="modal-title">Prenotazione privilegiata</span>
+                <span class="modal-subtitle">Nessun limite settimanale applicato</span>
+            </div>
+            <div class="full-modal-content">
+                <div class="form-block">
+                    <label for="pa-utente"><span>Utente *</span></label>
+                    <select id="pa-utente">
+                        <option value="" disabled selected>Seleziona utente…</option>
+                    </select>
+                </div>
+                <div class="form-block">
+                    <label for="pa-data"><span>Data *</span></label>
+                    <input type="date" id="pa-data">
+                </div>
+                <div class="form-block">
+                    <label for="pa-turno"><span>Turno *</span></label>
+                    <select id="pa-turno" disabled>
+                        <option value="" disabled selected>Seleziona prima una data</option>
+                    </select>
+                </div>
+                <div class="form-block">
+                    <label for="pa-stato"><span>Stato Prenotazione *</span></label>
+                    <select id="pa-stato" class="form-control">
+                        <option value="confermata" selected>Confermata</option>
+                        <option value="non_confermata">Non confermata</option>
+                        
+                        <option value="riservata">Riservata</option>
+                    </select>
+                </div>
+                <div class="form-block">
+                    <label style="flex-direction:row; align-items:center; gap:8px; cursor:pointer">
+                        <input type="checkbox" id="pa-forza" style="width:auto" checked>
+                        <span>Forza se turno occupato</span>
+                    </label>
+                </div>
+                <p id="prenota-admin-error" class="form-error" style="display:none"></p>
+            </div>
+            <div class="full-modal-footer">
+                <button type="button" class="w-text" onclick="closeModal('prenota-admin')">Annulla</button>
+                <button type="button" class="w-text active" id="btn-conferma-prenota-admin"
+                    onclick="confermaPrenotaAdmin()" disabled>
+                    <i data-lucide="calendar-plus" class="lucide"></i>
+                    <span>Prenota</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conferma eliminazione generica -->
+    <div id="modal-conferma-elimina" class="full-modal">
+        <div class="full-modal-body" style="max-width:380px">
+            <div class="modal-header">
+                <span class="modal-title">Conferma eliminazione</span>
+            </div>
+            <div class="full-modal-content">
+                <p id="conferma-elimina-text" style="font-size:13px"></p>
+            </div>
+            <div class="full-modal-footer">
+                <button class="w-text" onclick="closeModal('conferma-elimina')">Annulla</button>
+                <button class="w-text danger" id="btn-conferma-elimina-ok">
+                    <i data-lucide="trash-2" class="lucide"></i><span>Elimina</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking success (richiesta da calendar-render.js) -->
+    <div id="modal-booking-success" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header result-modal-header">
+                <div class="horizontal-container">
+                    <i data-lucide="check"></i>
+                    <span class="modal-big-title">Prenotazione effettuata</span>
+                </div>
+            </div>
+            <div class="full-modal-content" id="booking-summary-list"></div>
+            <div class="full-modal-footer">
+                <button type="button" class="w-text" onclick="closeModal('booking-success')">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking denied (richiesta da calendar-render.js) -->
+    <div id="modal-booking-denied" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header result-modal-header">
+                <div class="horizontal-container">
+                    <i data-lucide="x"></i>
+                    <span class="modal-big-title">Limite prenotazioni raggiunto</span>
+                </div>
+            </div>
+            <div class="full-modal-footer">
+                <button type="button" class="w-text" onclick="closeModal('booking-denied')">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Scripts ────────────────────────────────────────────────── -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>lucide.createIcons();</script>
+
+    <script type="module" src="/src/js/modal.js"></script>
+    <script type="module" src="/src/js/calendar-render.js"></script>
+    <script type="module" src="/src/js/main-view.js"></script>
+
+    <script type="module" src="/src/js/manage-dashboard.js"></script>
+
+    <script type="module" src="/src/js/auth.js"></script>
+    <script type="module" src="/src/js/app.js"></script>
+
+</body>
+
+</html>
