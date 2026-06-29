@@ -9,6 +9,7 @@ import {
   confermaPresenza,
   updateProfiloUtente,
   uploadFotoProfilo,
+  isAmministratore,
 } from './db.js';
 import { initBookingsView, refreshBookingsData, initPrenotaModal } from './bookings-view.js';
 import { initMainView, setMainView, registerAccountSettingsRenderer } from './main-view.js';
@@ -135,6 +136,9 @@ async function caricaProfiloUtente() {
   // sincronizza l'immagine del profilo
   syncProfilePictures(profilo);
 
+  // mostra il link alla dashboard admin solo se l'utente è amministratore
+  await syncAdminDashboardLink(profilo);
+
   // imposta la vista predefinita se necessario
   if (profilo.vista_predefinita === 'week' && window.calendarRender?.viewMode === 'month') {
     window.calendarRender.setViewMode('week');
@@ -142,6 +146,34 @@ async function caricaProfiloUtente() {
 
   // aggiorna le prenotazioni dopo aver caricato il profilo
   await refreshBookingsData();
+}
+
+// mostra od occulta il bottono 'Dashboard amministratore' in base al ruolo dell'utente
+async function syncAdminDashboardLink(profilo) {
+  
+  let link = document.getElementById("dashboard-admin-link");
+
+  // aspetta finché l'elemento non esiste
+
+  while (!link) {
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    link = document.getElementById("dashboard-admin-link");
+
+  }
+
+  if(!profilo?.id_utente) return;
+
+  const { data: isAdmin, error } = await isAmministratore(profilo.id_utente);
+  if (error) {
+    console.error('Impossibile verificare i permessi di amministratore', error.message);
+    return;
+  }
+
+  // true --> aggiunge 'hidden', false --> rimouove (o non aggiunge) 'hidden'
+  link.classList.toggle('hidden', !isAdmin);
+  
 }
 
 // ── service worker ────────────────────────────────────────────────────────────

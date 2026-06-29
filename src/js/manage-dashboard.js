@@ -4,6 +4,8 @@ import {
     getAllTurni,
     getPrenotazioniByDateRange,
     createPrenotazione,
+    getProfiloUtente,
+    isAmministratore,
 } from './db.js';
 
 import {
@@ -20,6 +22,29 @@ window.ldrDb = {
     getPrenotazioniByDateRange,
     createPrenotazione
 };
+
+// ─── Controllo accesso amministratore ───────────────────────────────────────────
+// blocca l'accesso diretto via url a chi non è amministratore
+async function guardAdminAccess() {
+    
+    const { data: profilo, error: profiloError} = await getProfiloUtente();
+
+    // se il profilo non è disponibile, lascio che auth.js gestisca il redirect al login
+    if(profiloError || !profilo?.id_utente){
+        window.location.href = '/login.html';
+        return false;
+    } 
+
+    const { data: isAdmin, error} = await isAmministratore(profilo.id_utente);
+
+    if (error || !isAdmin){
+        window.location.href = '/index.html'
+        return false;
+    }
+
+    return true;
+    
+}
 
 // ─── Stato locale ───────────────────────────────────────────
 let allUtenti    = [];
@@ -565,6 +590,11 @@ window.salvaAnticipo = () => {
 
 // ─── Inizializzazione ───────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+    const isAllowed = await guardAdminAccess();
+    if (!isAllowed) return;
+
+    document.body.classList.add('admin-access-checked');
+
     document.getElementById('btn-nav-utenti')?.classList.add('active');
     
     await window.loadStats();
