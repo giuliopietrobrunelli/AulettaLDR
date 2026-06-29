@@ -1107,6 +1107,15 @@ footer {
     box-sizing: border-box;
 }
 
+.modal-option a{
+    color: var(--white-2);
+    text-decoration: none;
+}
+
+.modal-option a:hover{
+    color: var(--white);
+}
+
 .modal-option:hover {
     color: var(--white);
 }
@@ -1465,6 +1474,13 @@ input[type="checkbox"] {
     opacity: 1;
     background-color: var(--black);
     color: var(--white);
+    border: none;
+}
+
+.reservation-status.riservata {
+    opacity: 1;
+    background-color: var(--aula);
+    color: var(--black);
     border: none;
 }
 
