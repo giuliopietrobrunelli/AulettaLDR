@@ -1032,6 +1032,9 @@ footer {
     flex-direction: column;
     width: 100%;
     box-sizing: border-box;
+}
+
+#modal-notifiche {
     overflow-y: scroll;
 }
 

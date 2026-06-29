@@ -3,30 +3,65 @@ import { supabase } from "./supabase-client.js";
 // oggetto principale per la gestione dell'autenticazione
 const auth = {
   async init() {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error) console.error('errore sessione:', error.message);
-  
-    if (window.location.pathname.includes('reset-password')) {
+    const hash = window.location.hash;
+
+    // gestisce errori espliciti nell'URL (link scaduto ecc.)
+    if (hash.includes("error=")) {
+      const params = new URLSearchParams(hash.slice(1));
+      const errorDesc = params.get("error_description")?.replace(/\+/g, " ");
+
+      if (window.location.pathname.includes("set-password")) {
+        const form = document.getElementById("set-password-form");
+        if (form)
+          this.showError(
+            form,
+            `link non valido: ${errorDesc ?? "riprova a registrarti."}`,
+          );
+        return;
+      }
+      if (window.location.pathname.includes("reset-password")) {
+        const form = document.getElementById("reset-password-form");
+        if (form)
+          this.showError(
+            form,
+            `link non valido: ${errorDesc ?? "richiedine uno nuovo dalla pagina di login."}`,
+          );
+        return;
+      }
+    }
+
+    // se c'è un token nell'URL aspetta che supabase lo processi
+    if (hash.includes("access_token")) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
+    if (error) console.error("errore sessione:", error.message);
+
+    if (window.location.pathname.includes("reset-password")) {
       this.initResetPasswordPage(session);
       return;
     }
-    if (window.location.pathname.includes('set-password')) {
+    if (window.location.pathname.includes("set-password")) {
       this.initSetPassword(session);
       return;
     }
-    if (window.location.pathname.includes('register-alternative')) {
+    if (window.location.pathname.includes("register-alternative")) {
       this.initRegisterByNamePage(session);
       return;
     }
-    if (window.location.pathname.includes('register')) {
+    if (window.location.pathname.includes("register")) {
       this.initRegisterPage(session);
       return;
     }
-    if (window.location.pathname.includes('login')) {
+    if (window.location.pathname.includes("login")) {
       this.initLoginPage(session);
       return;
     }
-  
+
     this.requireAuth(session);
   },
 
@@ -68,8 +103,12 @@ const auth = {
   initResetPasswordPage(session) {
     if (!session) {
       // se non c'è sessione il link è scaduto
-      const form = document.getElementById('reset-password-form');
-      if (form) this.showError(form, 'il link è scaduto o già usato. richiedine uno nuovo dalla pagina di login.');
+      const form = document.getElementById("reset-password-form");
+      if (form)
+        this.showError(
+          form,
+          "il link è scaduto o già usato. richiedine uno nuovo dalla pagina di login.",
+        );
       return;
     }
     this.setupNewPasswordForm();
@@ -84,7 +123,7 @@ const auth = {
     const inputIdentifier = form.querySelector('input[name="n-tessera"]');
     const inputPassword = form.querySelector('input[name="password"]');
 
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
       this.setLoading(btnSubmit, true);
       this.clearError(form);
@@ -154,14 +193,14 @@ const auth = {
     });
 
     // toggle tra login e reset
-    document.getElementById('btn-show-reset')?.addEventListener('click', () => {
-      document.getElementById('login-form').classList.toggle("hidden");
-      document.getElementById('reset-password-form').classList.toggle("hidden");
+    document.getElementById("btn-show-reset")?.addEventListener("click", () => {
+      document.getElementById("login-form").classList.toggle("hidden");
+      document.getElementById("reset-password-form").classList.toggle("hidden");
     });
 
-    document.getElementById('btn-back-login')?.addEventListener('click', () => {
-      document.getElementById('reset-password-form').classList.toggle("hidden");
-      document.getElementById('login-form').classList.toggle("hidden");
+    document.getElementById("btn-back-login")?.addEventListener("click", () => {
+      document.getElementById("reset-password-form").classList.toggle("hidden");
+      document.getElementById("login-form").classList.toggle("hidden");
     });
 
     // inizializza il form per il reset della password
@@ -176,7 +215,7 @@ const auth = {
     const btnSubmit = form.querySelector('button[type="submit"]');
     const inputTessera = form.querySelector('input[name="n-tessera"]');
 
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
       this.setLoading(btnSubmit, true);
       this.clearError(form);
@@ -192,19 +231,25 @@ const auth = {
 
       // cerca l'utente col numero tessera indicato
       const { data: utente, error: dbError } = await supabase
-        .from('Utente')
-        .select('id_utente, email, nome, registrato') // ← aggiunto registrato
-        .eq('numero_tessera', numeroTessera)
+        .from("Utente")
+        .select("id_utente, email, nome, registrato") // ← aggiunto registrato
+        .eq("numero_tessera", numeroTessera)
         .single();
 
       if (dbError || !utente) {
-        this.showError(form, 'numero tessera non trovato. riprova o scrivi a un amministratore.');
+        this.showError(
+          form,
+          "numero tessera non trovato. riprova o scrivi a un amministratore.",
+        );
         this.setLoading(btnSubmit, false);
         return;
       }
 
       if (utente.registrato) {
-        this.showError(form, 'hai già un account attivo. accedi dalla pagina di login. se pensi si possa trattare di un\'errore contatta il direttivo.');
+        this.showError(
+          form,
+          "hai già un account attivo. accedi dalla pagina di login. se pensi si possa trattare di un'errore contatta il direttivo.",
+        );
         this.setLoading(btnSubmit, false);
         return;
       }
@@ -250,7 +295,7 @@ const auth = {
     const inputNome = form.querySelector('input[name="nome"]');
     const inputCognome = form.querySelector('input[name="cognome"]');
 
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
       this.setLoading(btnSubmit, true);
       this.clearError(form);
@@ -293,7 +338,10 @@ const auth = {
       const utente = utenti[0];
 
       if (utente.registrato) {
-        this.showError(form, 'hai già un account attivo. accedi dalla pagina di login. se pensi si possa trattare di un\'errore contatta il direttivo.');
+        this.showError(
+          form,
+          "hai già un account attivo. accedi dalla pagina di login. se pensi si possa trattare di un'errore contatta il direttivo.",
+        );
         this.setLoading(btnSubmit, false);
         return;
       }
@@ -331,155 +379,170 @@ const auth = {
 
   // invio magic link per reset password via mail
   setupResetPasswordForm() {
-    const form = document.getElementById('reset-password-form');
+    const form = document.getElementById("reset-password-form");
     if (!form) return;
-  
+
     const btnSubmit = form.querySelector('button[type="submit"]');
-  
-    form.addEventListener('submit', async (e) => {
+
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
       this.clearError(form);
       this.setLoading(btnSubmit, true);
-  
-      const identifier = form.querySelector('input[name="reset-identifier"]')?.value.trim();
+
+      const identifier = form
+        .querySelector('input[name="reset-identifier"]')
+        ?.value.trim();
       if (!identifier) {
-        this.showError(form, 'inserisci email o numero tessera.');
+        this.showError(form, "inserisci email o numero tessera.");
         this.setLoading(btnSubmit, false);
         return;
       }
-  
+
       // risolve email da numero tessera se necessario
       let email = identifier;
-      if (!identifier.includes('@')) {
+      if (!identifier.includes("@")) {
         const numeroTessera = parseInt(identifier, 10);
         if (isNaN(numeroTessera)) {
-          this.showError(form, 'numero tessera non valido.');
+          this.showError(form, "numero tessera non valido.");
           this.setLoading(btnSubmit, false);
           return;
         }
-  
+
         const { data: utente, error: dbError } = await supabase
-          .from('Utente')
-          .select('email, registrato')
-          .eq('numero_tessera', numeroTessera)
+          .from("Utente")
+          .select("email, registrato")
+          .eq("numero_tessera", numeroTessera)
           .single();
-  
+
         if (dbError || !utente) {
-          this.showError(form, 'numero tessera non trovato.');
+          this.showError(form, "numero tessera non trovato.");
           this.setLoading(btnSubmit, false);
           return;
         }
-  
+
         if (!utente.registrato) {
-          this.showError(form, 'non hai ancora un account. registrati prima.');
+          this.showError(form, "non hai ancora un account. registrati prima.");
           this.setLoading(btnSubmit, false);
           return;
         }
-  
+
         email = utente.email;
       }
-  
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://prenotaulettaldr.illumedellaragione6.workers.dev/set-password',
+        redirectTo:
+          "https://prenotaulettaldr.illumedellaragione6.workers.dev/reset-password",
       });
-  
+
       if (error) {
-        this.showError(form, 'errore nell\'invio della mail. riprova tra qualche minuto.');
+        this.showError(
+          form,
+          "errore nell'invio della mail. riprova tra qualche minuto.",
+        );
         this.setLoading(btnSubmit, false);
         return;
       }
-  
+
       this.showSuccess(
         form,
-        `abbiamo inviato un link a ${this.maskEmail(email)}. controlla la posta (anche nello spam).`
+        `abbiamo inviato un link a ${this.maskEmail(email)}. controlla la posta (anche nello spam).`,
       );
       this.setLoading(btnSubmit, false);
     });
   },
 
   setupNewPasswordForm() {
-    const form = document.getElementById('reset-password-form');
+    const form = document.getElementById("reset-password-form");
     if (!form) return;
-  
+
     const btnSubmit = form.querySelector('button[type="submit"]');
-    const inputPwd  = form.querySelector('input[name="password"]');
+    const inputPwd = form.querySelector('input[name="password"]');
     const inputConf = form.querySelector('input[name="conferma-password"]');
-  
-    form.addEventListener('submit', async (e) => {
+
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
       this.clearError(form);
-  
-      const pwd  = inputPwd?.value;
+
+      const pwd = inputPwd?.value;
       const conf = inputConf?.value;
-  
+
       if (!pwd || pwd.length < 8) {
-        this.showError(form, 'la password deve essere di almeno 8 caratteri.');
+        this.showError(form, "la password deve essere di almeno 8 caratteri.");
         return;
       }
-  
+
       if (pwd !== conf) {
-        this.showError(form, 'le password non coincidono.');
+        this.showError(form, "le password non coincidono.");
         return;
       }
-  
+
       this.setLoading(btnSubmit, true);
-  
+
       const { error } = await supabase.auth.updateUser({ password: pwd });
-  
+
       if (error) {
-        this.showError(form, 'errore nell\'impostazione della password. riprova.');
-        console.error('updateuser error:', error.message);
+        this.showError(
+          form,
+          "errore nell'impostazione della password. riprova.",
+        );
+        console.error("updateuser error:", error.message);
         this.setLoading(btnSubmit, false);
         return;
       }
-  
-      window.location.href = '/';
+
+      window.location.href = "/";
     });
   },
 
   // gestione impostazione password dopo magic link via email
   async initSetPassword(session) {
-    const form = document.getElementById('set-password-form');
+    const form = document.getElementById("set-password-form");
     if (!form) return;
-  
+
     if (!session) {
-      this.showError(form, 'il link è scaduto o già usato. richiedine uno nuovo.');
+      this.showError(
+        form,
+        "il link è scaduto o già usato. richiedine uno nuovo.",
+      );
       return;
     }
-  
+
     const btnSubmit = form.querySelector('button[type="submit"]');
-    const inputPwd  = form.querySelector('input[name="password"]');
+    const inputPwd = form.querySelector('input[name="password"]');
     const inputConf = form.querySelector('input[name="conferma-password"]');
-  
-    form.addEventListener('submit', async (e) => {
+
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
       this.clearError(form);
-  
-      const pwd  = inputPwd?.value;
+
+      const pwd = inputPwd?.value;
       const conf = inputConf?.value;
-  
+
       if (!pwd || pwd.length < 8) {
-        this.showError(form, 'la password deve essere di almeno 8 caratteri.');
+        this.showError(form, "la password deve essere di almeno 8 caratteri.");
         return;
       }
-  
+
       if (pwd !== conf) {
-        this.showError(form, 'le password non coincidono.');
+        this.showError(form, "le password non coincidono.");
         return;
       }
-  
+
       this.setLoading(btnSubmit, true);
-  
+
       const { error } = await supabase.auth.updateUser({ password: pwd });
-  
+
       if (error) {
-        this.showError(form, 'errore nell\'impostazione della password. riprova.');
-        console.error('updateuser error:', error.message);
+        this.showError(
+          form,
+          "errore nell'impostazione della password. riprova.",
+        );
+        console.error("updateuser error:", error.message);
         this.setLoading(btnSubmit, false);
         return;
       }
-  
-      window.location.href = '/';
+
+      window.location.href = "/";
     });
   },
 
