@@ -594,6 +594,7 @@ async function handleCediTurno(id_prenotazione, selectCedi) {
   showToast('success', 'Richiesta inviata', 'check');
   utentiCache = null;
   await refreshBookingsData();
+  window.calendarRender?.render?.();
 }
 
 // gestisce la rinuncia a una prenotazione
@@ -616,6 +617,7 @@ async function handleRinunciaTurno(id_prenotazione) {
   window.modal?.closeAll();
   showToast('success', 'Prenotazione cancellata', 'check');
   await refreshBookingsData();
+  window.calendarRender?.render?.();
 }
 
 // ────────────────────────────────────────────────────────────────────────────
