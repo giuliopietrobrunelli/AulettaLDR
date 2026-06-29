@@ -1,48 +1,54 @@
-import { supabase } from './supabase-client.js';
+import { supabase } from "./supabase-client.js";
 
 // oggetto principale per la gestione dell'autenticazione
 const auth = {
-
   async init() {
-    // prende la sessione corrente (es: dopo magic link)
     const { data: { session }, error } = await supabase.auth.getSession();
-
-    // stampa un errore se c'è un errore nella sessione
     if (error) console.error('errore sessione:', error.message);
-
-    // se siamo su set-password usa direttamente initSetPassword
+  
+    if (window.location.pathname.includes('reset-password')) {
+      this.initResetPasswordPage(session);
+      return;
+    }
     if (window.location.pathname.includes('set-password')) {
       this.initSetPassword(session);
       return;
     }
-
-    // se siamo su register usa direttamente initRegisterPage
+    if (window.location.pathname.includes('register-alternative')) {
+      this.initRegisterByNamePage(session);
+      return;
+    }
     if (window.location.pathname.includes('register')) {
       this.initRegisterPage(session);
       return;
     }
-
-    // se siamo su login usa direttamente initLoginPage
     if (window.location.pathname.includes('login')) {
       this.initLoginPage(session);
       return;
     }
-
-    // su tutte le altre pagine controlla che l'utente sia autenticato
+  
     this.requireAuth(session);
+  },
+
+  initRegisterByNamePage(session) {
+    if (session) {
+      window.location.href = "/";
+      return;
+    }
+    this.setupRegisterByNameForm();
   },
 
   // se non c'è sessione reindirizza al login
   requireAuth(session) {
     if (!session) {
-      window.location.href = '/login.html';
+      window.location.href = "/login.html";
     }
   },
 
   // se utente già loggato, manda alla home, altrimenti mostra form login
   initLoginPage(session) {
     if (session) {
-      window.location.href = '/index.html';
+      window.location.href = "/";
       return;
     }
 
@@ -52,33 +58,43 @@ const auth = {
   // se utente già loggato, manda alla home, altrimenti mostra form registrazione
   initRegisterPage(session) {
     if (session) {
-      window.location.href = '/index.html';
+      window.location.href = "/";
       return;
     }
 
     this.setupRegisterForm();
   },
 
+  initResetPasswordPage(session) {
+    if (!session) {
+      // se non c'è sessione il link è scaduto
+      const form = document.getElementById('reset-password-form');
+      if (form) this.showError(form, 'il link è scaduto o già usato. richiedine uno nuovo dalla pagina di login.');
+      return;
+    }
+    this.setupNewPasswordForm();
+  },
+
   // login con email o numero tessera più password
   setupLoginForm() {
-    const form = document.getElementById('login-form');
+    const form = document.getElementById("login-form");
     if (!form) return;
 
     const btnSubmit = form.querySelector('button[type="submit"]');
     const inputIdentifier = form.querySelector('input[name="n-tessera"]');
-    const inputPassword   = form.querySelector('input[name="password"]');
+    const inputPassword = form.querySelector('input[name="password"]');
 
-    btnSubmit?.addEventListener('click', async (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       this.setLoading(btnSubmit, true);
       this.clearError(form);
 
       const identifier = inputIdentifier?.value.trim();
-      const password   = inputPassword?.value;
+      const password = inputPassword?.value;
 
       // controlla che tutti i campi siano compilati
       if (!identifier || !password) {
-        this.showError(form, 'compila tutti i campi.');
+        this.showError(form, "compila tutti i campi.");
         this.setLoading(btnSubmit, false);
         return;
       }
@@ -86,30 +102,35 @@ const auth = {
       // se l'identificatore non è una email assume che sia un numero tessera
       let email = identifier;
 
-      if (!identifier.includes('@')) {
+      if (!identifier.includes("@")) {
         // cerca la mail associata nella tabella utenti
         const numeroTessera = parseInt(identifier, 10);
         if (isNaN(numeroTessera)) {
-          this.showError(form, 'numero tessera non valido.');
+          this.showError(form, "numero tessera non valido.");
           this.setLoading(btnSubmit, false);
           return;
         }
 
-        const { data: utente, error: dbError } = 
-        await supabase
-          .from('Utente')
-          .select('email, registrato')
-          .eq('numero_tessera', numeroTessera)
+        const { data: utente, error: dbError } = await supabase
+          .from("Utente")
+          .select("email, registrato")
+          .eq("numero_tessera", numeroTessera)
           .single();
 
         if (dbError || !utente) {
-          this.showError(form, 'numero di tessera inserito non esistente o non attivo.');
+          this.showError(
+            form,
+            "numero di tessera inserito non esistente o non attivo.",
+          );
           this.setLoading(btnSubmit, false);
           return;
         }
 
         if (!utente.registrato) {
-          this.showError(form, 'la tua tessera è valida, ma devi prima registrarti.');
+          this.showError(
+            form,
+            "la tua tessera è valida, ma devi prima registrarti.",
+          );
           this.setLoading(btnSubmit, false);
           return;
         }
@@ -117,28 +138,45 @@ const auth = {
       }
 
       // usa email e password per fare login
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
       if (error) {
-        this.showError(form, 'email o password errati.');
+        this.showError(form, "email o password errati.");
         this.setLoading(btnSubmit, false);
         return;
       }
 
       // reindirizza alla home se login ok
-      window.location.href = '/index.html';
+      window.location.href = "/";
     });
+
+    // toggle tra login e reset
+    document.getElementById('btn-show-reset')?.addEventListener('click', () => {
+      document.getElementById('login-form').classList.toggle("hidden");
+      document.getElementById('reset-password-form').classList.toggle("hidden");
+    });
+
+    document.getElementById('btn-back-login')?.addEventListener('click', () => {
+      document.getElementById('reset-password-form').classList.toggle("hidden");
+      document.getElementById('login-form').classList.toggle("hidden");
+    });
+
+    // inizializza il form per il reset della password
+    this.setupResetPasswordForm();
   },
 
   // registrazione tramite numero tessera, invia magic link via email
   setupRegisterForm() {
-    const form = document.getElementById('register-form');
+    const form = document.getElementById("register-form");
     if (!form) return;
 
-    const btnSubmit  = form.querySelector('button[type="submit"]');
+    const btnSubmit = form.querySelector('button[type="submit"]');
     const inputTessera = form.querySelector('input[name="n-tessera"]');
 
-    btnSubmit?.addEventListener('click', async (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       this.setLoading(btnSubmit, true);
       this.clearError(form);
@@ -147,7 +185,7 @@ const auth = {
       const numeroTessera = parseInt(inputTessera?.value?.trim(), 10);
 
       if (isNaN(numeroTessera)) {
-        this.showError(form, 'inserisci un numero tessera valido.');
+        this.showError(form, "inserisci un numero tessera valido.");
         this.setLoading(btnSubmit, false);
         return;
       }
@@ -155,7 +193,7 @@ const auth = {
       // cerca l'utente col numero tessera indicato
       const { data: utente, error: dbError } = await supabase
         .from('Utente')
-        .select('id_utente, email, nome')
+        .select('id_utente, email, nome, registrato') // ← aggiunto registrato
         .eq('numero_tessera', numeroTessera)
         .single();
 
@@ -165,11 +203,18 @@ const auth = {
         return;
       }
 
+      if (utente.registrato) {
+        this.showError(form, 'hai già un account attivo. accedi dalla pagina di login. se pensi si possa trattare di un\'errore contatta il direttivo.');
+        this.setLoading(btnSubmit, false);
+        return;
+      }
+
       // invia il magic link per impostare la password via email
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email: utente.email,
         options: {
-          emailRedirectTo: 'https://prenotaulettaldr.illumedellaragione6.workers.dev/set-password',
+          emailRedirectTo:
+            "https://prenotaulettaldr.illumedellaragione6.workers.dev/set-password",
           shouldCreateUser: true,
           data: {
             id_utente: utente.id_utente, // serve per associazione successiva
@@ -178,8 +223,11 @@ const auth = {
       });
 
       if (otpError) {
-        this.showError(form, 'errore nell\'invio della mail. riprova tra qualche minuto.');
-        console.error('otp error:', otpError.message);
+        this.showError(
+          form,
+          "errore nell'invio della mail. riprova tra qualche minuto.",
+        );
+        console.error("otp error:", otpError.message);
         this.setLoading(btnSubmit, false);
         return;
       }
@@ -187,9 +235,205 @@ const auth = {
       // avvisa che il link è stato inviato
       this.showSuccess(
         form,
-        `abbiamo inviato un link di attivazione a ${this.maskEmail(utente.email)}. controlla la posta (anche nello spam).`
+        `abbiamo inviato un link di attivazione a ${this.maskEmail(utente.email)}. controlla la posta (anche nello spam).`,
       );
       this.setLoading(btnSubmit, false);
+    });
+  },
+
+  // registrazione tramite nome e cognome, invia magic link via email
+  setupRegisterByNameForm() {
+    const form = document.getElementById("register-by-name-form");
+    if (!form) return;
+
+    const btnSubmit = form.querySelector('button[type="submit"]');
+    const inputNome = form.querySelector('input[name="nome"]');
+    const inputCognome = form.querySelector('input[name="cognome"]');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      this.setLoading(btnSubmit, true);
+      this.clearError(form);
+
+      const nome = inputNome?.value.trim();
+      const cognome = inputCognome?.value.trim();
+
+      if (!nome || !cognome) {
+        this.showError(form, "inserisci nome e cognome.");
+        this.setLoading(btnSubmit, false);
+        return;
+      }
+
+      // cerca l'utente per nome e cognome (case non sensitive per comodità)
+      const { data: utenti, error: dbError } = await supabase
+        .from("Utente")
+        .select("id_utente, email, nome, cognome, registrato")
+        .ilike("nome", nome)
+        .ilike("cognome", cognome);
+
+      if (dbError || !utenti?.length) {
+        this.showError(
+          form,
+          "nessun utente trovato con questi dati. riprova o contatta un amministratore.",
+        );
+        this.setLoading(btnSubmit, false);
+        return;
+      }
+
+      // se ci sono più utenti con lo stesso nome e cognome, chiedi di usare la tessera
+      if (utenti.length > 1) {
+        this.showError(
+          form,
+          "trovati più utenti con questi dati. usa il numero tessera per registrarti.",
+        );
+        this.setLoading(btnSubmit, false);
+        return;
+      }
+
+      const utente = utenti[0];
+
+      if (utente.registrato) {
+        this.showError(form, 'hai già un account attivo. accedi dalla pagina di login. se pensi si possa trattare di un\'errore contatta il direttivo.');
+        this.setLoading(btnSubmit, false);
+        return;
+      }
+
+      // invia il magic link
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: utente.email,
+        options: {
+          emailRedirectTo:
+            "https://prenotaulettaldr.illumedellaragione6.workers.dev/set-password",
+          shouldCreateUser: true,
+          data: {
+            id_utente: utente.id_utente,
+          },
+        },
+      });
+
+      if (otpError) {
+        this.showError(
+          form,
+          "errore nell'invio della mail. riprova tra qualche minuto.",
+        );
+        console.error("otp error:", otpError.message);
+        this.setLoading(btnSubmit, false);
+        return;
+      }
+
+      this.showSuccess(
+        form,
+        `abbiamo inviato un link di attivazione a ${this.maskEmail(utente.email)}. controlla la posta (anche nello spam).`,
+      );
+      this.setLoading(btnSubmit, false);
+    });
+  },
+
+  // invio magic link per reset password via mail
+  setupResetPasswordForm() {
+    const form = document.getElementById('reset-password-form');
+    if (!form) return;
+  
+    const btnSubmit = form.querySelector('button[type="submit"]');
+  
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      this.clearError(form);
+      this.setLoading(btnSubmit, true);
+  
+      const identifier = form.querySelector('input[name="reset-identifier"]')?.value.trim();
+      if (!identifier) {
+        this.showError(form, 'inserisci email o numero tessera.');
+        this.setLoading(btnSubmit, false);
+        return;
+      }
+  
+      // risolve email da numero tessera se necessario
+      let email = identifier;
+      if (!identifier.includes('@')) {
+        const numeroTessera = parseInt(identifier, 10);
+        if (isNaN(numeroTessera)) {
+          this.showError(form, 'numero tessera non valido.');
+          this.setLoading(btnSubmit, false);
+          return;
+        }
+  
+        const { data: utente, error: dbError } = await supabase
+          .from('Utente')
+          .select('email, registrato')
+          .eq('numero_tessera', numeroTessera)
+          .single();
+  
+        if (dbError || !utente) {
+          this.showError(form, 'numero tessera non trovato.');
+          this.setLoading(btnSubmit, false);
+          return;
+        }
+  
+        if (!utente.registrato) {
+          this.showError(form, 'non hai ancora un account. registrati prima.');
+          this.setLoading(btnSubmit, false);
+          return;
+        }
+  
+        email = utente.email;
+      }
+  
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://prenotaulettaldr.illumedellaragione6.workers.dev/set-password',
+      });
+  
+      if (error) {
+        this.showError(form, 'errore nell\'invio della mail. riprova tra qualche minuto.');
+        this.setLoading(btnSubmit, false);
+        return;
+      }
+  
+      this.showSuccess(
+        form,
+        `abbiamo inviato un link a ${this.maskEmail(email)}. controlla la posta (anche nello spam).`
+      );
+      this.setLoading(btnSubmit, false);
+    });
+  },
+
+  setupNewPasswordForm() {
+    const form = document.getElementById('reset-password-form');
+    if (!form) return;
+  
+    const btnSubmit = form.querySelector('button[type="submit"]');
+    const inputPwd  = form.querySelector('input[name="password"]');
+    const inputConf = form.querySelector('input[name="conferma-password"]');
+  
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      this.clearError(form);
+  
+      const pwd  = inputPwd?.value;
+      const conf = inputConf?.value;
+  
+      if (!pwd || pwd.length < 8) {
+        this.showError(form, 'la password deve essere di almeno 8 caratteri.');
+        return;
+      }
+  
+      if (pwd !== conf) {
+        this.showError(form, 'le password non coincidono.');
+        return;
+      }
+  
+      this.setLoading(btnSubmit, true);
+  
+      const { error } = await supabase.auth.updateUser({ password: pwd });
+  
+      if (error) {
+        this.showError(form, 'errore nell\'impostazione della password. riprova.');
+        console.error('updateuser error:', error.message);
+        this.setLoading(btnSubmit, false);
+        return;
+      }
+  
+      window.location.href = '/';
     });
   },
 
@@ -197,57 +441,52 @@ const auth = {
   async initSetPassword(session) {
     const form = document.getElementById('set-password-form');
     if (!form) return;
-
-    // se non c'è sessione, il link non è valido
+  
     if (!session) {
       this.showError(form, 'il link è scaduto o già usato. richiedine uno nuovo.');
       return;
     }
-
+  
     const btnSubmit = form.querySelector('button[type="submit"]');
     const inputPwd  = form.querySelector('input[name="password"]');
     const inputConf = form.querySelector('input[name="conferma-password"]');
-
-    btnSubmit?.addEventListener('click', async (e) => {
+  
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       this.clearError(form);
-
+  
       const pwd  = inputPwd?.value;
       const conf = inputConf?.value;
-
-      // controlla che la password abbia almeno 8 caratteri
+  
       if (!pwd || pwd.length < 8) {
         this.showError(form, 'la password deve essere di almeno 8 caratteri.');
         return;
       }
-
-      // controlla che le password coincidano
+  
       if (pwd !== conf) {
         this.showError(form, 'le password non coincidono.');
         return;
       }
-
+  
       this.setLoading(btnSubmit, true);
-
-      // aggiorna la password dell'utente autenticato
+  
       const { error } = await supabase.auth.updateUser({ password: pwd });
-
+  
       if (error) {
         this.showError(form, 'errore nell\'impostazione della password. riprova.');
         console.error('updateuser error:', error.message);
         this.setLoading(btnSubmit, false);
         return;
       }
-
-      // manda alla home dopo successo
-      window.location.href = '/index.html';
+  
+      window.location.href = '/';
     });
   },
 
   // funzione di logout: esce e manda a login
   async logout() {
     await supabase.auth.signOut();
-    window.location.href = '/login.html';
+    window.location.href = "/login.html";
   },
 
   // mette il bottone in loading durante submit
@@ -255,42 +494,44 @@ const auth = {
     if (!btn) return;
     if (!btn.dataset.label) btn.dataset.label = btn.textContent;
     btn.disabled = isLoading;
-    btn.textContent = isLoading ? 'attendere...' : btn.dataset.label || btn.textContent;
+    btn.textContent = isLoading
+      ? "attendere..."
+      : btn.dataset.label || btn.textContent;
   },
 
   // mostra un errore nel form
   showError(container, msg) {
     this.clearError(container);
-    const el = document.createElement('span');
-    el.className = 'form-error';
+    const el = document.createElement("span");
+    el.className = "form-error";
     el.textContent = msg;
-    container.querySelector('section:last-of-type')?.prepend(el);
+    container.querySelector("section:last-of-type")?.prepend(el);
   },
 
   // mostra un messaggio di successo nel form
   showSuccess(container, msg) {
     this.clearError(container);
-    const el = document.createElement('span');
-    el.className = 'form-success';
+    const el = document.createElement("span");
+    el.className = "form-success";
     el.textContent = msg;
-    container.querySelector('section:last-of-type')?.prepend(el);
+    container.querySelector("section:last-of-type")?.prepend(el);
   },
 
   // pulisce errori e successi nel form
   clearError(container) {
-    container.querySelector('.form-error')?.remove();
-    container.querySelector('.form-success')?.remove();
+    container.querySelector(".form-error")?.remove();
+    container.querySelector(".form-success")?.remove();
   },
 
   // maschera la mail per privacy (es: lu***@gmail.com)
   maskEmail(email) {
-    const [local, domain] = email.split('@');
+    const [local, domain] = email.split("@");
     return `${local.slice(0, 2)}***@${domain}`;
   },
 };
 
 // avvia tutto quando il dom è pronto
-document.addEventListener('DOMContentLoaded', () => auth.init());
+document.addEventListener("DOMContentLoaded", () => auth.init());
 
 // rende il logout globale per il bottone nella home
 window.ldrLogout = () => auth.logout();

@@ -34,7 +34,7 @@
         <!-- logo e nome webapp -->
         <div id="logo">
             <div class="horizontal-container">
-                <a href="index.html">
+                <a href="/">
                     <img src="/src/img/logo-prenotaldr-giallo.webp" alt="">
                 </a>
                 <h2 id="saluto-header">Ciao <span class="italic" data-get-info="username-name"></span>, al momento l'auletta è <span class="available italic" data-get-info="auletta-state"></span></h2>
@@ -110,9 +110,113 @@
                     <span class="modal-title">Notifiche</span>
                 </div>
                 <div class="lista-notifiche">
-                    <span class="modal-advise">
+                    <!-- <span class="modal-advise">
                         <div class="advise-indicator"></div>
                         <span class="disabled">Nessuna nuova notifica</span>
+                    </span> -->
+                    <span class="modal-advise take-action">
+                        <div class="advise-indicator"></div>
+                        <div class="modal-advise-content">
+                            <span class="modal-advise-title">Prendi il mio turno!</span>
+                            <div class="horizontal-container">
+                                <span class="disabled">da: </span>
+                                <span class="">G.Brunelli</span>
+                            </div>
+                            <div class="horizontal-container">
+                                <span class="disabled">quando: </span>
+                                <span class="">1 Luglio 2026</span>
+                            </div>
+                            <div class="horizontal-container">
+                                <span class="disabled">turno: </span>
+                                <span class="">2° (10:00 - 13:30)</span>
+                            </div>
+                            <div class="horizontal-container modal-advise-actions">
+                                <button>
+                                    <span>Accetta e prenota</span>
+                                </button>
+                                <button>
+                                    <span>Rifiuta</span>
+                                </button>
+                            </div>
+                        </div>
+                    </span>
+                    <span class="modal-advise take-action">
+                        <div class="advise-indicator"></div>
+                        <div class="modal-advise-content">
+                            <span class="modal-advise-title">Prendi il mio turno!</span>
+                            <div class="horizontal-container">
+                                <span class="disabled">da: </span>
+                                <span class="">G.Brunelli</span>
+                            </div>
+                            <div class="horizontal-container">
+                                <span class="disabled">quando: </span>
+                                <span class="">1 Luglio 2026</span>
+                            </div>
+                            <div class="horizontal-container">
+                                <span class="disabled">turno: </span>
+                                <span class="">2° (10:00 - 13:30)</span>
+                            </div>
+                            <div class="horizontal-container modal-advise-actions">
+                                <button>
+                                    <span>Accetta e prenota</span>
+                                </button>
+                                <button>
+                                    <span>Rifiuta</span>
+                                </button>
+                            </div>
+                        </div>
+                    </span>
+                    <span class="modal-advise take-action">
+                        <div class="advise-indicator"></div>
+                        <div class="modal-advise-content">
+                            <span class="modal-advise-title">Prendi il mio turno!</span>
+                            <div class="horizontal-container">
+                                <span class="disabled">da: </span>
+                                <span class="">G.Brunelli</span>
+                            </div>
+                            <div class="horizontal-container">
+                                <span class="disabled">quando: </span>
+                                <span class="">1 Luglio 2026</span>
+                            </div>
+                            <div class="horizontal-container">
+                                <span class="disabled">turno: </span>
+                                <span class="">2° (10:00 - 13:30)</span>
+                            </div>
+                            <div class="horizontal-container modal-advise-actions">
+                                <button>
+                                    <span>Accetta e prenota</span>
+                                </button>
+                                <button>
+                                    <span>Rifiuta</span>
+                                </button>
+                            </div>
+                        </div>
+                    </span>
+                    <span class="modal-advise take-action">
+                        <div class="advise-indicator"></div>
+                        <div class="modal-advise-content">
+                            <span class="modal-advise-title">Prendi il mio turno!</span>
+                            <div class="horizontal-container">
+                                <span class="disabled">da: </span>
+                                <span class="">G.Brunelli</span>
+                            </div>
+                            <div class="horizontal-container">
+                                <span class="disabled">quando: </span>
+                                <span class="">1 Luglio 2026</span>
+                            </div>
+                            <div class="horizontal-container">
+                                <span class="disabled">turno: </span>
+                                <span class="">2° (10:00 - 13:30)</span>
+                            </div>
+                            <div class="horizontal-container modal-advise-actions">
+                                <button>
+                                    <span>Accetta e prenota</span>
+                                </button>
+                                <button>
+                                    <span>Rifiuta</span>
+                                </button>
+                            </div>
+                        </div>
                     </span>
                 </div>
             </div>
@@ -199,7 +303,7 @@
             </div>
 
             <!-- azioni vista settimanale -->
-            <div class="horizontal-container hidden" data-view="week">
+            <div id="week-view-actions" class="horizontal-container hidden" data-view="week">
 
                 <!-- naviga al giorno corrente o al mese precedente/successivo -->
                 <button type="button" id="week-prev" class="mini" aria-label="Vai alla settimana precedente">
@@ -281,6 +385,14 @@
                 <div id="week-calendar-turns">
                     <div id="week-schedules" class="week-calendar-day">
                     </div>
+                </div>
+
+                <div id="week-view-unavailable">
+                    <h2>Vista settimanale non disponibile in questo formato.</h2>
+                    <button class="active" data-calendar-switch="month">
+                        <i data-lucide="arrow-left"></i>
+                        <span>Torna alla vista mensile</span>
+                    </button>
                 </div>
 
             </div>
@@ -496,6 +608,26 @@
             </div>
             <div class="full-modal-footer">
                 <button type="button" class="w-text" data-modal="close-modal">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Avvertimento autoconferma turno irrevocabile -->
+    <div id="modal-auto-confirm-warning" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+                <span class="modal-title">Attenzione</span>
+                <span class="modal-subtitle">Turno in corso</span>
+            </div>
+            <div class="full-modal-content">
+                <p id="auto-confirm-warning-text" style="font-size:13px"></p>
+            </div>
+            <div class="full-modal-footer">
+                <button type="button" class="w-text" id="btn-auto-confirm-annulla">Annulla</button>
+                <button type="button" class="w-text active" id="btn-auto-confirm-ok">
+                    <i data-lucide="check" class="lucide"></i>
+                    <span>Ho capito, prenota</span>
+                </button>
             </div>
         </div>
     </div>

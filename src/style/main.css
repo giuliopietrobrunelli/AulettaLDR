@@ -432,6 +432,17 @@ main {
     background-color: var(--aula);
 }
 
+#week-view-unavailable {
+    display: none !important;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    gap: 10px;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
 #day-calendar-columns h3 span.today {
     background-color: var(--aula);
 }
@@ -1020,6 +1031,8 @@ footer {
     display: flex;
     flex-direction: column;
     width: 100%;
+    box-sizing: border-box;
+    overflow-y: scroll;
 }
 
 .modal-advise {
@@ -1030,6 +1043,44 @@ footer {
     padding: 10px 15px;
     font-size: 11px;
     color: var(--white);
+    box-sizing: border-box;
+}
+
+.modal-advise.take-action {
+    align-items: start;
+}
+.modal-advise.take-action .advise-indicator{
+    margin-top: 20px;
+}
+
+.modal-advise-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+    align-items: start;
+    background-color: var(--white-3);
+    padding: 10px;
+    box-sizing: border-box;
+    width: 100%;
+    border-radius: 4px;
+}
+.modal-advise-content span {
+    font-weight: 300;
+}
+.modal-advise-title {
+    font-weight: 500 !important;
+    padding-bottom: 5px;
+    font-size: 12px;
+}
+
+.modal-advise-actions {
+    width: 100%;
+    /* justify-content: end; */
+    /* padding-top: 20px; */
+    padding-top: 10px;
+}
+.modal-advise-actions button:nth-child(2) {
+    opacity: .5;
 }
 
 .advise-indicator {
@@ -1216,7 +1267,13 @@ footer {
     width: 100%;
 }
 
-#login-form, #register-form, #set-password-form {
+#login-form, 
+#register-form, 
+#register-by-name-form, 
+#set-password-form,
+#reset-password-form {
+    display: flex;
+    flex-direction: column;
     width: 450px;
     max-width: 100%;
     height: fit-content;
@@ -1229,7 +1286,34 @@ footer {
     box-shadow: 0 0px 400px 0 var(--black-3);
 }
 
-#login-form h1, #register-form h1, #set-password-form h1 {
+#login-form .divider,
+#register-form .divider,
+#set-password-form .divider,
+#register-by-name-form .divider,
+#reset-password-form .divider{
+    margin-block: 10px;
+}
+#change-initial-form, #change-type-form {
+    width: 100%;
+    text-decoration: none;
+    max-height: none;
+}
+
+#login-form a,
+#register-form a,
+#register-by-name-form a,
+#set-password-form a,
+#reset-password-form a {
+    width: 100%;
+    text-decoration: none;
+    max-height: none;
+}
+
+#login-form h1, 
+#register-form h1, 
+#set-password-form h1, 
+#register-by-name-form h1,
+#reset-password-form h1 {
     line-height: 1.1;
     text-wrap: balance;
 }
@@ -1750,8 +1834,4 @@ input[type="checkbox"] {
 }
 .side-menu-btn--danger:hover {
     background-color: var(--red);
-}
-
-@media (min-width: 800px) {
-    #modal-menu { display: none !important; }
 }

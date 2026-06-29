@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Auletta LDR — Registrati tramite numero tessera</title>
+    <title>Auletta LDR — Registrati tramite dati</title>
 
     <!-- fogli di stile -->
     <link rel="stylesheet" href="/src/style/main.css">
@@ -17,40 +17,54 @@
     <!-- font da googlefonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
     <!--  -->
 
 </head>
 
 <body class="full-page-form-body">
+
     <main>
-        <form id="register-form" novalidate>
+        <form id="register-by-name-form" novalidate>
+
             <section class="form-block horizontal">
-                <h1>Registrati tramite la tua tessera LDR</h1>
+                <h1>Registrati tramite i tuoi dati</h1>
             </section>
+
             <section class="form-block">
                 <div class="form-block">
-                    <label for="n-tessera"><span>Numero tessera</span></label>
-                    <input id="n-tessera" name="n-tessera" type="number" placeholder="0000" autocomplete="off" required>
+                    <label for="nome"><span>Nome</span></label>
+                    <input id="nome" name="nome" type="text" placeholder="Es. Piero" autocomplete="given-name" required>
+                </div>
+                <div class="form-block">
+                    <label for="cognome"><span>Cognome</span></label>
+                    <input id="cognome" name="cognome" type="text" placeholder="Es. Pelù" autocomplete="family-name" required>
                 </div>
             </section>
+
             <section class="form-block">
                 <button type="submit" class="active">Ricevi codice via mail</button>
+
                 <div class="divider"></div>
-                <h3>Non hai la tessera a portata di mano?</h3>
-                <a href="/register-alternative.html">
-                    <button type="button">Registrati tramite dati</button>
+
+                <h3>Un altro modo per registrarsi?</h3>
+                <a href="/register.html">
+                    <button type="button">Registrati tramite tessera LDR</button>
                 </a>
+
                 <div class="divider"></div>
+
                 <h3>Hai già un account?</h3>
                 <a href="/login.html">
                     <button type="button">Accedi</button>
                 </a>
             </section>
+
         </form>
     </main>
+
     <script type="module" src="/src/js/auth.js"></script>
+
 </body>
 
 </html>

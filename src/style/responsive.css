@@ -1,10 +1,14 @@
 /** Responsive styles for screens larger than 880px */
 @media (min-width: 881px) {
     
-    #mobile-header, #navigation-bar {
-        display: none;
+    #mobile-header, #navigation-bar, #modal-menu {
+        display: none !important;
     }
 
+    #modal-notifiche {
+        max-height: 250px;
+        width: 280px;
+    }
 
 }
 
@@ -12,8 +16,12 @@
 /** Responsive styles for screens smaller than 880px */
 @media (max-width: 880px) {
 
-    #desktop-header {
+    #desktop-header, #week-calendar-columns, #week-calendar-turns, #week-view-actions {
         display: none;
+    }
+
+    #week-view-unavailable {
+        display: grid !important;
     }
 
     /* calendario */
@@ -30,6 +38,15 @@
     .booked-day-recap img {
         width: 30px;
         height: 30px;
+    }
+
+    .divider {
+        min-height: 1px;
+    }
+
+    #modal-notifiche {
+        max-height: 250px;
+        width: 280px;
     }
     
 }
@@ -97,7 +114,11 @@
     }
 
     
-    #login-form, #register-form, #set-password-form {
+    #login-form, 
+    #register-form, 
+    #set-password-form, 
+    #register-by-name-form,
+    #reset-password-form {
         width: 100%;
         padding: 30px 20px;
         box-sizing: border-box;
@@ -244,11 +265,29 @@
         pointer-events: auto;
     }
 
+    .lista-notifiche > .modal-advise:last-child {
+        padding-bottom: 100px;
+    }
+
     #navigation-bar {
         z-index: 999;
     }
     #booking-bar {
         z-index: 9999;
+    }
+
+    #modal-notifiche {
+        max-height: none;
+        width: 100%;
+    }
+
+    .modal-advise-title {
+        padding-bottom: 10px;
+        font-size: 14px;
+    }
+
+    .modal-advise-actions {
+        padding-top: 15px;
     }
 
 }
