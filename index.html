@@ -57,8 +57,9 @@
             </button>
 
             <!-- inbox -->
-            <button data-modal="notifiche">
+            <button data-modal="notifiche" class="notification-button">
                 <i data-lucide="inbox"></i>
+                <span class="notification-dot hidden"></span>
             </button>
 
             <!-- profilo utente -->
@@ -77,8 +78,9 @@
             </button>
 
             <!-- inbox -->
-            <button data-modal="notifiche">
+            <button data-modal="notifiche" class="notification-button">
                 <i data-lucide="inbox"></i>
+                <span class="notification-dot hidden"></span>
             </button>
 
             <!-- menu -->
@@ -110,88 +112,6 @@
                     <span class="modal-title">Notifiche</span>
                 </div>
                 <div class="lista-notifiche">
-                    <!-- <span class="modal-advise">
-                        <div class="advise-indicator"></div>
-                        <span class="disabled">Nessuna nuova notifica</span>
-                    </span> -->
-                    <span class="modal-advise take-action">
-                        <div class="advise-indicator"></div>
-                        <div class="modal-advise-content">
-                            <span class="modal-advise-title">Ti cedo il mio turno</span>
-                            <div class="horizontal-container">
-                                <span class="disabled">da: </span>
-                                <span class="">G.Brunelli</span>
-                            </div>
-                            <div class="horizontal-container">
-                                <span class="disabled">quando: </span>
-                                <span class="">1 Luglio 2026</span>
-                            </div>
-                            <div class="horizontal-container">
-                                <span class="disabled">turno: </span>
-                                <span class="">2° (10:00 - 13:30)</span>
-                            </div>
-                            <div class="horizontal-container modal-advise-actions">
-                                <button>
-                                    <span>Accetta e prenota</span>
-                                </button>
-                                <button>
-                                    <span>Rifiuta</span>
-                                </button>
-                            </div>
-                        </div>
-                    </span>
-                    <span class="modal-advise take-action">
-                        <div class="advise-indicator"></div>
-                        <div class="modal-advise-content">
-                            <span class="modal-advise-title">Ti cedo il mio turno</span>
-                            <div class="horizontal-container">
-                                <span class="disabled">da: </span>
-                                <span class="">G.Brunelli</span>
-                            </div>
-                            <div class="horizontal-container">
-                                <span class="disabled">quando: </span>
-                                <span class="">1 Luglio 2026</span>
-                            </div>
-                            <div class="horizontal-container">
-                                <span class="disabled">turno: </span>
-                                <span class="">2° (10:00 - 13:30)</span>
-                            </div>
-                            <div class="horizontal-container modal-advise-actions">
-                                <button>
-                                    <span>Accetta e prenota</span>
-                                </button>
-                                <button>
-                                    <span>Rifiuta</span>
-                                </button>
-                            </div>
-                        </div>
-                    </span>
-                    <span class="modal-advise take-action">
-                        <div class="advise-indicator"></div>
-                        <div class="modal-advise-content">
-                            <span class="modal-advise-title">Ti cedo il mio turno</span>
-                            <div class="horizontal-container">
-                                <span class="disabled">da: </span>
-                                <span class="">G.Brunelli</span>
-                            </div>
-                            <div class="horizontal-container">
-                                <span class="disabled">quando: </span>
-                                <span class="">1 Luglio 2026</span>
-                            </div>
-                            <div class="horizontal-container">
-                                <span class="disabled">turno: </span>
-                                <span class="">2° (10:00 - 13:30)</span>
-                            </div>
-                            <div class="horizontal-container modal-advise-actions">
-                                <button>
-                                    <span>Accetta e prenota</span>
-                                </button>
-                                <button>
-                                    <span>Rifiuta</span>
-                                </button>
-                            </div>
-                        </div>
-                    </span>
                     <span class="modal-advise take-action">
                         <div class="advise-indicator"></div>
                         <div class="modal-advise-content">
@@ -621,7 +541,7 @@
                 <span class="modal-subtitle">Turno in corso</span>
             </div>
             <div class="full-modal-content">
-                <p id="auto-confirm-warning-text" style="font-size:13px"></p>
+                <span id="auto-confirm-warning-text" style="font-size:13px"></span>
             </div>
             <div class="full-modal-footer">
                 <button type="button" class="w-text" id="btn-auto-confirm-annulla">Annulla</button>

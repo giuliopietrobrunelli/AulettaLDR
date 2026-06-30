@@ -29,6 +29,7 @@ export function setMainView(view) {
   // se calendario, mostra il calendario nel modo corrente
   if (isCalendar) {
     window.calendarRender?.setViewMode(window.calendarRender.viewMode || 'month');
+    window.calendarRender?.render?.();
   } else {
     // se non calendario, nascondi tutte le viste del calendario
     document.getElementById('calendar-container')?.classList.add('hidden');

@@ -1,4 +1,6 @@
+import { showToast } from "./toast.js";
 import { openModificaModal } from "./bookings-view.js"
+import { supabase } from "./supabase-client.js";
 
 // array dei nomi dei mesi in italiano
 const MONTHS = [
@@ -52,6 +54,8 @@ const calendarRender = {
   bookingsRangeCache: new Map(),
   // generazione di rendering, per gestire eventuale asincronia
   renderGeneration: 0,
+  // canale supabase realtime per le prenotazioni
+  realtimeChannel: null,
   // immagine di profilo di default usata quando non ci sono altre foto
   stockProfilePic: "/src/img/default-profile-picture.webp",
   // array dei turni disponibili, caricati dal db
@@ -167,6 +171,41 @@ const calendarRender = {
 
     // carica i turni dal db prima del primo render
     this.loadTurni().then(() => this.setViewMode(this.viewMode));
+
+    // avvia la sottoscrizione realtime alle prenotazioni
+    this.initRealtimeSync();
+  },
+
+  // sottoscrive ai cambiamenti realtime sulla tabella Prenotazione,
+  // invalidando la cache locale e ridisegnando la vista corrente quando
+  // qualcosa cambia (da qualunque utente/dispositivo/trigger)
+  initRealtimeSync() {
+    // evita doppie sottoscrizioni se init() venisse richiamato più volte
+    if (this.realtimeChannel) {
+      supabase.removeChannel(this.realtimeChannel);
+      this.realtimeChannel = null;
+    }
+
+    this.realtimeChannel = supabase
+      .channel("prenotazioni-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "Prenotazione" },
+        () => {
+          this.invalidateBookingsCache();
+          this.render();
+          window.ldrBookings?.refresh?.();
+        },
+      )
+      .subscribe((status) => {
+        // alla riconnessione dopo un drop, risincronizza tutto per sicurezza
+        // (potrebbero essere stati persi eventi durante la disconnessione)
+        if (status === "SUBSCRIBED") {
+          this.invalidateBookingsCache();
+          this.render();
+          window.ldrBookings?.refresh?.();
+        }
+      });
   },
 
   // carica tutti i turni disponibili dal database
@@ -521,7 +560,7 @@ const calendarRender = {
 
   // svuota la cache delle prenotazioni
   async invalidateBookingsCache() {
-      console.log("invalidati e refresh");
+      // console.log("invalidati e refresh");
       this.bookingsRangeCache.clear();
       this.bookingsBySlot.clear();
   },
@@ -643,7 +682,7 @@ const calendarRender = {
     } else if (status == "own") {
       el.appendChild(this.createUserPreviewEl(booking));
       el.addEventListener('click', () => {
-        console.log('click su turno own, booking:', booking);
+        // console.log('click su turno own, booking:', booking);
         openModificaModal(booking);
       });
     }
@@ -1534,7 +1573,7 @@ const calendarRender = {
       const year = dateObj.getFullYear();
       // Trova il turno associato
       const turno = turni.find(t => t.id_turno === id_turno);
-      console.log('turno trovato:', turno, '| id_turno cercato:', id_turno);
+      // console.log('turno trovato:', turno, '| id_turno cercato:', id_turno);
       let fasciaOraria = "";
 
       const formatTime = (time) => time?.slice(0, 5) ?? '';
@@ -1560,9 +1599,18 @@ const calendarRender = {
 
     this.btnBookingConfirm.disabled = false;
 
-    if (error) {
-      console.error("Errore prenotazione:", error);
-      alert("Errore durante la prenotazione. Riprova più tardi.");
+    if (error) { // molto probabilmente se l'errore viene sollevato è per via del turno già occupato mentre l'utente navigava. la pagina non è stata ricaricata e la prenotazione non è stata mostrata
+      const msg = 'Turno già occupato! Riprova.';
+      if (typeof showToast === "function") {
+        showToast('error', msg, 'x');
+        this.clearSelection();
+        this.invalidateBookingsCache();
+        window.ldrBookings?.refresh();
+        this.render();
+
+      } else {
+        alert(msg);
+      }
       return;
     }
 

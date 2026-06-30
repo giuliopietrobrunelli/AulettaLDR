@@ -7,9 +7,13 @@ import {
   annullaPrenotazione,
   cediPrenotazione,
   getAllUtentiRegistrati,
+  getRichiesteInArrivo, 
+  accettaRichiestaCessione, 
+  rifiutaRichiestaCessione,
 } from './db.js';
 import { getProfilePicUrl } from './profile-utils.js';
 import { showToast } from './toast.js';
+import { supabase } from './supabase-client.js';
 
 // array dei nomi dei mesi
 const MONTHS = [
@@ -31,6 +35,8 @@ export const MAX_WEEKLY_BOOKINGS = 7; // temp, verrà gestito dall'interfaccia a
 let turniCache = null;
 // timer per il refresh periodico della vista
 let refreshTimer = null;
+// canale supabase realtime per le notifiche
+let notificheChannel = null;
 
 // formatta una data oggetto js in stringa yyyy-mm-dd
 function formatDbDate(date) {
@@ -388,7 +394,112 @@ async function renderBookingsModal(profilo, viewDate) {
   }
 }
 
-// rende la vista delle prenotazioni dell'utente
+// render delle notifiche di richieste cessione nella modal notifiche
+export async function renderNotificheModal() {
+  const modal = document.getElementById('modal-notifiche');
+  if (!modal) return;
+
+  const lista = modal.querySelector('.lista-notifiche');
+  if (!lista) return;
+
+  const { data: richieste, error } = await getRichiesteInArrivo();
+
+  const hasNotifiche = richieste && richieste.length > 0;
+  document.querySelectorAll('.notification-dot').forEach(dot => {
+    dot.classList.toggle('hidden', !hasNotifiche);
+  });
+
+  lista.replaceChildren();
+
+  if (error || !richieste.length) {
+    const empty = document.createElement('span');
+    empty.className = 'modal-advise';
+    empty.innerHTML = `
+      <div class="advise-indicator"></div>
+      <span class="disabled">Nessuna nuova notifica</span>
+    `;
+    lista.appendChild(empty);
+    return;
+  }
+
+  for (const richiesta of richieste) {
+    const pren = richiesta.Prenotazione;
+    const turn = pren?.Turno;
+    const mittente = richiesta.Mittente;
+
+    const data = pren?.data_prenotazione
+      ? formatDayTitle(parseDbDate(pren.data_prenotazione))
+      : '—';
+    const turnoLabel = turn
+      ? `${turn.indice}° (${formatTurnLabel(turn)})`
+      : '—';
+    const nomemittente = mittente
+      ? formatUserShortName(mittente)
+      : '—';
+
+    const advise = document.createElement('span');
+    advise.className = 'modal-advise take-action';
+
+    advise.innerHTML = `
+      <div class="advise-indicator"></div>
+      <div class="modal-advise-content">
+        <span class="modal-advise-title">Ti cedo il mio turno</span>
+        <div class="horizontal-container">
+          <span class="disabled">da: </span>
+          <span>${nomemittente}</span>
+        </div>
+        <div class="horizontal-container">
+          <span class="disabled">quando: </span>
+          <span>${data}</span>
+        </div>
+        <div class="horizontal-container">
+          <span class="disabled">turno: </span>
+          <span>${turnoLabel}</span>
+        </div>
+        <div class="horizontal-container modal-advise-actions">
+          <button class="btn-accetta" type="button"><span>Accetta e prenota</span></button>
+          <button class="btn-rifiuta" type="button"><span>Rifiuta</span></button>
+        </div>
+      </div>
+    `;
+
+    // handler accetta
+    advise.querySelector('.btn-accetta').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      const { error } = await accettaRichiestaCessione(richiesta.id_richiesta);
+      if (error) {
+        showToast('error', error.message ?? 'Impossibile accettare la richiesta', 'x');
+        btn.disabled = false;
+        return;
+      }
+      showToast('success', 'Turno accettato!', 'check');
+      window.modal?.closeAll();
+      await refreshBookingsData();
+      await renderNotificheModal();
+      window.calendarRender?.render?.();
+    });
+
+    // handler rifiuta
+    advise.querySelector('.btn-rifiuta').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      const { error } = await rifiutaRichiestaCessione(richiesta.id_richiesta);
+      if (error) {
+        showToast('error', 'Impossibile rifiutare la richiesta', 'x');
+        btn.disabled = false;
+        return;
+      }
+      showToast('success', 'Richiesta rifiutata', 'check');
+      window.modal?.closeAll();
+      await renderNotificheModal();
+    });
+
+    lista.appendChild(advise);
+  }
+}
+
+// render della vista delle prenotazioni dell'utente
 export async function renderBookingsView() {
   const container = document.getElementById('my-bookings');
   if (!container) return;
@@ -628,31 +739,52 @@ async function handleRinunciaTurno(id_prenotazione) {
 
 // ────────────────────────────────────────────────────────────────────────────
 
-// inizializza la vista prenotazioni e il timer di refresh automatico
-// export function initBookingsView() {
-//   if (refreshTimer) clearInterval(refreshTimer);
-  
-//   // ogni 60 secondi invalida la cache e aggiorna tutto (per via delle possibili prenotazioni revocate)
-//   refreshTimer = setInterval(async () => {
-//     // invalida cache calendario così vede le prenotazioni rimosse
-//     window.calendarRender?.invalidateBookingsCache?.();
-//     window.calendarRender?.render?.();
-//     // aggiorna anche la vista prenotazioni
-//     await refreshAulettaState();
-//   }, 60_000);
+// sottoscrive ai cambiamenti realtime sulla tabella Notifica per l'utente
+// loggato, ricaricando la modal notifiche e il dot appena arriva qualcosa
+function initNotificheRealtime() {
+  const profilo = window.ldrProfilo;
+  if (!profilo?.id_utente) return; // niente da fare se l'utente non è loggato
 
-//   window.ldrBookings = {
-//     refresh: refreshBookingsData,
-//     refreshAulettaState,
-//     refreshBookingsModal: async (viewDate) => {
-//       const profilo = window.ldrProfilo;
-//       if (profilo?.id_utente) await renderBookingsModal(profilo, viewDate);
-//     },
-//   };
-// }
+  // evita doppie sottoscrizioni se la funzione venisse richiamata più volte
+  // (es. dopo login/logout) o con un id_utente diverso da prima
+  if (notificheChannel) {
+    supabase.removeChannel(notificheChannel);
+    notificheChannel = null;
+  }
+
+  notificheChannel = supabase
+    .channel(`notifiche-${profilo.id_utente}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'Notifica',
+        filter: `id_utente=eq.${profilo.id_utente}`,
+      },
+      async (payload) => {
+        await renderNotificheModal();
+        showToast('info', payload.new?.titolo ?? 'Nuova notifica', 'bell');
+      },
+    )
+    .subscribe((status) => {
+      // alla (ri)connessione risincronizza, per non perdere eventi avvenuti
+      // mentre il canale era staccato (tab in background, rete instabile)
+      if (status === 'SUBSCRIBED') {
+        renderNotificheModal();
+      }
+    });
+}
+
+// inizializza la vista prenotazioni e il timer di refresh automatico
 export function initBookingsView() {
   if (refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(() => refreshAulettaState(), 60_000);
+  refreshTimer = setInterval(async () => {
+    await refreshAulettaState();
+    await renderNotificheModal();
+  }, 60_000);
+
+  initNotificheRealtime();
 
   window.ldrBookings = {
     refresh: refreshBookingsData,
@@ -661,6 +793,7 @@ export function initBookingsView() {
       const profilo = window.ldrProfilo;
       if (profilo?.id_utente) await renderBookingsModal(profilo, viewDate);
     },
+    initNotificheRealtime,
   };
 }
 
@@ -687,7 +820,7 @@ export async function refreshAulettaState() {
 }
 
 export async function refreshBookingsData() {
-  console.log("turni refreshati");
+  // console.log("turni refreshati");
   turniCache = null;
   window.calendarRender?.invalidateBookingsCache?.();
 
@@ -716,6 +849,7 @@ export async function refreshBookingsData() {
   }
 
   await renderBookingsModal(profilo);
+  await renderNotificheModal();
 }
 
 export async function initPrenotaModal() {
@@ -843,7 +977,6 @@ export async function initPrenotaModal() {
 
     } catch (err) {
       console.error('Errore salvataggio prenotazione:', err);
-      showToast('error', 'Errore durante il salvataggio. Riprova.', 'x');
       btnConferma.innerHTML = testoOriginale;
       validatePrenotaForm(prenotaDataInput, prenotaTurnoSelect, btnConferma);
     }

@@ -109,11 +109,17 @@ export async function getTurniByIndici(indici) {
 
 // crea una nuova prenotazione singola
 export async function createPrenotazione({ id_utente, id_turno, data_prenotazione }) {
-  return await supabase
+  const { data, error } = await supabase
     .from('Prenotazione')
     .insert({ id_utente, id_turno, data_prenotazione })
     .select()
     .single();
+
+  if (error?.code === '23505') {
+    return { data: null, error: { ...error, userMessage: 'turno già occupato' } };
+  }
+
+  return { data, error };
 }
 
 // crea più prenotazioni in una volta sola
@@ -205,25 +211,166 @@ export async function annullaPrenotazione(id_prenotazione) {
     .eq('id_utente', myId); // garantisce che l'utente possa cancellare solo le proprie
 }
 
-// cede una prenotazione a un altro utente aggiornando id_utente
-export async function cediPrenotazione(id_prenotazione, id_utente_destinatario) {
+// invia una richiesta di cessione (non sposta più il turno direttamente)
+export async function cediPrenotazione(id_prenotazione, id_destinatario) {
   const { data: { session } } = await supabase.auth.getSession();
   const myId = session?.user?.id;
   if (!myId) return { error: new Error('non autenticato') };
 
-  return await supabase
+  // verifica che la prenotazione appartenga ancora al mittente e recupera i dati del turno per popolare la notifica
+  const { data: pren, error: prenError } = await supabase
     .from('Prenotazione')
-    .update({
-      id_utente: id_utente_destinatario,
-      stato: 'non_confermata',
-      data_conferma: null,
-    })
+    .select('id_prenotazione, id_utente, data_prenotazione, Turno:id_turno (indice, orario_inizio, orario_fine)')
     .eq('id_prenotazione', id_prenotazione)
     .eq('id_utente', myId)
+    .maybeSingle();
+
+  if (prenError || !pren) {
+    return { error: new Error('prenotazione non trovata o non di tua proprietà') };
+  }
+
+  // recupera i dati del mittente per il testo della notifica
+  const { data: mittente } = await supabase
+    .from('Utente')
+    .select('nome, cognome')
+    .eq('id_utente', myId)
+    .maybeSingle();
+
+  // crea la richiesta di cessione
+  const { data: richiesta, error: richiestaError } = await supabase
+    .from('RichiestaCessione')
+    .insert({
+      id_prenotazione,
+      id_mittente: myId,
+      id_destinatario,
+    })
     .select()
     .single();
+
+  if (richiestaError) return { data: null, error: richiestaError };
+
+  // formatta data e turno per il contenuto della notifica
+  const dataFormattata = new Date(pren.data_prenotazione).toLocaleDateString('it-IT', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  });
+  const turno = pren.Turno;
+  const nomeMittente = mittente ? `${mittente.nome} ${mittente.cognome}` : 'Un utente';
+
+  // crea la notifica per il destinatario (fa scattare la push)
+  const { error: notificaError } = await supabase
+    .from('Notifica')
+    .insert({
+      id_utente: id_destinatario,
+      tipologia: 'richiesta_cessione',
+      titolo: 'Vuoi il mio turno?',
+      contenuto: `${nomeMittente} vuole cederti il ${turno.indice}° turno (${turno.orario_inizio?.slice(0, 5)} - ${turno.orario_fine?.slice(0, 5)}) del ${dataFormattata}`,
+      dati: {
+        id_richiesta: richiesta.id_richiesta,
+        id_prenotazione,
+        id_mittente: myId,
+      },
+    });
+
+  if (notificaError) {
+    // la richiesta è comunque stata creata: logga ma non bloccare il flusso
+    console.error('errore creazione notifica:', notificaError);
+  }
+
+  return { data: richiesta, error: null };
 }
 
+// carica le richieste di cessione in arrivo per l'utente loggato (ancora in_attesa)
+export async function getRichiesteInArrivo() {
+  const { data: { session } } = await supabase.auth.getSession();
+  const myId = session?.user?.id;
+  if (!myId) return { data: [], error: null };
+
+  const { data, error } = await supabase
+    .from('RichiestaCessione')
+    .select(`
+      id_richiesta,
+      stato,
+      created_at,
+      id_prenotazione,
+      Prenotazione:id_prenotazione (
+        data_prenotazione,
+        id_utente,
+        Turno:id_turno (indice, orario_inizio, orario_fine)
+      ),
+      Mittente:id_mittente (id_utente, nome, cognome, foto_profilo)
+    `)
+    .eq('id_destinatario', myId)
+    .eq('stato', 'in_attesa')
+    .order('created_at', { ascending: false });
+
+  return { data: data ?? [], error };
+}
+
+// accetta una richiesta: sposta la prenotazione al destinatario
+export async function accettaRichiestaCessione(id_richiesta) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const myId = session?.user?.id;
+  if (!myId) return { error: new Error('non autenticato') };
+
+  // recupera la richiesta e verifica che sia destinata a me e ancora valida
+  const { data: richiesta, error: rErr } = await supabase
+    .from('RichiestaCessione')
+    .select('id_prenotazione, id_mittente, stato')
+    .eq('id_richiesta', id_richiesta)
+    .eq('id_destinatario', myId)
+    .maybeSingle();
+
+  if (rErr || !richiesta) return { error: new Error('richiesta non trovata') };
+  if (richiesta.stato !== 'in_attesa') return { error: new Error('richiesta non più valida') };
+
+  // verifica che la prenotazione appartenga ancora al mittente originale
+  const { data: pren, error: pErr } = await supabase
+    .from('Prenotazione')
+    .select('id_prenotazione, id_utente')
+    .eq('id_prenotazione', richiesta.id_prenotazione)
+    .maybeSingle();
+
+  if (pErr || !pren) return { error: new Error('prenotazione non trovata') };
+  if (pren.id_utente !== richiesta.id_mittente) {
+    // il mittente ha già rinunciato: invalida la richiesta
+    await supabase
+      .from('RichiestaCessione')
+      .update({ stato: 'scaduta' })
+      .eq('id_richiesta', id_richiesta);
+    return { error: new Error('il turno non appartiene più a chi te lo ha ceduto') };
+  }
+
+  // sposta la prenotazione
+  const { error: updateErr } = await supabase
+    .from('Prenotazione')
+    .update({ id_utente: myId, stato: 'non_confermata', data_conferma: null })
+    .eq('id_prenotazione', richiesta.id_prenotazione);
+
+  if (updateErr) return { error: updateErr };
+
+  // segna la richiesta come accettata
+  await supabase
+    .from('RichiestaCessione')
+    .update({ stato: 'accettata' })
+    .eq('id_richiesta', id_richiesta);
+
+  return { error: null };
+}
+
+// rifiuta una richiesta di cessione
+export async function rifiutaRichiestaCessione(id_richiesta) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const myId = session?.user?.id;
+  if (!myId) return { error: new Error('non autenticato') };
+
+  const { error } = await supabase
+    .from('RichiestaCessione')
+    .update({ stato: 'rifiutata' })
+    .eq('id_richiesta', id_richiesta)
+    .eq('id_destinatario', myId);
+
+  return { error };
+}
 // controllo se account loggato è amministratore
 export async function isAmministratore(id_utente) {
   if (!id_utente) return {data: false, error: null};
