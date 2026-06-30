@@ -7,7 +7,7 @@
 
     #modal-notifiche {
         max-height: 250px;
-        width: 280px;
+        width: max-content;
     }
 
 }

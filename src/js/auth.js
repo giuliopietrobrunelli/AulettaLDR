@@ -549,6 +549,10 @@ const auth = {
   // funzione di logout: esce e manda a login
   async logout() {
     await supabase.auth.signOut();
+    if (this.realtimeChannel) { // chiudi il canale realtime per evitare leak di informazioni di altri account
+      supabase.removeChannel(this.realtimeChannel);
+      this.realtimeChannel = null;
+    }
     window.location.href = "/login.html";
   },
 
