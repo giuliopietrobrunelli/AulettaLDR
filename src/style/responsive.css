@@ -104,12 +104,12 @@
         margin-left: 5px;
     }
 
-    nav {
+    nav.dynamic-nav {
         position: absolute;
         top: 0;
     }
 
-    nav .nav-switch{
+    nav.dynamic-nav .nav-switch{
         display: none;
     }
 
