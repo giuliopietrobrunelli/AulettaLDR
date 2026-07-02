@@ -379,6 +379,10 @@ async function renderBookingsModal(profilo, viewDate) {
     if (endCopy < now) {
       row.classList.add('past');
     }
+    // Se la settimana è quella attuale, aggiungi "current-week"
+    if (startCopy <= now && now <= endCopy) {
+      row.classList.add('current-week');
+    }
 
     const label = document.createElement('span');
     label.className = 'booking-week-label';

@@ -85,6 +85,62 @@ async function registerPushSubscription() {
   }
 }
 
+// controlla se le notifiche push sono attualmente attive su questo dispositivo (permesso concesso + sottoscrizione esistente nel service worker)
+export async function getPushSubscriptionStatus() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return { supported: false, active: false };
+  }
+
+  if (Notification.permission !== 'granted') {
+    return { supported: true, active: false };
+  }
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const subscription = await reg.pushManager.getSubscription();
+    return { supported: true, active: !!subscription };
+  } catch (err) {
+    console.error('Errore controllo stato push:', err);
+    return { supported: true, active: false };
+  }
+}
+
+// disattiva le notifiche push su questo dispositivo e rimuove la sottoscrizione dal db
+export async function disablePushNotifications() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const subscription = await reg.pushManager.getSubscription();
+
+    if (!subscription) {
+      showToast('info', 'Nessuna notifica attiva da disattivare', 'bell-off');
+      return true;
+    }
+
+    const endpoint = subscription.endpoint;
+
+    // annulla la sottoscrizione lato browser
+    await subscription.unsubscribe();
+
+    // rimuove la riga corrispondente dal db, se presente
+    const { error } = await window.ldrDb.supabase
+      .from('PushSubscription')
+      .delete()
+      .eq('endpoint', endpoint);
+
+    if (error) {
+      // la sottoscrizione browser è comunque annullata: logga ma non bloccare
+      console.error('Errore rimozione sottoscrizione dal db:', error);
+    }
+
+    showToast('success', 'Notifiche disattivate', 'bell-off');
+    return true;
+  } catch (err) {
+    console.error('Errore disattivazione push:', err);
+    showToast('error', 'Impossibile disattivare le notifiche', 'x');
+    return false;
+  }
+}
+
 // questa viene chiamata solo da un click utente
 export async function initPushNotifications() {
 
@@ -103,8 +159,8 @@ export async function initPushNotifications() {
 
   const ok = await registerPushSubscription();
   if (ok) showToast('success', 'Notifiche attivate', 'check');
+  return ok;
 }
-
 // ── profilo utente ────────────────────────────────────────────────────────────
 
 // carica e aggiorna i dati del profilo utente loggato

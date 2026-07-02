@@ -89,6 +89,7 @@ const calendarRender = {
     this.btnWeekNext = document.getElementById("week-next");
     this.btnWeekToday = document.getElementById("week-today");
     this.btnDayBack = document.getElementById("day-back");
+    this.btnDayBackContainer = document.getElementById("back-to-bar");
     this.btnDayPrev = document.getElementById("day-prev");
     this.btnDayNext = document.getElementById("day-next");
     this.btnDayToday = document.getElementById("day-today");
@@ -257,6 +258,7 @@ const calendarRender = {
     this.dayToolbar?.classList.toggle("hidden", !isDay);
     this.btnDayBack?.classList.toggle("hidden", !isDay);
     this.backToBar?.classList.toggle("is-visible", isDay);
+    this.backToBar?.classList.toggle("hidden", !isDay);
 
     // imposta la settimana di partenza in modalità settimana
     if (isWeek) {

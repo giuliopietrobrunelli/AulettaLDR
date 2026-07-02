@@ -1206,9 +1206,14 @@ footer {
 .booking-week-row span {
   color: var(--white);
   font-size: 12px;
+  opacity: .8;
 }
 .booking-week-row.past {
-  opacity: 0.5;
+  opacity: .4;
+}
+.booking-week-row.current-week span{
+  opacity: 1;
+  font-weight: 600;
 }
 
 .booking-week-count.full {

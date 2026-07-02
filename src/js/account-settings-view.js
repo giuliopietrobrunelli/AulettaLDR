@@ -1,7 +1,7 @@
 import { updateProfiloUtente, uploadFotoProfilo } from './db.js';
 import { getProfilePicUrl, syncProfilePictures } from './profile-utils.js';
 import { showToast } from './toast.js';
-import { initPushNotifications } from './app.js'
+import { initPushNotifications, disablePushNotifications, getPushSubscriptionStatus } from './app.js'
 
 // massimo 3mb per la foto profilo
 const MAX_AVATAR_SIZE = 3 * 1024 * 1024;
@@ -22,6 +22,21 @@ function createReadonlyField(label, value) {
 
   block.append(lbl, val);
   return block;
+}
+
+// aggiorna la visibilità/stato dei due bottoni notifiche in base alla sottoscrizione attuale
+async function syncPushButtonsState(btnAbilita, btnDisabilita) {
+  const { supported, active } = await getPushSubscriptionStatus();
+
+  if (!supported) {
+    btnAbilita.disabled = true;
+    btnAbilita.title = 'Notifiche non supportate da questo browser';
+    btnDisabilita.classList.add('hidden');
+    return;
+  }
+
+  btnAbilita.classList.toggle('hidden', active);
+  btnDisabilita.classList.toggle('hidden', !active);
 }
 
 // mostra la vista delle impostazioni account
@@ -138,66 +153,41 @@ export function renderAccountSettings() {
   pushDesc2.className = 'setting-desc disabled';
   pushDesc2.innerHTML = 'Per dispositivi iOS richiede che la pagina sia stata aggiunta alla home <span class="italic">(Condividi -> Aggiungi alla schermata Home)</span>.';
 
+  const pushButtonsRow = document.createElement('div');
+  pushButtonsRow.className = 'horizontal-container';
+
   const btnNotifiche = document.createElement('button');
   btnNotifiche.type = 'button';
-  btnNotifiche.className = 'w-text';
+  btnNotifiche.className = 'w-text hidden active'; // nascosto finché non si conosce lo stato
   btnNotifiche.id = 'btn-abilita-notifiche';
-  btnNotifiche.innerHTML = `
-      <span>Abilita notifiche</span>
-  `;
+  btnNotifiche.innerHTML = `<span>Abilita notifiche</span>`;
 
-  btnNotifiche?.addEventListener('click', () => initPushNotifications());
+  const btnDisabilitaNotifiche = document.createElement('button');
+  btnDisabilitaNotifiche.type = 'button';
+  btnDisabilitaNotifiche.className = 'w-text hidden active'; // nascosto finché non si conosce lo stato
+  btnDisabilitaNotifiche.id = 'btn-disabilita-notifiche';
+  btnDisabilitaNotifiche.innerHTML = `<span>Disattiva notifiche</span>`;
 
+  btnNotifiche.addEventListener('click', async () => {
+    btnNotifiche.disabled = true;
+    await initPushNotifications();
+    await syncPushButtonsState(btnNotifiche, btnDisabilitaNotifiche);
+    btnNotifiche.disabled = false;
+  });
 
-  pushBlock.append(pushLabel, pushDesc, pushDesc2, btnNotifiche);
+  btnDisabilitaNotifiche.addEventListener('click', async () => {
+    btnDisabilitaNotifiche.disabled = true;
+    await disablePushNotifications();
+    await syncPushButtonsState(btnNotifiche, btnDisabilitaNotifiche);
+    btnDisabilitaNotifiche.disabled = false;
+  });
+
+  pushButtonsRow.append(btnNotifiche, btnDisabilitaNotifiche);
+  pushBlock.append(pushLabel, pushDesc, pushDesc2, pushButtonsRow);
   container.appendChild(pushBlock);
 
-  // // titolo per la sezione preferenze
-  // const title2 = document.createElement('span');
-  // title2.textContent = 'Preferenze e impostazioni';
-  // title2.classList.add('account-section-indicator');
-  // container.appendChild(title2);
-
-  // // blocco preferenze utente
-  // const settingsBlock = document.createElement('div');
-  // settingsBlock.className = 'form-block';
-
-  // // campo per selezionare la vista calendario predefinita
-  // const viewLabel = document.createElement('label');
-  // viewLabel.setAttribute('for', 'default-calendar-view');
-  // viewLabel.innerHTML = '<span>Vista calendario predefinita</span>';
-
-  // const viewSelect = document.createElement('select');
-  // viewSelect.id = 'default-calendar-view';
-  // viewSelect.innerHTML = `
-  //   <option value="month">Mensile</option>
-  //   <option value="week">Settimanale</option>
-  // `;
-  // viewSelect.value = profilo.vista_predefinita === 'week' ? 'week' : 'month';
-
-  // // quando cambia la preferenza aggiorna il profilo
-  // viewSelect.addEventListener('change', async () => {
-  //   const vista_predefinita = viewSelect.value;
-  //   viewSelect.disabled = true;
-
-  //   const { data, error } = await updateProfiloUtente(profilo.id_utente, { vista_predefinita });
-
-  //   viewSelect.disabled = false;
-
-  //   // se errore, mostra notifica e ripristina il valore precedente
-  //   if (error || !data) {
-  //     showToast('error', "Impossibile salvare l'impostazione.", 'calendar-x');
-  //     viewSelect.value = profilo.vista_predefinita === 'week' ? 'week' : 'month';
-  //     return;
-  //   }
-
-  //   // aggiorna il profilo con la nuova impostazione
-  //   window.ldrProfilo = data;
-  //   showToast('success', 'Impostazione salvata.', 'calendar-check');
-  // });
-
-  // settingsBlock.append(viewLabel, viewSelect);
-  // container.appendChild(settingsBlock);
+  // determina quale dei due bottoni mostrare in base allo stato attuale
+  syncPushButtonsState(btnNotifiche, btnDisabilitaNotifiche);
 }
 
 // inizializza la gestione delle impostazioni account

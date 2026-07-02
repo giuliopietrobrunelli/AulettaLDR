@@ -160,21 +160,27 @@
     <!-- navbar dinamica -->
     <nav>
 
+        <!-- barra navigazione mobile -->
+        
         <div class="horizontal-container">
-            <button type="button" class="w-text active" data-main-view="calendar">
+
+            <div id="back-to-bar" class="back-to-bar" aria-hidden="true">
+                <button type="button" id="day-back" class="mini active" aria-label="Torna indietro">
+                    <i data-lucide="arrow-left"></i>
+                    <span>Indietro</span>
+                </button>
+            </div>
+
+            <button type="button" class="w-text nav-switch active" data-main-view="calendar">
                 <i data-lucide="calendar-days"></i>
                 <span>Calendario</span>
             </button>
     
-            <button type="button" class="w-text" data-main-view="bookings">
+            <button type="button" class="w-text nav-switch" data-main-view="bookings">
                 <i data-lucide="calendar-clock"></i>
                 <span>Prenotazioni</span>
             </button>
 
-            <!-- <button type="button" class="w-text" data-main-view="rankings">
-                <i data-lucide="medal"></i>
-                <span>Classifiche</span>
-            </button> -->
         </div>
 
     </nav>
@@ -387,14 +393,6 @@
             </button>
         </div>
 
-    </div>
-
-    <!-- barra navigazione mobile -->
-    <div id="back-to-bar" class="back-to-bar" aria-hidden="true">
-        <button type="button" id="day-back" class="mini" aria-label="Torna indietro">
-            <i data-lucide="arrow-left"></i>
-            <span>Indietro</span>
-        </button>
     </div>
 
     <!-- modali a "schermo intero" -------------------------------------------------------------------------------------------------------- -->
