@@ -12,6 +12,7 @@ import {
   isAmministratore,
 } from './db.js';
 import { initBookingsView, refreshBookingsData, initPrenotaModal } from './bookings-view.js';
+import { initFeedbackModal } from './feedback.js'
 import { initMainView, setMainView, registerAccountSettingsRenderer } from './main-view.js';
 import { initAccountSettings, renderAccountSettings } from './account-settings-view.js';
 import { syncProfilePictures } from './profile-utils.js';
@@ -190,8 +191,8 @@ document.addEventListener('DOMContentLoaded', () => {
   registerAccountSettingsRenderer(renderAccountSettings);
   initMainView();
   initBookingsView();
+  initFeedbackModal();
   initAccountSettings(setMainView);
   caricaProfiloUtente();
   initPrenotaModal();
-  // initPushNotifications();
 });

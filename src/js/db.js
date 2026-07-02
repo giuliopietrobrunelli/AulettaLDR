@@ -306,13 +306,57 @@ export async function getRichiesteInArrivo() {
   return { data: data ?? [], error };
 }
 
+// elimina la notifica di richiesta_cessione originale (fallback: normalmente ci pensa il trigger DB)
+async function eliminaNotificaRichiesta(id_richiesta, id_destinatario) {
+  const { error } = await supabase
+    .from('Notifica')
+    .delete()
+    .eq('tipologia', 'richiesta_cessione')
+    .eq('id_utente', id_destinatario)
+    .contains('dati', { id_richiesta });
+
+  if (error) console.error('errore cancellazione notifica richiesta:', error);
+}
+
+// crea la notifica di esito della cessione (accettata/rifiutata) per il mittente
+async function notificaEsitoCessione({ id_richiesta, id_prenotazione, id_mittente, id_destinatario, turno, data_prenotazione, esito }) {
+  const dataFormattata = new Date(data_prenotazione).toLocaleDateString('it-IT', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  });
+
+  const { data: utente } = await supabase
+    .from('Utente')
+    .select('nome, cognome')
+    .eq('id_utente', id_destinatario)
+    .maybeSingle();
+
+  const nomeUtente = utente ? `${utente.nome} ${utente.cognome}` : 'Un utente';
+  const fasciaOraria = `${turno.orario_inizio?.slice(0, 5)} - ${turno.orario_fine?.slice(0, 5)}`;
+
+  const testi = {
+    accettata: { tipologia: 'cessione_accettata', titolo: 'Richiesta accettata', verbo: 'accettato' },
+    rifiutata: { tipologia: 'cessione_rifiutata', titolo: 'Richiesta rifiutata', verbo: 'rifiutato' },
+  }[esito];
+
+  const { error } = await supabase
+    .from('Notifica')
+    .insert({
+      id_utente: id_mittente,
+      tipologia: testi.tipologia,
+      titolo: testi.titolo,
+      contenuto: `${nomeUtente} ha ${testi.verbo} il ${turno.indice}° turno (${fasciaOraria}) del ${dataFormattata}`,
+      dati: { id_richiesta, id_prenotazione, id_destinatario },
+    });
+
+  if (error) console.error('errore creazione notifica esito:', error);
+}
+
 // accetta una richiesta: sposta la prenotazione al destinatario
 export async function accettaRichiestaCessione(id_richiesta) {
   const { data: { session } } = await supabase.auth.getSession();
   const myId = session?.user?.id;
   if (!myId) return { error: new Error('non autenticato') };
 
-  // recupera la richiesta e verifica che sia destinata a me e ancora valida
   const { data: richiesta, error: rErr } = await supabase
     .from('RichiestaCessione')
     .select('id_prenotazione, id_mittente, stato')
@@ -323,24 +367,30 @@ export async function accettaRichiestaCessione(id_richiesta) {
   if (rErr || !richiesta) return { error: new Error('richiesta non trovata') };
   if (richiesta.stato !== 'in_attesa') return { error: new Error('richiesta non più valida') };
 
-  // verifica che la prenotazione appartenga ancora al mittente originale
   const { data: pren, error: pErr } = await supabase
     .from('Prenotazione')
-    .select('id_prenotazione, id_utente')
+    .select('id_prenotazione, id_utente, data_prenotazione, Turno:id_turno (indice, orario_inizio, orario_fine)')
     .eq('id_prenotazione', richiesta.id_prenotazione)
     .maybeSingle();
 
   if (pErr || !pren) return { error: new Error('prenotazione non trovata') };
+
   if (pren.id_utente !== richiesta.id_mittente) {
-    // il mittente ha già rinunciato: invalida la richiesta
-    await supabase
-      .from('RichiestaCessione')
-      .update({ stato: 'scaduta' })
-      .eq('id_richiesta', id_richiesta);
+    await supabase.from('RichiestaCessione').update({ stato: 'scaduta' }).eq('id_richiesta', id_richiesta);
+    await eliminaNotificaRichiesta(id_richiesta, myId);
     return { error: new Error('il turno non appartiene più a chi te lo ha ceduto') };
   }
 
-  // sposta la prenotazione
+  const turno = pren.Turno;
+  if (turno?.orario_fine) {
+    const fineTurno = new Date(`${pren.data_prenotazione}T${turno.orario_fine}`);
+    if (fineTurno.getTime() <= Date.now()) {
+      await supabase.from('RichiestaCessione').update({ stato: 'scaduta' }).eq('id_richiesta', id_richiesta);
+      await eliminaNotificaRichiesta(id_richiesta, myId);
+      return { error: new Error('il turno richiesto è già terminato') };
+    }
+  }
+
   const { error: updateErr } = await supabase
     .from('Prenotazione')
     .update({ id_utente: myId, stato: 'non_confermata', data_conferma: null })
@@ -348,11 +398,18 @@ export async function accettaRichiestaCessione(id_richiesta) {
 
   if (updateErr) return { error: updateErr };
 
-  // segna la richiesta come accettata
-  await supabase
-    .from('RichiestaCessione')
-    .update({ stato: 'accettata' })
-    .eq('id_richiesta', id_richiesta);
+  await supabase.from('RichiestaCessione').update({ stato: 'accettata' }).eq('id_richiesta', id_richiesta);
+  await eliminaNotificaRichiesta(id_richiesta, myId);
+
+  await notificaEsitoCessione({
+    id_richiesta,
+    id_prenotazione: richiesta.id_prenotazione,
+    id_mittente: richiesta.id_mittente,
+    id_destinatario: myId,
+    turno,
+    data_prenotazione: pren.data_prenotazione,
+    esito: 'accettata',
+  });
 
   return { error: null };
 }
@@ -363,14 +420,42 @@ export async function rifiutaRichiestaCessione(id_richiesta) {
   const myId = session?.user?.id;
   if (!myId) return { error: new Error('non autenticato') };
 
+  const { data: richiesta, error: rErr } = await supabase
+    .from('RichiestaCessione')
+    .select('id_prenotazione, id_mittente, stato, Prenotazione:id_prenotazione (data_prenotazione, Turno:id_turno (indice, orario_inizio, orario_fine))')
+    .eq('id_richiesta', id_richiesta)
+    .eq('id_destinatario', myId)
+    .maybeSingle();
+
+  if (rErr || !richiesta) return { error: new Error('richiesta non trovata') };
+  if (richiesta.stato !== 'in_attesa') return { error: new Error('richiesta non più valida') };
+
   const { error } = await supabase
     .from('RichiestaCessione')
     .update({ stato: 'rifiutata' })
     .eq('id_richiesta', id_richiesta)
     .eq('id_destinatario', myId);
 
-  return { error };
+  if (error) return { error };
+
+  await eliminaNotificaRichiesta(id_richiesta, myId);
+
+  const pren = richiesta.Prenotazione;
+  if (pren?.Turno && pren?.data_prenotazione) {
+    await notificaEsitoCessione({
+      id_richiesta,
+      id_prenotazione: richiesta.id_prenotazione,
+      id_mittente: richiesta.id_mittente,
+      id_destinatario: myId,
+      turno: pren.Turno,
+      data_prenotazione: pren.data_prenotazione,
+      esito: 'rifiutata',
+    });
+  }
+
+  return { error: null };
 }
+
 // controllo se account loggato è amministratore
 export async function isAmministratore(id_utente) {
   if (!id_utente) return {data: false, error: null};
