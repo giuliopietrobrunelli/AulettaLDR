@@ -379,6 +379,10 @@ async function renderBookingsModal(profilo, viewDate) {
     if (endCopy < now) {
       row.classList.add('past');
     }
+    // Se la settimana è quella attuale, aggiungi "current-week"
+    if (startCopy <= now && now <= endCopy) {
+      row.classList.add('current-week');
+    }
 
     const label = document.createElement('span');
     label.className = 'booking-week-label';
@@ -741,12 +745,12 @@ async function handleRinunciaTurno(id_prenotazione) {
 
 // sottoscrive ai cambiamenti realtime sulla tabella Notifica per l'utente
 // loggato, ricaricando la modal notifiche e il dot appena arriva qualcosa
+// sottoscrive ai cambiamenti realtime sulla tabella Notifica per l'utente
+// loggato, ricaricando la modal notifiche e il dot appena arriva qualcosa
 function initNotificheRealtime() {
   const profilo = window.ldrProfilo;
-  if (!profilo?.id_utente) return; // niente da fare se l'utente non è loggato
+  if (!profilo?.id_utente) return;
 
-  // evita doppie sottoscrizioni se la funzione venisse richiamata più volte
-  // (es. dopo login/logout) o con un id_utente diverso da prima
   if (notificheChannel) {
     supabase.removeChannel(notificheChannel);
     notificheChannel = null;
@@ -764,17 +768,56 @@ function initNotificheRealtime() {
       },
       async (payload) => {
         await renderNotificheModal();
-        showToast('info', payload.new?.titolo ?? 'Nuova notifica', 'bell');
       },
     )
+    .on(
+      'postgres_changes',
+      {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'Notifica',
+        filter: `id_utente=eq.${profilo.id_utente}`,
+      },
+      () => renderNotificheModal(),
+    )
     .subscribe((status) => {
-      // alla (ri)connessione risincronizza, per non perdere eventi avvenuti
-      // mentre il canale era staccato (tab in background, rete instabile)
+      console.log('stato canale notifiche:', status);
       if (status === 'SUBSCRIBED') {
         renderNotificheModal();
       }
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        console.warn('canale notifiche disconnesso, ritento tra 3s:', status);
+        setTimeout(() => initNotificheRealtime(), 3000);
+      }
     });
 }
+
+// riprova a creare il canale finché window.ldrProfilo non è disponibile
+// (copre il caso in cui initBookingsView parte prima che il profilo sia pronto)
+function ensureNotificheRealtime(retriesLeft = 20) {
+  if (window.ldrProfilo?.id_utente) {
+    initNotificheRealtime();
+    return;
+  }
+  if (retriesLeft <= 0) {
+    console.warn('impossibile inizializzare il canale notifiche: profilo mai disponibile');
+    return;
+  }
+  setTimeout(() => ensureNotificheRealtime(retriesLeft - 1), 500);
+}
+
+// si aggancia anche ai cambi di stato dell'autenticazione, così il canale
+// si (ri)crea in automatico dopo login/refresh token, senza dipendere
+// dall'ordine di inizializzazione degli script
+supabase.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+    ensureNotificheRealtime();
+  }
+  if (event === 'SIGNED_OUT' && notificheChannel) {
+    supabase.removeChannel(notificheChannel);
+    notificheChannel = null;
+  }
+});
 
 // inizializza la vista prenotazioni e il timer di refresh automatico
 export function initBookingsView() {
@@ -784,7 +827,7 @@ export function initBookingsView() {
     await renderNotificheModal();
   }, 60_000);
 
-  initNotificheRealtime();
+  ensureNotificheRealtime();
 
   window.ldrBookings = {
     refresh: refreshBookingsData,
@@ -794,6 +837,7 @@ export function initBookingsView() {
       if (profilo?.id_utente) await renderBookingsModal(profilo, viewDate);
     },
     initNotificheRealtime,
+    _debugChannel: () => notificheChannel,
   };
 }
 

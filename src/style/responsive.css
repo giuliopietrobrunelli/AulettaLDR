@@ -10,6 +10,28 @@
         width: max-content;
     }
 
+    #day-back {
+        margin-right: 0px;
+        max-height: 30px;
+        min-height: inherit;
+    }
+    .back-to-bar {
+        position: static;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 30px;
+        gap: 10px;
+        padding: 0px;
+        box-sizing: border-box;
+        border-radius: 4px;
+        border: none;
+    }
+
+    .back-to-bar span {
+        display: none;
+    }
+
 }
 
 
@@ -83,6 +105,11 @@
     }
 
     nav {
+        position: absolute;
+        top: 0;
+    }
+
+    nav .nav-switch{
         display: none;
     }
 

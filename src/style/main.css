@@ -1178,6 +1178,25 @@ footer {
   color: var(--white-2);
 }
 
+.feedback-categorie {
+  justify-content: start;
+  align-items: start;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.feedback-categoria-option {
+  max-width: fit-content;
+  margin: 0px;
+  display: flex;
+  gap: 5px;
+  justify-content: start;
+  align-items: center;
+}
+.feedback-categoria-option input {
+  width: fit-content;
+  accent-color: var(--black);
+}
+
 .booking-week-row {
   display: flex;
   justify-content: space-between;
@@ -1187,9 +1206,14 @@ footer {
 .booking-week-row span {
   color: var(--white);
   font-size: 12px;
+  opacity: .8;
 }
 .booking-week-row.past {
-  opacity: 0.5;
+  opacity: .4;
+}
+.booking-week-row.current-week span{
+  opacity: 1;
+  font-weight: 600;
 }
 
 .booking-week-count.full {

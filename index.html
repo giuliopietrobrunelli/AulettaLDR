@@ -160,21 +160,27 @@
     <!-- navbar dinamica -->
     <nav>
 
+        <!-- barra navigazione mobile -->
+        
         <div class="horizontal-container">
-            <button type="button" class="w-text active" data-main-view="calendar">
+
+            <div id="back-to-bar" class="back-to-bar" aria-hidden="true">
+                <button type="button" id="day-back" class="mini active" aria-label="Torna indietro">
+                    <i data-lucide="arrow-left"></i>
+                    <span>Indietro</span>
+                </button>
+            </div>
+
+            <button type="button" class="w-text nav-switch active" data-main-view="calendar">
                 <i data-lucide="calendar-days"></i>
                 <span>Calendario</span>
             </button>
     
-            <button type="button" class="w-text" data-main-view="bookings">
+            <button type="button" class="w-text nav-switch" data-main-view="bookings">
                 <i data-lucide="calendar-clock"></i>
                 <span>Prenotazioni</span>
             </button>
 
-            <!-- <button type="button" class="w-text" data-main-view="rankings">
-                <i data-lucide="medal"></i>
-                <span>Classifiche</span>
-            </button> -->
         </div>
 
     </nav>
@@ -389,14 +395,6 @@
 
     </div>
 
-    <!-- barra navigazione mobile -->
-    <div id="back-to-bar" class="back-to-bar" aria-hidden="true">
-        <button type="button" id="day-back" class="mini" aria-label="Torna indietro">
-            <i data-lucide="arrow-left"></i>
-            <span>Indietro</span>
-        </button>
-    </div>
-
     <!-- modali a "schermo intero" -------------------------------------------------------------------------------------------------------- -->
 
     <!-- feedback -->
@@ -406,6 +404,20 @@
                 <span class="modal-title">Lascia un feedback</span>
             </div>
             <div class="full-modal-content">
+                <div class="feedback-categorie horizontal-container">
+                    <label class="feedback-categoria-option">
+                        <input type="radio" name="feedback-categoria" value="bug">
+                        <span>Bug</span>
+                    </label>
+                    <label class="feedback-categoria-option">
+                        <input type="radio" name="feedback-categoria" value="suggerimento">
+                        <span>Suggerimento</span>
+                    </label>
+                    <label class="feedback-categoria-option">
+                        <input type="radio" name="feedback-categoria" value="altro">
+                        <span>Altro</span>
+                    </label>
+                </div>
                 <textarea id="modal-feedback-text" rows="5" placeholder="Descrivi il problema o lasciaci un feedback..."></textarea>
             </div>
             <div class="full-modal-footer">
