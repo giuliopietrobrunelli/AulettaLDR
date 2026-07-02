@@ -29,6 +29,7 @@ export const MAX_WEEKLY_BOOKINGS = 7; // temp, verrà gestito dall'interfaccia a
 
 // cache dei turni caricati dal db
 let turniCache = null;
+let turniTuttiCache = null;
 // timer per il refresh periodico della vista
 let refreshTimer = null;
 
@@ -89,12 +90,13 @@ function getWeekStart(date) {
 // carica i turni dal db e memorizza in cache
 async function loadTurni() {
   if (turniCache) return turniCache;
-  const { data, error } = await getAllTurni();
-  if (error) {
-    console.error('impossibile caricare i turni:', error);
-    return [];
+  try {
+    const turni = await getAllTurni();
+    turniCache = turni ?? [];
+  } catch (err) {
+    console.error('impossibile caricare i turni:', err);
+    turniCache = [];
   }
-  turniCache = data ?? [];
   return turniCache;
 }
 
@@ -110,6 +112,25 @@ function getCurrentTurn(turni, now = new Date()) {
   }
 
   return null;
+}
+
+async function loadTuttiTurni() {
+  if (turniTuttiCache) return turniTuttiCache;
+  try {
+    const turni = await getAllTurni(false);
+    turniTuttiCache = turni ?? [];
+  } catch (err) {
+    console.error('impossibile caricare tutti i turni:', err);
+    turniTuttiCache = [];
+  }
+  return turniTuttiCache;
+}
+
+// determina il turno che copre l'orario attuale, indipendentemente dal fatto
+// che sia attivo o meno. restituisce null se nessun turno copre questo orario
+async function getCurrentTurnInfo(now = new Date()) {
+  const tuttiTurni = await loadTuttiTurni();
+  return getCurrentTurn(tuttiTurni, now);
 }
 
 // verifica se una prenotazione è futura rispetto a ora
@@ -167,17 +188,23 @@ function updateBookingCount(count) {
 }
 
 // aggiorna lo stato attuale dell'auletta (libera, tua, occupata)
-function updateAulettaState(currentBooking, profilo) {
+function updateAulettaState(currentBooking, profilo, turnoDisattivato = false) {
   const els = document.querySelectorAll('[data-get-info="auletta-state"]');
   els.forEach((el) => {
+    if (turnoDisattivato) {
+      el.textContent = "non è disponibile";
+      el.className = 'unavailable';
+      return;
+    }
+
     if (!currentBooking) {
-      el.textContent = 'libera';
+      el.textContent = 'è libera';
       el.className = 'available';
       return;
     }
 
     if (currentBooking.id_utente === profilo?.id_utente) {
-      el.textContent = 'occupata da te';
+      el.textContent = 'è occupata da te';
       el.className = 'mine';
     } else {
       el.textContent = 'occupata';
@@ -405,7 +432,7 @@ export async function renderBookingsView() {
   }
 
   // carico turni e prenotazioni odierne/mie
-  const turni = await loadTurni();
+  const turni = await loadTurni(true);
   const today = formatDbDate(new Date());
   const weekStart = formatDbDate(getWeekStart(new Date()));
 
@@ -420,8 +447,13 @@ export async function renderBookingsView() {
     ? (oggiPrenotazioni ?? []).find((p) => p.id_turno === currentTurn.id_turno)
     : null;
 
+  // se non c'è un turno attivo in questo momento, controllo se in realtà
+  // esiste un turno ma è stato disattivato — in tal caso l'auletta non è disponibile
+  const turnoInfoCompleto = currentTurn ? null : await getCurrentTurnInfo();
+  const turnoDisattivato = !currentTurn && turnoInfoCompleto?.attivo === false;
+
   // aggiorno stato auletta e contatore
-  updateAulettaState(currentBooking, profilo);
+  updateAulettaState(currentBooking, profilo, turnoDisattivato);
   updateBookingCount(countWeeklyBookings(miePrenotazioni ?? []));
 
   // svuoto e preparo i contenitori
@@ -677,8 +709,11 @@ export async function refreshAulettaState() {
   const currentBooking = currentTurn
     ? (data ?? []).find((p) => p.id_turno === currentTurn.id_turno)
     : null;
+  
+  const turnoInfoCompleto = currentTurn ? null : await getCurrentTurnInfo();
+  const turnoDisattivato = !currentTurn && turnoInfoCompleto?.attivo === false;
 
-  updateAulettaState(currentBooking, profilo);
+  updateAulettaState(currentBooking, profilo, turnoDisattivato);
 
   // aggiorna la vista delle prenotazioni solo se è visibile
   if (!document.getElementById('my-bookings')?.classList.contains('hidden')) {
@@ -689,6 +724,7 @@ export async function refreshAulettaState() {
 export async function refreshBookingsData() {
   console.log("turni refreshati");
   turniCache = null;
+  turniTuttiCache = null;
   window.calendarRender?.invalidateBookingsCache?.();
 
   const profilo = window.ldrProfilo;
@@ -708,7 +744,10 @@ export async function refreshBookingsData() {
     ? (oggiPrenotazioni ?? []).find((p) => p.id_turno === currentTurn.id_turno)
     : null;
 
-  updateAulettaState(currentBooking, profilo);
+  const turnoInfoCompleto = currentTurn ? null : await getCurrentTurnInfo();
+  const turnoDisattivato = !currentTurn && turnoInfoCompleto?.attivo === false;
+
+  updateAulettaState(currentBooking, profilo, turnoDisattivato);
   updateBookingCount(countWeeklyBookings(miePrenotazioni ?? []));
 
   if (!document.getElementById('my-bookings')?.classList.contains('hidden')) {

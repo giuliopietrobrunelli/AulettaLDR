@@ -408,14 +408,16 @@
         #modal-nuovo-utente .full-modal-content,
         #modal-modifica-utente .full-modal-content,
         #modal-prenota-admin .full-modal-content,
-        #modal-modifica-turno .full-modal-content {
+        #modal-modifica-turno .full-modal-content,
+        #modal-nuovo-turno .full-modal-content {
             gap: 12px;
         }
 
         #modal-nuovo-utente .form-block label span,
         #modal-modifica-utente .form-block label span,
         #modal-prenota-admin .form-block label span,
-        #modal-modifica-turno .form-block label span {
+        #modal-modifica-turno .form-block label span,
+        #modal-nuovo-turno .form-block label span {
             font-size: 12px;
             opacity: .6;
         }
@@ -485,8 +487,6 @@
     <!-- ── Nav principale ────────────────────────────────────────── -->
     <nav>
         <div class="horizontal-container">
-            <span class="semibold" style="font-size:12px; opacity:.4; margin-right:4px">Admin</span>
-            <div class="vertical-separator"></div>
             <button type="button" class="w-text mini" id="btn-nav-utenti" onclick="showSection('utenti')">
                 <i data-lucide="users" class="lucide"></i>
                 <span>Utenti</span>
@@ -497,15 +497,19 @@
             </button>
             <button type="button" class="w-text mini" id="btn-nav-calendario" onclick="showSection('calendario')">
                 <i data-lucide="calendar-days" class="lucide"></i>
-                <span>Calendario</span>
-            </button>
-            <button type="button" class="w-text mini" id="btn-nav-impostazioni" onclick="showSection('impostazioni')">
-                <i data-lucide="settings" class="lucide"></i>
-                <span>Impostazioni</span>
+                <span>Prenotazioni</span>
             </button>
             <button type="button" class="w-text mini" id="btn-nav-stats" onclick="showSection('stats')">
                 <i data-lucide="bar-chart-2" class="lucide"></i>
                 <span>Statistiche</span>
+            </button>
+            <button type="button" class="w-text mini" id="btn-nav-feedback" onclick="showSection('impostazioni')">
+                <i data-lucide="megaphone" class="lucide"></i>
+                <span>Feedback</span>
+            </button>
+            <button type="button" class="w-text mini" id="btn-nav-impostazioni" onclick="showSection('impostazioni')">
+                <i data-lucide="settings" class="lucide"></i>
+                <span>Impostazioni</span>
             </button>
         </div>
     </nav>
@@ -558,27 +562,7 @@
             </div>
 
             <!-- Ultime prenotazioni -->
-            <div class="section-header" style="margin-top:8px">
-                <span class="section-title" style="font-size:14px">Ultime prenotazioni</span>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Utente</th>
-                            <th>Data</th>
-                            <th>Turno</th>
-                            <th>Stato</th>
-                            <th>Creata il</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-ultime-prenot">
-                        <tr class="empty-row">
-                            <td colspan="5">Caricamento…</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            
 
         </section>
 
@@ -666,7 +650,7 @@
             </div>
 
             <div class="info-box">
-                I turni definiscono le fasce orarie prenotabili dagli utenti. Modifica o rimuovi un turno con
+                I turni definiscono le fasce orarie prenotabili dagli utenti. Modifica o disattiva un turno con
                 attenzione: le prenotazioni esistenti non vengono cancellate automaticamente.
             </div>
 
@@ -692,82 +676,26 @@
         <!-- ════ SEZIONE: CALENDARIO ════ -->
         <section class="dash-section" id="section-calendario">
 
-            <!-- header con informazioni sul calendario (identico a index.html) -->
-            <div id="calendar-header">
-
-                <div id="indicatore-data-prenota-turni-container" class="horizontal-container">
-                    <button type="button" id="day-back" class="mini hidden" aria-label="Torna alla vista precedente">
-                        <i data-lucide="arrow-left"></i>
-                    </button>
-                    <h1 id="current-date"></h1>
-                </div>
-
-                <!-- azioni vista mensile -->
-                <div class="horizontal-container" data-view="month">
-                    <button type="button" id="calendar-prev" class="mini"><i data-lucide="chevron-left"></i></button>
-                    <button type="button" id="month-today" class="mini"><span>Oggi</span></button>
-                    <button type="button" id="calendar-next" class="mini"><i data-lucide="chevron-right"></i></button>
-                    <div class="vertical-separator"></div>
-                    <button type="button" class="w-text" data-calendar-switch="week">
-                        <i data-lucide="calendar-1"></i><span>Vista mensile</span>
-                    </button>
-                    <button type="button" class="w-text" onclick="openModal('prenota-admin')">
-                        <i data-lucide="plus"></i><span>Prenota</span>
-                    </button>
-                </div>
-
-                <!-- azioni vista settimanale -->
-                <div class="horizontal-container hidden" data-view="week">
-                    <button type="button" id="week-prev" class="mini"><i data-lucide="chevron-left"></i></button>
-                    <button type="button" id="week-today" class="mini"><span>Oggi</span></button>
-                    <button type="button" id="week-next" class="mini"><i data-lucide="chevron-right"></i></button>
-                    <div class="vertical-separator"></div>
-                    <button type="button" class="w-text" data-calendar-switch="month">
-                        <i data-lucide="calendar-range"></i><span>Vista settimanale</span>
-                    </button>
-                    <button type="button" class="w-text" onclick="openModal('prenota-admin')">
-                        <i data-lucide="plus"></i><span>Prenota</span>
-                    </button>
-                </div>
-
-                <!-- azioni vista giornaliera -->
-                <div class="horizontal-container hidden" data-view="day">
-                    <button type="button" id="day-prev" class="mini"><i data-lucide="chevron-left"></i></button>
-                    <button type="button" id="day-today" class="mini"><span>Oggi</span></button>
-                    <button type="button" id="day-next" class="mini"><i data-lucide="chevron-right"></i></button>
-                    <div class="vertical-separator"></div>
-                    <button type="button" class="w-text" onclick="openModal('prenota-admin')">
-                        <i data-lucide="plus"></i><span>Prenota</span>
-                    </button>
-                </div>
-
+            <div class="section-header" style="margin-top:8px">
+                <span class="section-title" style="font-size:14px">Ultime prenotazioni</span>
             </div>
-
-            <!-- Vista mensile -->
-            <div id="calendar-container">
-                <div id="calendar-columns">
-                    <h3>lun</h3>
-                    <h3>mar</h3>
-                    <h3>mer</h3>
-                    <h3>gio</h3>
-                    <h3>ven</h3>
-                    <h3>sab</h3>
-                    <h3>dom</h3>
-                </div>
-                <div id="calendar-rows"></div>
-            </div>
-
-            <!-- Vista settimanale -->
-            <div id="week-calendar-container" class="hidden">
-                <div id="week-calendar-columns"></div>
-                <div id="week-calendar-turns">
-                    <div id="week-schedules" class="week-calendar-day"></div>
-                </div>
-            </div>
-
-            <!-- Vista giornaliera -->
-            <div id="day-calendar-container" class="hidden">
-                <div id="day-schedules" class="day-calendar"></div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Utente</th>
+                            <th>Data</th>
+                            <th>Turno</th>
+                            <th>Stato</th>
+                            <th>Creata il</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-ultime-prenot">
+                        <tr class="empty-row">
+                            <td colspan="5">Caricamento…</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
         </section>
@@ -944,7 +872,7 @@
         </div>
     </div>
 
-    <!-- Modifica / nuovo turno -->
+    <!-- Modifica turno -->
     <div id="modal-modifica-turno" class="full-modal">
         <div class="full-modal-body">
             <div class="modal-header">
@@ -968,13 +896,43 @@
                 <p id="modifica-turno-error" class="form-error" style="display:none"></p>
             </div>
             <div class="full-modal-footer">
-                <button type="button" class="w-text danger" id="btn-elimina-turno" onclick="eliminaTurno()"
-                    style="display:none">
-                    <i data-lucide="trash-2" class="lucide"></i><span>Elimina</span>
-                </button>
                 <div class="horizontal-container" style="gap:8px">
                     <button type="button" class="w-text" onclick="closeModal('modifica-turno')">Annulla</button>
                     <button type="button" class="w-text active" onclick="salvaModificaTurno()">
+                        <i data-lucide="save" class="lucide"></i><span>Salva</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nuovo turno -->
+    <div id="modal-nuovo-turno" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-nuovo-turno-title">Turno</span>
+                <span class="modal-subtitle" id="modal-nuovo-turno-subtitle">—</span>
+            </div>
+            <div class="full-modal-content">
+                <input type="hidden" id="nt-id">
+                <div class="form-block">
+                    <label for="nt-indice"><span>Indice (posizione)</span></label>
+                    <input type="number" id="nt-indice" min="1" max="10" placeholder="1">
+                </div>
+                <div class="form-block">
+                    <label for="nt-inizio"><span>Orario inizio *</span></label>
+                    <input type="time" id="nt-inizio">
+                </div>
+                <div class="form-block">
+                    <label for="nt-fine"><span>Orario fine *</span></label>
+                    <input type="time" id="nt-fine">
+                </div>
+                <p id="nuovo-turno-error" class="form-error" style="display:none"></p>
+            </div>
+            <div class="full-modal-footer">
+                <div class="horizontal-container" style="gap:8px">
+                    <button type="button" class="w-text" onclick="closeModal('nuovo-turno')">Annulla</button>
+                    <button type="button" class="w-text active" onclick="salvaNuovoTurno()">
                         <i data-lucide="save" class="lucide"></i><span>Salva</span>
                     </button>
                 </div>

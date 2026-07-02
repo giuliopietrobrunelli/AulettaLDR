@@ -128,27 +128,33 @@ export async function createPrenotazioni(prenotazioni) {
 export async function getPrenotazioniByDateRange(startDate, endDate) {
   const { data: prenotazioni, error } = await supabase
     .from('Prenotazione')
-    .select('id_prenotazione, data_prenotazione, id_utente, id_turno, stato, data_conferma, Turno(indice, orario_inizio, orario_fine)')
+    .select('id_prenotazione, data_prenotazione, id_utente, id_turno, stato, data_conferma, Turno(indice, orario_inizio, orario_fine, attivo)')
     .gte('data_prenotazione', startDate)
     .lte('data_prenotazione', endDate);
 
   if (error) return { data: [], error };
   if (!prenotazioni?.length) return { data: [], error: null };
 
+  // Filtra solo le prenotazioni associate a un turno attivo
+  const filteredPrenotazioni = prenotazioni.filter(
+    (p) => p.Turno?.attivo === true
+  );
+
+
   // recupera gli utenti delle prenotazioni per avere informazioni aggiuntive
-  const userIds = [...new Set(prenotazioni.map((p) => p.id_utente))];
+  const userIds = [...new Set(filteredPrenotazioni.map((p) => p.id_utente))];
   const { data: utenti, error: utentiError } = await supabase
     .from('Utente')
     .select('id_utente, nome, cognome, foto_profilo')
     .in('id_utente', userIds);
 
-  if (utentiError) return { data: prenotazioni, error: utentiError };
+  if (utentiError) return { data: filteredPrenotazioni, error: utentiError };
 
   const utenteById = new Map((utenti ?? []).map((u) => [u.id_utente, u]));
 
   // aggiunge le info dell'utente alla singola prenotazione
   return {
-    data: prenotazioni.map((p) => ({
+    data: filteredPrenotazioni.map((p) => ({
       ...p,
       Utente: utenteById.get(p.id_utente) ?? null,
     })),
@@ -160,7 +166,7 @@ export async function getPrenotazioniByDateRange(startDate, endDate) {
 export async function getPrenotazioniUtente(id_utente, fromDate) {
   const { data: prenotazioni, error } = await supabase
     .from('Prenotazione')
-    .select('id_prenotazione, data_prenotazione, id_utente, id_turno, stato, data_conferma, Turno(indice, orario_inizio, orario_fine)')
+    .select('id_prenotazione, data_prenotazione, id_utente, id_turno, stato, data_conferma, Turno(indice, orario_inizio, orario_fine, attivo)')
     .eq('id_utente', id_utente)
     .gte('data_prenotazione', fromDate)
     .order('data_prenotazione');
@@ -168,15 +174,38 @@ export async function getPrenotazioniUtente(id_utente, fromDate) {
   if (error) return { data: [], error };
   if (!prenotazioni?.length) return { data: [], error: null };
 
-  return { data: prenotazioni, error: null };
+  // Filtra solo le prenotazioni associate a un turno attivo
+  const filteredPrenotazioni = prenotazioni.filter(
+    (p) => p.Turno?.attivo === true
+  );
+
+  return { data: filteredPrenotazioni, error: null };
+
+  //return { data: prenotazioni, error: null };
 }
 
-// restituisce tutti i turni ordinati per indice
-export async function getAllTurni() {
+
+export async function getAllTurni(soloAttivi = true) {
+  let query = supabase
+    .from('Turno')
+    .select('*');
+
+  if (soloAttivi) {
+    query = query.eq('attivo', true);
+  }
+  const { data, error } = await query.order('orario_inizio', { ascending: true });
+  if (error) {
+    console.error('Errore nel recupero dei turni:', error);
+    return [];
+  }
+  return data;
+}
+
+export async function setTurnoAttivo(id_turno, attivo) {
   return await supabase
     .from('Turno')
-    .select('id_turno, indice, orario_inizio, orario_fine')
-    .order('indice');
+    .update({ attivo })
+    .eq('id_turno', id_turno);
 }
 
 // conferma la presenza a una prenotazione aggiorando stato e data_conferma
@@ -222,23 +251,146 @@ export async function cediPrenotazione(id_prenotazione, id_utente_destinatario) 
     .eq('id_utente', myId)
     .select()
     .single();
+
+  if (richiestaError) return { data: null, error: richiestaError };
+
+  // formatta data e turno per il contenuto della notifica
+  const dataFormattata = new Date(pren.data_prenotazione).toLocaleDateString('it-IT', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  });
+  const turno = pren.Turno;
+  const nomeMittente = mittente ? `${mittente.nome} ${mittente.cognome}` : 'Un utente';
+
+  // crea la notifica per il destinatario (fa scattare la push)
+  const { error: notificaError } = await supabase
+    .from('Notifica')
+    .insert({
+      id_utente: id_destinatario,
+      tipologia: 'richiesta_cessione',
+      titolo: 'Vuoi il mio turno?',
+      contenuto: `${nomeMittente} vuole cederti il ${turno.indice}° turno (${turno.orario_inizio?.slice(0, 5)} - ${turno.orario_fine?.slice(0, 5)}) del ${dataFormattata}`,
+      dati: {
+        id_richiesta: richiesta.id_richiesta,
+        id_prenotazione,
+        id_mittente: myId,
+      },
+    });
+
+  if (notificaError) {
+    // la richiesta è comunque stata creata: logga ma non bloccare il flusso
+    console.error('errore creazione notifica:', notificaError);
+  }
+
+  return { data: richiesta, error: null };
 }
 
+// carica le richieste di cessione in arrivo per l'utente loggato (ancora in_attesa)
+export async function getRichiesteInArrivo() {
+  const { data: { session } } = await supabase.auth.getSession();
+  const myId = session?.user?.id;
+  if (!myId) return { data: [], error: null };
+
+  const { data, error } = await supabase
+    .from('RichiestaCessione')
+    .select(`
+      id_richiesta,
+      stato,
+      created_at,
+      id_prenotazione,
+      Prenotazione:id_prenotazione (
+        data_prenotazione,
+        id_utente,
+        Turno:id_turno (indice, orario_inizio, orario_fine)
+      ),
+      Mittente:id_mittente (id_utente, nome, cognome, foto_profilo)
+    `)
+    .eq('id_destinatario', myId)
+    .eq('stato', 'in_attesa')
+    .order('created_at', { ascending: false });
+
+  return { data: data ?? [], error };
+}
+
+// accetta una richiesta: sposta la prenotazione al destinatario
+export async function accettaRichiestaCessione(id_richiesta) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const myId = session?.user?.id;
+  if (!myId) return { error: new Error('non autenticato') };
+
+  // recupera la richiesta e verifica che sia destinata a me e ancora valida
+  const { data: richiesta, error: rErr } = await supabase
+    .from('RichiestaCessione')
+    .select('id_prenotazione, id_mittente, stato')
+    .eq('id_richiesta', id_richiesta)
+    .eq('id_destinatario', myId)
+    .maybeSingle();
+
+  if (rErr || !richiesta) return { error: new Error('richiesta non trovata') };
+  if (richiesta.stato !== 'in_attesa') return { error: new Error('richiesta non più valida') };
+
+  // verifica che la prenotazione appartenga ancora al mittente originale
+  const { data: pren, error: pErr } = await supabase
+    .from('Prenotazione')
+    .select('id_prenotazione, id_utente')
+    .eq('id_prenotazione', richiesta.id_prenotazione)
+    .maybeSingle();
+
+  if (pErr || !pren) return { error: new Error('prenotazione non trovata') };
+  if (pren.id_utente !== richiesta.id_mittente) {
+    // il mittente ha già rinunciato: invalida la richiesta
+    await supabase
+      .from('RichiestaCessione')
+      .update({ stato: 'scaduta' })
+      .eq('id_richiesta', id_richiesta);
+    return { error: new Error('il turno non appartiene più a chi te lo ha ceduto') };
+  }
+
+  // sposta la prenotazione
+  const { error: updateErr } = await supabase
+    .from('Prenotazione')
+    .update({ id_utente: myId, stato: 'non_confermata', data_conferma: null })
+    .eq('id_prenotazione', richiesta.id_prenotazione);
+
+  if (updateErr) return { error: updateErr };
+
+  // segna la richiesta come accettata
+  await supabase
+    .from('RichiestaCessione')
+    .update({ stato: 'accettata' })
+    .eq('id_richiesta', id_richiesta);
+
+  return { error: null };
+}
+
+// rifiuta una richiesta di cessione
+export async function rifiutaRichiestaCessione(id_richiesta) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const myId = session?.user?.id;
+  if (!myId) return { error: new Error('non autenticato') };
+
+  const { error } = await supabase
+    .from('RichiestaCessione')
+    .update({ stato: 'rifiutata' })
+    .eq('id_richiesta', id_richiesta)
+    .eq('id_destinatario', myId);
+
+  return { error };
+}
 // controllo se account loggato è amministratore
 export async function isAmministratore(id_utente) {
-  if (!id_utente) return {data: false, error: null};
+  if (!id_utente) return { data: false, error: null };
 
-  const {data, error } = await supabase
+  const { data, error } = await supabase
     .from('Amministratore')
     .select('id_amministratore')
     .eq('id_utente', id_utente);
 
-    if (error) return { data: false, error};
-    
+  if (error) return { data: false, error };
 
-    if(data.length != 0){
-      return { data: true, error: null};
-    }
 
-    return { data: false, error: null};
+  if (data.length != 0) {
+    return { data: true, error: null };
+  }
+
+  return { data: false, error: null };
 }

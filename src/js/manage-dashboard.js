@@ -6,6 +6,7 @@ import {
     createPrenotazione,
     getProfiloUtente,
     isAmministratore,
+    setTurnoAttivo,
 } from './db.js';
 
 import {
@@ -13,6 +14,8 @@ import {
 } from './supabase-client.js';
 
 import { setMainView } from './main-view.js';
+
+import { showToast } from './toast.js';
 
 // ─── 1. ESPOSIZIONE DI SICUREZZA ──────────────────────────────
 window.ldrDb = {
@@ -26,34 +29,34 @@ window.ldrDb = {
 // ─── Controllo accesso amministratore ───────────────────────────────────────────
 // blocca l'accesso diretto via url a chi non è amministratore
 async function guardAdminAccess() {
-    
-    const { data: profilo, error: profiloError} = await getProfiloUtente();
+
+    const { data: profilo, error: profiloError } = await getProfiloUtente();
 
     // se il profilo non è disponibile, lascio che auth.js gestisca il redirect al login
-    if(profiloError || !profilo?.id_utente){
+    if (profiloError || !profilo?.id_utente) {
         window.location.href = '/login.html';
         return false;
-    } 
+    }
 
-    const { data: isAdmin, error} = await isAmministratore(profilo.id_utente);
+    const { data: isAdmin, error } = await isAmministratore(profilo.id_utente);
 
-    if (error || !isAdmin){
+    if (error || !isAdmin) {
         window.location.href = '/index.html'
         return false;
     }
 
     return true;
-    
+
 }
 
 // ─── Stato locale ───────────────────────────────────────────
-let allUtenti    = [];
-let turniCache   = [];
+let allUtenti = [];
+let turniCache = [];
 let limiteSettimanale = 7;
 let pendingDeleteFn = null;
 
 // ─── Helpers UI ─────────────────────────────────────────────
-window.openModal  = (id) => {
+window.openModal = (id) => {
     if (window.modal?.open) { window.modal.open(id); return; }
     document.getElementById(`modal-${id}`)?.classList.add('showing');
 };
@@ -80,20 +83,20 @@ function fmtTime(t) { return t?.slice(0, 5) ?? '—'; }
 
 // ─── Gestione Viste Estesa con main-view.js ──────────────────
 window.showSection = (id) => {
-    if (id === 'calendario')   setMainView('calendar');
+    if (id === 'calendario') setMainView('calendar');
     if (id === 'prenotazioni') setMainView('bookings');
-    if (id === 'account')      setMainView('account');
+    if (id === 'account') setMainView('account');
 
     document.querySelectorAll('.dash-section').forEach(s => s.classList.remove('active'));
     document.getElementById(`section-${id}`)?.classList.add('active');
-    
+
     document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
     document.getElementById(`btn-nav-${id}`)?.classList.add('active');
 
-    if (id === 'stats')        window.loadStats();
-    if (id === 'utenti')       window.loadUtenti();
-    if (id === 'turni')        window.loadTurni();
-    if (id === 'calendario')   window.calendarRender?.render?.();
+    if (id === 'stats') window.loadStats();
+    if (id === 'utenti') window.loadUtenti();
+    if (id === 'turni') window.loadTurni();
+    if (id === 'calendario') window.calendarRender?.render?.();
     if (id === 'impostazioni') loadImpostazioni();
 };
 
@@ -102,12 +105,12 @@ window.loadStats = async () => {
     try {
         const ora = new Date();
         const meseStart = new Date(ora.getFullYear(), ora.getMonth(), 1).toISOString().split('T')[0];
-        const meseEnd   = new Date(ora.getFullYear(), ora.getMonth() + 1, 0).toISOString().split('T')[0];
-        const oggi      = ora.toISOString().split('T')[0];
+        const meseEnd = new Date(ora.getFullYear(), ora.getMonth() + 1, 0).toISOString().split('T')[0];
+        const oggi = ora.toISOString().split('T')[0];
 
         // Controllo granulare: usiamo la funzione db.js solo se effettivamente mappata e valida
-        const queryUtenti = (typeof window.ldrDb?.getAllUtenti === 'function') 
-            ? window.ldrDb.getAllUtenti() 
+        const queryUtenti = (typeof window.ldrDb?.getAllUtenti === 'function')
+            ? window.ldrDb.getAllUtenti()
             : supabase.from('Utente').select('*');
 
         const queryMese = (typeof window.ldrDb?.getPrenotazioniByDateRange === 'function')
@@ -120,19 +123,19 @@ window.loadStats = async () => {
 
         const [resUtenti, resMese, resOggi] = await Promise.all([queryUtenti, queryMese, queryOggi]);
 
-        const tutti      = resUtenti?.data ?? [];
-        const reg        = tutti.filter(u => u.registrato);
-        const pMese      = resMese?.data ?? [];
-        const pOggi      = resOggi?.data ?? [];
+        const tutti = resUtenti?.data ?? [];
+        const reg = tutti.filter(u => u.registrato);
+        const pMese = resMese?.data ?? [];
+        const pOggi = resOggi?.data ?? [];
         const confermate = pMese.filter(p => p.stato === 'confermata' || p.data_conferma);
-        const tasso      = pMese.length ? Math.round(confermate.length / pMese.length * 100) : 0;
+        const tasso = pMese.length ? Math.round(confermate.length / pMese.length * 100) : 0;
 
-        document.getElementById('stat-registrati').textContent   = reg.length;
-        document.getElementById('stat-totali').textContent       = tutti.length;
-        document.getElementById('stat-prenot-mese').textContent  = pMese.length;
-        document.getElementById('stat-prenot-oggi').textContent  = pOggi.length;
-        document.getElementById('stat-tasso').textContent        = `${tasso}%`;
-        document.getElementById('stat-limite').textContent       = limiteSettimanale;
+        document.getElementById('stat-registrati').textContent = reg.length;
+        document.getElementById('stat-totali').textContent = tutti.length;
+        document.getElementById('stat-prenot-mese').textContent = pMese.length;
+        document.getElementById('stat-prenot-oggi').textContent = pOggi.length;
+        document.getElementById('stat-tasso').textContent = `${tasso}%`;
+        document.getElementById('stat-limite').textContent = limiteSettimanale;
 
         const label = ora.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
         const labelEl = document.getElementById('stat-prenot-mese-label');
@@ -142,8 +145,7 @@ window.loadStats = async () => {
         const { data: ultime, error: errUltime } = await supabase
             .from('Prenotazione')
             .select('*, Utente(nome,cognome), Turno(indice,orario_inizio,orario_fine)')
-            .order('data_creazione_prenotazione', { ascending: false })
-            .limit(10);
+            .order('data_creazione_prenotazione', { ascending: false });
 
         if (errUltime) throw errUltime;
 
@@ -187,9 +189,9 @@ window.renderUtenti = (filter = '') => {
     const filtered = allUtenti.filter(u =>
         !q || `${u.nome} ${u.cognome} ${u.email} ${u.numero_tessera}`.toLowerCase().includes(q)
     );
-    const reg    = filtered.filter(u => u.registrato);
+    const reg = filtered.filter(u => u.registrato);
     const nonReg = filtered.filter(u => !u.registrato);
-    fillTable('table-registrati',     reg,    true);
+    fillTable('table-registrati', reg, true);
     fillTable('table-non-registrati', nonReg, false);
 };
 
@@ -238,14 +240,14 @@ window.switchTab = (tab) => {
 // ─── Nuovo utente ───────────────────────────────────────────
 window.salvaNuovoUtente = async () => {
     showError('nuovo-utente-error', '');
-    const nome      = document.getElementById('nu-nome').value.trim();
-    const cognome   = document.getElementById('nu-cognome').value.trim();
-    const email     = document.getElementById('nu-email').value.trim();
-    const tessera   = parseInt(document.getElementById('nu-tessera').value);
-    const telefono  = document.getElementById('nu-telefono').value.trim() || null;
-    const facolta   = document.getElementById('nu-facolta').value.trim() || null;
-    const cauzione  = document.getElementById('nu-cauzione').checked;
-    const tratt     = document.getElementById('nu-trattamento').checked;
+    const nome = document.getElementById('nu-nome').value.trim();
+    const cognome = document.getElementById('nu-cognome').value.trim();
+    const email = document.getElementById('nu-email').value.trim();
+    const tessera = parseInt(document.getElementById('nu-tessera').value);
+    const telefono = document.getElementById('nu-telefono').value.trim() || null;
+    const facolta = document.getElementById('nu-facolta').value.trim() || null;
+    const cauzione = document.getElementById('nu-cauzione').checked;
+    const tratt = document.getElementById('nu-trattamento').checked;
 
     if (!nome || !cognome || !email || !tessera) {
         showError('nuovo-utente-error', 'Compila tutti i campi obbligatori (*).');
@@ -284,11 +286,11 @@ window.salvaNuovoUtente = async () => {
 window.apriModificaUtente = (id) => {
     const u = allUtenti.find(x => x.id_utente === id);
     if (!u) return;
-    document.getElementById('mu-id').value          = u.id_utente;
-    document.getElementById('mu-email').value       = u.email ?? '';
-    document.getElementById('mu-telefono').value    = u.telefono ?? '';
-    document.getElementById('mu-facolta').value     = u.facolta_universitaria ?? '';
-    document.getElementById('mu-cauzione').checked  = !!u.cauzione;
+    document.getElementById('mu-id').value = u.id_utente;
+    document.getElementById('mu-email').value = u.email ?? '';
+    document.getElementById('mu-telefono').value = u.telefono ?? '';
+    document.getElementById('mu-facolta').value = u.facolta_universitaria ?? '';
+    document.getElementById('mu-cauzione').checked = !!u.cauzione;
     document.getElementById('mu-registrato').checked = !!u.registrato;
     document.getElementById('modifica-utente-subtitle').textContent = `${u.cognome} ${u.nome} — tessera n.${u.numero_tessera}`;
     showError('modifica-utente-error', '');
@@ -297,11 +299,11 @@ window.apriModificaUtente = (id) => {
 
 window.salvaModificaUtente = async () => {
     showError('modifica-utente-error', '');
-    const id        = document.getElementById('mu-id').value;
-    const email     = document.getElementById('mu-email').value.trim();
-    const telefono  = document.getElementById('mu-telefono').value.trim();
-    const facolta   = document.getElementById('mu-facolta').value.trim();
-    const cauzione  = document.getElementById('mu-cauzione').checked;
+    const id = document.getElementById('mu-id').value;
+    const email = document.getElementById('mu-email').value.trim();
+    const telefono = document.getElementById('mu-telefono').value.trim();
+    const facolta = document.getElementById('mu-facolta').value.trim();
+    const cauzione = document.getElementById('mu-cauzione').checked;
     const registrato = document.getElementById('mu-registrato').checked;
 
     if (!email) { showError('modifica-utente-error', 'L\'email è obbligatoria.'); return; }
@@ -321,7 +323,7 @@ window.salvaModificaUtente = async () => {
 };
 
 window.eliminaUtente = () => {
-    const id   = document.getElementById('mu-id').value;
+    const id = document.getElementById('mu-id').value;
     const info = document.getElementById('modifica-utente-subtitle').textContent;
     document.getElementById('conferma-elimina-text').textContent =
         `Sei sicuro di voler eliminare l'utente "${info}"? L'operazione non può essere annullata.`;
@@ -345,13 +347,60 @@ if (btnEliminaOk) {
 // ─── Turni ──────────────────────────────────────────────────
 window.loadTurni = async () => {
     try {
-        const { data } = (typeof window.ldrDb?.getAllTurni === 'function')
-            ? await window.ldrDb.getAllTurni()
-            : await supabase.from('Turno').select('*').order('indice');
-        turniCache = data ?? [];
-        renderTurni();
-        window.populatePaTurni();
-    } catch (e) { console.error('loadTurni:', e); }
+        turniCache = await getAllTurni(false);
+    } catch (e) {
+        console.error('loadTurni:', e);
+        turniCache = [];
+    }
+    renderTurni();
+    window.populatePaTurni();
+};
+
+window.cambiaStatoTurnoAdmin = async (id_turno, indice, rendiAttivo) => {
+    //se si sta riattivando un turno, controlla che non si sovrapponga a un turno già attivo prima di procedere
+    if (rendiAttivo){
+        const t = turniCache.find(x => x.id_turno === id_turno);
+        if (t) {
+            const conflittoSovrapposizione = trovaTurnoSovrapposto(t.orario_inizio, t.orario_fine, id_turno);
+            if (conflittoSovrapposizione){
+                const msg = `Impossibile riattivare: si sovrappone al turno ${conflittoSovrapposizione.indice}°(${fmtTime(conflittoSovrapposizione.orario_inizio)} – ${fmtTime(conflittoSovrapposizione.orario_fine)}), che è attivo`;
+                showToast('error', msg);
+                return;
+            }
+
+            const conflittoIndice = trovaIndiceduplicato(indice, id_turno);
+            if (conflittoIndice){
+                const msg = 'Impossibile riattivare: si sovrappone al turno ' + (conflitto.indice) + '°, due turni non possono avere lo stesso indice';
+                showToast('error', msg);
+                return;
+            }
+        }
+    }
+    const azioneTesto = rendiAttivo ? "riattivare" : "disattivare";
+    const conferma = confirm(`Sei sicuro di voler ${azioneTesto} questo turno?`);
+    if (!conferma) return;
+
+    try {
+        const { error } = await supabase
+            .from('Turno')
+            .update({ attivo: rendiAttivo })
+            .eq('id_turno', id_turno);
+
+        if (error) throw error;
+
+        const msg = "Turno " + (rendiAttivo ? 'riattivato' : 'disattivato') + " con successo!";
+        showToast('success', msg);
+        //alert(`Turno ${rendiAttivo ? 'riattivato' : 'disattivato'} con successo!`);
+        
+        // Ricarica la tabella dei turni nella dashboard
+        await window.loadTurni();
+        
+        // Se hai una funzione per ripopolare le select dei moduli admin, eseguila qui
+        if (window.populatePaUtenti) window.populatePaUtenti(); 
+
+    } catch (err) {
+        alert("Errore durante l'operazione: " + (err.message ?? err));
+    }
 };
 
 function renderTurni() {
@@ -363,16 +412,25 @@ function renderTurni() {
         return;
     }
     for (const t of turniCache) {
+        const isAttivo = t.attivo !== false;
         const row = document.createElement('div');
         row.className = 'turno-row';
+        const badgeStato = isAttivo
+            ? '<span class="badge badge-green">Attivo</span>'
+            : '<span class="badge badge-gray">Inattivo</span>';
+        const bottoneToggle = isAttivo
+            ? `<button class="btn-icon" title="Disattiva" onclick="window.cambiaStatoTurnoAdmin('${t.id_turno}', '${t.indice}', false)"><i data-lucide="power-off" class="lucide"></i></button>`
+            : `<button class="btn-icon" title="Riattiva" onclick="window.cambiaStatoTurnoAdmin('${t.id_turno}', '${t.indice}', true)"><i data-lucide="power" class="lucide"></i></button>`;
         row.innerHTML = `
             <span class="turno-index">${t.indice ?? '?'}</span>
             <span class="turno-label">${t.indice}° Turno</span>
-            <span class="turno-time">${fmtTime(t.orario_inizio)} – ${t.indice === 7 ? 'in poi' : fmtTime(t.orario_fine)}</span>
+            <span class="turno-time">${fmtTime(t.orario_inizio)} – ${fmtTime(t.orario_fine)}</span>
+            ${badgeStato}
             <div class="table-actions">
                 <button class="btn-icon" title="Modifica" onclick="apriModificaTurno('${t.id_turno}')">
                     <i data-lucide="pencil" class="lucide"></i>
                 </button>
+                ${bottoneToggle}
             </div>
         `;
         list.appendChild(row);
@@ -381,39 +439,131 @@ function renderTurni() {
 }
 
 window.openNuovoTurno = () => {
-    document.getElementById('mt-id').value      = '';
-    document.getElementById('mt-indice').value  = '';
-    document.getElementById('mt-inizio').value  = '';
-    document.getElementById('mt-fine').value    = '';
-    document.getElementById('modal-turno-title').textContent    = 'Nuovo turno';
-    document.getElementById('modal-turno-subtitle').textContent = 'Aggiungi una nuova fascia oraria';
-    document.getElementById('btn-elimina-turno').style.display  = 'none';
-    showError('modifica-turno-error', '');
-    window.openModal('modifica-turno');
+    document.getElementById('nt-id').value = '';
+    document.getElementById('nt-indice').value = '';
+    document.getElementById('nt-inizio').value = '';
+    document.getElementById('nt-fine').value = '';
+    document.getElementById('modal-nuovo-turno-title').textContent = 'Nuovo turno';
+    document.getElementById('modal-nuovo-turno-subtitle').textContent = 'Aggiungi una nuova fascia oraria';
+    showError('nuovo-turno-error', '');
+    window.openModal('nuovo-turno');
 };
 
 window.apriModificaTurno = (id) => {
     const t = turniCache.find(x => x.id_turno === id);
     if (!t) return;
-    document.getElementById('mt-id').value      = t.id_turno;
-    document.getElementById('mt-indice').value  = t.indice ?? '';
-    document.getElementById('mt-inizio').value  = t.orario_inizio?.slice(0,5) ?? '';
-    document.getElementById('mt-fine').value    = t.orario_fine?.slice(0,5) ?? '';
-    document.getElementById('modal-turno-title').textContent    = `Turno ${t.indice}°`;
+    const isAttivo = t.attivo !== false;
+    document.getElementById('mt-id').value = t.id_turno;
+    document.getElementById('mt-indice').value = t.indice ?? '';
+    document.getElementById('mt-inizio').value = t.orario_inizio?.slice(0, 5) ?? '';
+    document.getElementById('mt-fine').value = t.orario_fine?.slice(0, 5) ?? '';
+    document.getElementById('modal-turno-title').textContent = `Turno ${t.indice}°`;
     document.getElementById('modal-turno-subtitle').textContent = `${fmtTime(t.orario_inizio)} – ${fmtTime(t.orario_fine)}`;
-    document.getElementById('btn-elimina-turno').style.display  = '';
+
     showError('modifica-turno-error', '');
     window.openModal('modifica-turno');
 };
 
+//funzione per convertire turno in minuti dalla mezzanotte
+function turnoToMinutes(t){
+    if (!t) return 0;
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+}
+
+//calcola l'intervallo [inizio, fine) in minuti di un turno, se manca orario di fine, è 00:00 o è <= all'inizio,
+//il turno si considera valido fino a fine giornata (mezzanotte)
+function getIntervalloTurno(inizio, fine){
+    const start = turnoToMinutes(inizio);
+    const fineMin = turnoToMinutes(fine);
+    const end = (!fine || fineMin === 0 || fineMin <= start) ? 24 * 60 : fineMin;
+
+    return {start, end};
+}
+
+//controlla se due intervalli [start, end) si sovrappongono
+function intervalliSiSovrappongono(a,b){
+    return a.start < b.end && b.start < a.end;
+}
+
+//verifica che il turno non si sovrapponga a nessun turno ATTIVO esistente (escluso se stesso)
+function trovaTurnoSovrapposto(inizio, fine, idEscluso){
+    const nuovo = getIntervalloTurno(inizio, fine);
+    for (const t of turniCache){
+
+        if (t.id_turno === idEscluso) continue;
+
+        if (t.attivo === false) continue;
+
+        const esistente = getIntervalloTurno(t.orario_inizio, t.orario_fine);
+
+        if (intervalliSiSovrappongono(nuovo, esistente)) return t;
+    }
+
+    return null;
+}
+
+function trovaNuovoTurnoUguale(inizio, fine){
+    const nuovoInizio = turnoToMinutes(inizio);
+    const nuovoFine = turnoToMinutes(fine);
+    for (const t of turniCache){
+        const tInizio = turnoToMinutes(t.orario_inizio);
+        const tFine = turnoToMinutes(t.orario_fine);
+
+        if ((tInizio === nuovoInizio) && (tFine === nuovoFine)) return t;
+    }
+
+    return null;
+}
+
+function trovaIndiceduplicato(indice, idEscluso){
+    for (const t of turniCache){
+        if (t.id_turno === idEscluso) continue;
+        if (t.attivo === false) continue;
+        if(t.indice === indice)   return t;
+    }
+    return null;
+}
+
+function trovaNuovoIndiceduplicato(indice){
+    for (const t of turniCache){
+        if(t.attivo === false) continue;
+        if(t.indice === indice)   return t;
+    }
+    return null;
+}
+
+
+
 window.salvaModificaTurno = async () => {
     showError('modifica-turno-error', '');
-    const id     = document.getElementById('mt-id').value;
+    const id = document.getElementById('mt-id').value;
     const indice = parseInt(document.getElementById('mt-indice').value);
     const inizio = document.getElementById('mt-inizio').value;
-    const fine   = document.getElementById('mt-fine').value;
+    const fine = document.getElementById('mt-fine').value;
 
     if (!inizio || !fine) { showError('modifica-turno-error', 'Orario inizio e fine obbligatori.'); return; }
+
+    if (turnoToMinutes(fine) !== 0 && turnoToMinutes(fine) <= turnoToMinutes(inizio)){
+        showError('modifica-turno-error', 'L\'orario di fine deve essere successivo a quello di inizio');
+        
+        return;
+    }
+
+    const conflittoSovrapposizione = trovaTurnoSovrapposto(inizio, fine, id || null);
+    if(conflittoSovrapposizione){
+        const msg = `Sovrapposizione con il turno ${conflittoSovrapposizione.indice}°(${fmtTime(conflittoSovrapposizione.orario_inizio)} – ${fmtTime(conflittoSovrapposizione.orario_fine)}). Disattivalo prima se vuoi usare questa fascia oraria.`;
+        showToast("error", msg);
+        return;
+    }
+
+    const conflittoIndice = trovaIndiceduplicato(indice, id || null);
+    if(conflittoIndice){
+        const msg = `Sovrapposizione con il turno con indice ${conflittoIndice.indice}°, due turni non possono avere lo stesso indice`;
+        showToast("error", msg);
+        return
+    }
+
 
     try {
         if (id) {
@@ -430,7 +580,72 @@ window.salvaModificaTurno = async () => {
     }
 };
 
-window.eliminaTurno = () => {
+window.salvaNuovoTurno = async () => {
+    showError('nuovo-turno-error', '');
+    const id = document.getElementById('nt-id').value;
+    const indice = parseInt(document.getElementById('nt-indice').value);
+    const inizio = document.getElementById('nt-inizio').value;
+    const fine = document.getElementById('nt-fine').value;
+
+    if (!inizio || !fine) { showError('nuovo-turno-error', 'Orario inizio e fine obbligatori.'); return; }
+
+    if (!indice) {showError('nuovo-turno-error', 'Indice obbligatorio'); return;}
+
+    if (turnoToMinutes(fine) !== 0 && turnoToMinutes(fine) <= turnoToMinutes(inizio)){
+        showError('nuovo-turno-error', 'L\'orario di fine deve essere successivo a quello di inizio');
+        
+        return;
+    }
+
+    const conflittoDuplicato = trovaNuovoTurnoUguale(inizio, fine);
+    if(conflittoDuplicato){
+        const statoTurno = conflittoDuplicato.attivo !== false ? 'attivo' : 'disattivato';
+        const msg = `Esiste già il turno ${conflittoDuplicato.indice}° con la stessa fascia oraria (${conflittoDuplicato.orario_inizio } - ${conflittoDuplicato.orario_fine}). Non è possibile creare duplicati.`;
+        showToast("error", msg);
+        return;
+    }
+
+    const conflittoIndice = trovaNuovoIndiceduplicato(indice);
+    if(conflittoIndice){
+        const msg = `Esiste già il turno con indice ${conflittoIndice.indice}°, due turni non possono avere lo stesso indice`;
+        showToast("error", msg);
+        return
+    }
+
+
+    try {
+        if (id) {
+            const { error } = await supabase.from('Turno').update({ indice, orario_inizio: inizio, orario_fine: fine }).eq('id_turno', id);
+            if (error) throw error;
+        } else {
+            const { error } = await supabase.from('Turno').insert({ indice, orario_inizio: inizio, orario_fine: fine });
+            if (error) throw error;
+        }
+        window.closeModal('nuovo-turno');
+        await window.loadTurni();
+    } catch (e) {
+        showError('nuovo-turno-error', e.message ?? 'Errore.');
+    }
+};
+
+window.eliminaTurno = async (id_turno) => {
+    // const conferma = confirm("Vuoi davvero disattivare questo turno? Non sarà più disponibile per prenotazioni future, ma le prenotazioni passate rimarrano memorizzate");
+    // if (!conferma) return;
+
+    // try {
+    //     const { error } = await supabase
+    //         .from('Turno')
+    //         .update({ attivo: false })
+    //         .eq('id_turno', id_turno);
+
+    //     if (error) throw error;
+
+    //     alert("Turno disattivato con successo!");
+
+    //     //Ricarica la lista dei turni nella dashboard admin
+    //     if (window.loadAdminTurni) await window.loadAdminTurni();
+    // }
+
     const id = document.getElementById('mt-id').value;
     const label = document.getElementById('modal-turno-title').textContent;
     document.getElementById('conferma-elimina-text').textContent =
@@ -448,25 +663,25 @@ window.eliminaTurno = () => {
 window.apriNuovaPrenotazioneAdmin = () => {
     // 1. Svuota e resetta tutti i campi di input del form
     const utenteEl = document.getElementById('pa-utente');
-    const dataEl   = document.getElementById('pa-data');
-    const turnoEl  = document.getElementById('pa-turno');
-    const statoEl  = document.getElementById('pa-stato');
-    const forzaEl  = document.getElementById('pa-forza');
+    const dataEl = document.getElementById('pa-data');
+    const turnoEl = document.getElementById('pa-turno');
+    const statoEl = document.getElementById('pa-stato');
+    const forzaEl = document.getElementById('pa-forza');
 
     if (utenteEl) utenteEl.value = ''; // Torna a "Seleziona utente..."
-    if (dataEl)   dataEl.value = '';   // Svuota la data
+    if (dataEl) dataEl.value = '';   // Svuota la data
     if (turnoEl) {
         turnoEl.value = '';            // Svuota il turno
         turnoEl.replaceChildren();     // Pulisce le opzioni vecchie
-        turnoEl.appendChild(Object.assign(document.createElement('option'), { 
-            value: '', 
-            textContent: 'Seleziona prima una data', 
-            disabled: true, 
-            selected: true 
+        turnoEl.appendChild(Object.assign(document.createElement('option'), {
+            value: '',
+            textContent: 'Seleziona prima una data',
+            disabled: true,
+            selected: true
         }));
     }
-    if (statoEl)  statoEl.value = 'confermata'; // Ripristina lo stato di default
-    if (forzaEl)  forzaEl.checked = false;      // Disattiva la checkbox "Forza"
+    if (statoEl) statoEl.value = 'confermata'; // Ripristina lo stato di default
+    if (forzaEl) forzaEl.checked = false;      // Disattiva la checkbox "Forza"
 
     // 2. Nascondi eventuali messaggi di errore rimasti appesi
     showError('prenota-admin-error', '');
@@ -539,11 +754,11 @@ window.validatePrenotaAdmin = () => {
 
 window.confermaPrenotaAdmin = async () => {
     showError('prenota-admin-error', '');
-    const id_utente         = document.getElementById('pa-utente').value;
+    const id_utente = document.getElementById('pa-utente').value;
     const data_prenotazione = document.getElementById('pa-data').value;
-    const id_turno          = document.getElementById('pa-turno').value;
-    const stato             = document.getElementById('pa-stato').value;
-    const btn               = document.getElementById('btn-conferma-prenota-admin');
+    const id_turno = document.getElementById('pa-turno').value;
+    const stato = document.getElementById('pa-stato').value;
+    const btn = document.getElementById('btn-conferma-prenota-admin');
     if (btn) btn.disabled = true;
     try {
         const { error } = await supabase.from('Prenotazione').insert({
@@ -596,7 +811,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.classList.add('admin-access-checked');
 
     document.getElementById('btn-nav-utenti')?.classList.add('active');
-    
+
     await window.loadStats();
     await window.loadUtenti();
     await window.loadTurni();
@@ -604,7 +819,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.populatePaUtenti();
 
     if (window.calendarRender) {
-        window.calendarRender.getNavigableMonthOffsets = function() {
+        window.calendarRender.getNavigableMonthOffsets = function () {
             return { min: -12, max: 12 };
         };
         window.calendarRender.canViewNextMonth = () => true;
