@@ -143,30 +143,34 @@ export async function createPrenotazioni(prenotazioni) {
 // recupera tutte le prenotazioni in un certo intervallo di date
 export async function getPrenotazioniByDateRange(startDate, endDate) {
   const { data: prenotazioni, error } = await supabase
-    .from("Prenotazione")
-    .select(
-      "id_prenotazione, data_prenotazione, id_utente, id_turno, stato, data_conferma, Turno(indice, orario_inizio, orario_fine)",
-    )
-    .gte("data_prenotazione", startDate)
-    .lte("data_prenotazione", endDate);
+    .from('Prenotazione')
+    .select('id_prenotazione, data_prenotazione, id_utente, id_turno, stato, data_conferma, Turno(indice, orario_inizio, orario_fine, attivo)')
+    .gte('data_prenotazione', startDate)
+    .lte('data_prenotazione', endDate);
 
   if (error) return { data: [], error };
   if (!prenotazioni?.length) return { data: [], error: null };
 
+  // Filtra solo le prenotazioni associate a un turno attivo
+  const filteredPrenotazioni = prenotazioni.filter(
+    (p) => p.Turno?.attivo === true
+  );
+
+
   // recupera gli utenti delle prenotazioni per avere informazioni aggiuntive
-  const userIds = [...new Set(prenotazioni.map((p) => p.id_utente))];
+  const userIds = [...new Set(filteredPrenotazioni.map((p) => p.id_utente))];
   const { data: utenti, error: utentiError } = await supabase
     .from("Utente")
     .select("id_utente, nome, cognome, foto_profilo")
     .in("id_utente", userIds);
 
-  if (utentiError) return { data: prenotazioni, error: utentiError };
+  if (utentiError) return { data: filteredPrenotazioni, error: utentiError };
 
   const utenteById = new Map((utenti ?? []).map((u) => [u.id_utente, u]));
 
   // aggiunge le info dell'utente alla singola prenotazione
   return {
-    data: prenotazioni.map((p) => ({
+    data: filteredPrenotazioni.map((p) => ({
       ...p,
       Utente: utenteById.get(p.id_utente) ?? null,
     })),
@@ -177,26 +181,47 @@ export async function getPrenotazioniByDateRange(startDate, endDate) {
 // restituisce tutte le prenotazioni di un utente da una certa data
 export async function getPrenotazioniUtente(id_utente, fromDate) {
   const { data: prenotazioni, error } = await supabase
-    .from("Prenotazione")
-    .select(
-      "id_prenotazione, data_prenotazione, id_utente, id_turno, stato, data_conferma, Turno(indice, orario_inizio, orario_fine)",
-    )
-    .eq("id_utente", id_utente)
-    .gte("data_prenotazione", fromDate)
-    .order("data_prenotazione");
+    .from('Prenotazione')
+    .select('id_prenotazione, data_prenotazione, id_utente, id_turno, stato, data_conferma, Turno(indice, orario_inizio, orario_fine, attivo)')
+    .eq('id_utente', id_utente)
+    .gte('data_prenotazione', fromDate)
+    .order('data_prenotazione');
 
   if (error) return { data: [], error };
   if (!prenotazioni?.length) return { data: [], error: null };
 
-  return { data: prenotazioni, error: null };
+  // Filtra solo le prenotazioni associate a un turno attivo
+  const filteredPrenotazioni = prenotazioni.filter(
+    (p) => p.Turno?.attivo === true
+  );
+
+  return { data: filteredPrenotazioni, error: null };
+
+  //return { data: prenotazioni, error: null };
 }
 
-// restituisce tutti i turni ordinati per indice
-export async function getAllTurni() {
+
+export async function getAllTurni(soloAttivi = true) {
+  let query = supabase
+    .from('Turno')
+    .select('*');
+
+  if (soloAttivi) {
+    query = query.eq('attivo', true);
+  }
+  const { data, error } = await query.order('orario_inizio', { ascending: true });
+  if (error) {
+    console.error('Errore nel recupero dei turni:', error);
+    return [];
+  }
+  return data;
+}
+
+export async function setTurnoAttivo(id_turno, attivo) {
   return await supabase
-    .from("Turno")
-    .select("id_turno, indice, orario_inizio, orario_fine")
-    .order("indice");
+    .from('Turno')
+    .update({ attivo })
+    .eq('id_turno', id_turno);
 }
 
 // conferma la presenza a una prenotazione aggiorando stato e data_conferma
@@ -534,11 +559,12 @@ export async function isAmministratore(id_utente) {
   if (!id_utente) return { data: false, error: null };
 
   const { data, error } = await supabase
-    .from("Amministratore")
-    .select("id_amministratore")
-    .eq("id_utente", id_utente);
+    .from('Amministratore')
+    .select('id_amministratore')
+    .eq('id_utente', id_utente);
 
   if (error) return { data: false, error };
+
 
   if (data.length != 0) {
     return { data: true, error: null };

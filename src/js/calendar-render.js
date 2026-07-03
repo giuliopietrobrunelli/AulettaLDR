@@ -1,6 +1,7 @@
 import { showToast } from "./toast.js";
 import { openModificaModal } from "./bookings-view.js";
 import { supabase } from "./supabase-client.js";
+import { getAllTurni } from "./db.js";
 
 // array dei nomi dei mesi in italiano
 const MONTHS = [
@@ -219,29 +220,29 @@ const calendarRender = {
       });
   },
 
-  // carica tutti i turni disponibili dal database
-  async loadTurni() {
-    const { getAllTurni } = window.ldrDb ?? {};
-    if (!getAllTurni) {
-      console.error("calendarRender: window.ldrDb.getAllTurni non disponibile");
+async loadTurni() {
+  try {
+    const turni = await getAllTurni();
+
+    if (!turni || turni.length === 0) {
+      console.warn("calendarRender: nessun turno attivo trovato nel DB");
+      this.turns = [];
       return;
     }
-    const { data, error } = await getAllTurni();
-    if (error || !data?.length) {
-      console.error(
-        "calendarRender: impossibile caricare i turni dal db",
-        error,
-      );
-      return;
-    }
-    // trasforma i turni dal db in array di oggetti con id e label
-    this.turns = data.map((t) => ({
+
+    // trasforma i turni dal db in array di oggetti con id e label,
+    // come si aspetta il resto del codice (render, selectSlot, ecc.)
+    this.turns = turni.map((t) => ({
       id: String(t.indice),
       label: this.formatTurnLabel(t),
       orario_inizio: t.orario_inizio,
       orario_fine: t.orario_fine,
     }));
-  },
+
+  } catch (err) {
+    console.error("calendarRender: impossibile caricare i turni dal db", err);
+  }
+},
 
   // restituisce l'orario in formato hh:mm
   formatClock(timeStr) {
@@ -250,9 +251,8 @@ const calendarRender = {
 
   // formatta l'etichetta del turno (es: '08:30 - 10:30' o '19:30 in poi')
   formatTurnLabel(turn) {
-    if (!turn) return "";
-    if (turn.indice === 7)
-      return `${this.formatClock(turn.orario_inizio)} in poi`;
+    if (!turn) return '';
+    //if (turn.indice === 7) return `${this.formatClock(turn.orario_inizio)} in poi`;
     return `${this.formatClock(turn.orario_inizio)} - ${this.formatClock(turn.orario_fine)}`;
   },
 
