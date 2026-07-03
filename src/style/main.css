@@ -74,6 +74,18 @@ main,
 footer {
   width: 100%;
   max-width: 100%;
+  animation: page-fade-in 0.4s ease-out;
+}
+
+/* leggero sfalsamento tra le sezioni al caricamento della pagina */
+nav {
+  animation-delay: 0.04s;
+}
+main {
+  animation-delay: 0.08s;
+}
+footer {
+  animation-delay: 0.12s;
 }
 
 span,
@@ -118,6 +130,14 @@ a {
 }
 .hidden {
   display: none !important;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--aula);
+  border-radius: 20%;
+  margin: 5px 0px 0px 5px;
 }
 
 /* Containers o altri elementi */
@@ -379,6 +399,10 @@ main {
 .calendar-day .booked-day-recap {
   align-self: end;
   width: 100%;
+}
+.calendar-day .booked-day-recap.shorted {
+  max-width: 50px;
+  flex-wrap: wrap-reverse;
 }
 
 .booked-day-recap {
@@ -721,6 +745,28 @@ main {
 
 /* Caricamento calendario */
 
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0px);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: unset;
+  }
+}
+
 @keyframes calendar-fade-in {
   from {
     opacity: 0;
@@ -782,6 +828,11 @@ main {
 
 .calendar-content-enter {
   animation: content-fade-in 0.22s ease-out both;
+}
+
+/* utility generica di ingresso */
+.section-enter {
+  animation: calendar-fade-in 0.28s ease-out both;
 }
 
 .horizontal-container.user-preview-enter {
@@ -1088,6 +1139,9 @@ footer {
   border-radius: 50%;
   display: inline-block;
   pointer-events: none;
+}
+.notification-dot:not(.hidden) {
+  animation: pop-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .modal-advise {
@@ -1397,6 +1451,13 @@ footer {
   text-decoration: none;
   max-height: none;
 }
+#login-form h3 a,
+#register-form h3 a,
+#register-by-name-form h3 a,
+#set-password-form h3 a,
+#reset-password-form h3 a {
+  text-decoration: underline;
+}
 
 #login-form h1,
 #register-form h1,
@@ -1427,6 +1488,7 @@ div.form-block {
   width: 100%;
   font-size: 14px;
   min-height: 40px;
+  min-width: fit-content;
 }
 .form-block img {
   width: 70px;
@@ -1457,6 +1519,9 @@ input:focus {
 }
 input[type="checkbox"] {
   width: fit-content;
+}
+input[type="date"] {
+  color: var(--black);
 }
 
 .form-error {

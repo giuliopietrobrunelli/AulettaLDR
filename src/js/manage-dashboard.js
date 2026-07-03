@@ -9,21 +9,19 @@ import {
     setTurnoAttivo,
 } from './db.js';
 
-import {
-    supabase
-} from './supabase-client.js';
+import { supabase } from "./supabase-client.js";
 
-import { setMainView } from './main-view.js';
+import { setMainView } from "./main-view.js";
 
 import { showToast } from './toast.js';
 
 // ─── 1. ESPOSIZIONE DI SICUREZZA ──────────────────────────────
 window.ldrDb = {
-    getAllUtenti,
-    getAllUtentiRegistrati,
-    getAllTurni,
-    getPrenotazioniByDateRange,
-    createPrenotazione
+  getAllUtenti,
+  getAllUtentiRegistrati,
+  getAllTurni,
+  getPrenotazioniByDateRange,
+  createPrenotazione,
 };
 
 // ─── Controllo accesso amministratore ───────────────────────────────────────────
@@ -63,24 +61,29 @@ window.openModal = (id) => {
 };
 
 window.closeModal = (id) => {
-    if (window.modal?.close) { window.modal.close(id); return; }
-    document.getElementById(`modal-${id}`)?.classList.remove('showing');
+  if (window.modal?.close) {
+    window.modal.close(id);
+    return;
+  }
+  document.getElementById(`modal-${id}`)?.classList.remove("showing");
 };
 
 function showError(elId, msg) {
-    const el = document.getElementById(elId);
-    if (!el) return;
-    el.textContent = msg;
-    el.style.display = msg ? 'block' : 'none';
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = msg ? "block" : "none";
 }
 
 function fmtDate(str) {
-    if (!str) return '—';
-    const d = new Date(str.split('T')[0]);
-    return d.toLocaleDateString('it-IT');
+  if (!str) return "—";
+  const d = new Date(str.split("T")[0]);
+  return d.toLocaleDateString("it-IT");
 }
 
-function fmtTime(t) { return t?.slice(0, 5) ?? '—'; }
+function fmtTime(t) {
+  return t?.slice(0, 5) ?? "—";
+}
 
 // ─── Gestione Viste Estesa con main-view.js ──────────────────
 window.showSection = (id) => {
@@ -161,28 +164,31 @@ window.loadStats = async () => {
                     tr.innerHTML = `
                         <td>${p.Utente?.cognome ?? ''} ${p.Utente?.nome ?? ''}</td>
                         <td>${fmtDate(p.data_prenotazione)}</td>
-                        <td>${p.Turno?.indice ?? '?'}°</td>
-                        <td>${p.stato === 'confermata' || p.data_conferma ? '<span class="badge badge-green">Confermata</span>' : '<span class="badge badge-gray">Non confermata</span>'}</td>
+                        <td>${p.Turno?.indice ?? "?"}°</td>
+                        <td>${p.stato === "confermata" || p.data_conferma ? '<span class="badge badge-green">Confermata</span>' : '<span class="badge badge-gray">Non confermata</span>'}</td>
                         <td>${fmtDate(p.data_creazione_prenotazione)}</td>
                     `;
-                    tbody.appendChild(tr);
-                }
-            }
+          tbody.appendChild(tr);
         }
-    } catch (e) {
-        console.error('loadStats:', e);
+      }
     }
+  } catch (e) {
+    console.error("loadStats:", e);
+  }
 };
 
 // ─── Utenti ─────────────────────────────────────────────────
 window.loadUtenti = async () => {
-    try {
-        const { data } = (typeof window.ldrDb?.getAllUtenti === 'function')
-            ? await window.ldrDb.getAllUtenti()
-            : await supabase.from('Utente').select('*').order('cognome');
-        allUtenti = data ?? [];
-        window.renderUtenti();
-    } catch (e) { console.error('loadUtenti:', e); }
+  try {
+    const { data } =
+      typeof window.ldrDb?.getAllUtenti === "function"
+        ? await window.ldrDb.getAllUtenti()
+        : await supabase.from("Utente").select("*").order("cognome");
+    allUtenti = data ?? [];
+    window.renderUtenti();
+  } catch (e) {
+    console.error("loadUtenti:", e);
+  }
 };
 
 window.renderUtenti = (filter = '') => {
@@ -197,21 +203,21 @@ window.renderUtenti = (filter = '') => {
 };
 
 function fillTable(tbodyId, utenti, isReg) {
-    const tbody = document.getElementById(tbodyId);
-    if (!tbody) return;
-    tbody.replaceChildren();
-    if (!utenti.length) {
-        tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Nessun utente trovato</td></tr>`;
-        return;
-    }
-    for (const u of utenti) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
+  tbody.replaceChildren();
+  if (!utenti.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Nessun utente trovato</td></tr>`;
+    return;
+  }
+  for (const u of utenti) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
             <td>${u.numero_tessera}</td>
             <td class="semibold">${u.cognome} ${u.nome}</td>
             <td>${u.email}</td>
-            <td>${u.telefono ?? '—'}</td>
-            <td>${u.facolta_universitaria ?? '—'}</td>
+            <td>${u.telefono ?? "—"}</td>
+            <td>${u.facolta_universitaria ?? "—"}</td>
             <td>${u.cauzione ? '<span class="badge badge-green">Sì</span>' : '<span class="badge badge-gray">No</span>'}</td>
             <td>
                 <div class="table-actions">
@@ -221,21 +227,29 @@ function fillTable(tbodyId, utenti, isReg) {
                 </div>
             </td>
         `;
-        tbody.appendChild(tr);
-    }
-    if (window.lucide?.createIcons) window.lucide.createIcons();
+    tbody.appendChild(tr);
+  }
+  if (window.lucide?.createIcons) window.lucide.createIcons();
 }
 
 window.filterUtenti = () => {
-    window.renderUtenti(document.getElementById('search-utenti').value);
+  window.renderUtenti(document.getElementById("search-utenti").value);
 };
 
 window.switchTab = (tab) => {
-    document.querySelectorAll('.tab-btn').forEach((b, i) => {
-        b.classList.toggle('active', (i === 0 && tab === 'registrati') || (i === 1 && tab === 'non-registrati'));
-    });
-    document.getElementById('tab-registrati')?.classList.toggle('active', tab === 'registrati');
-    document.getElementById('tab-non-registrati')?.classList.toggle('active', tab === 'non-registrati');
+  document.querySelectorAll(".tab-btn").forEach((b, i) => {
+    b.classList.toggle(
+      "active",
+      (i === 0 && tab === "registrati") ||
+        (i === 1 && tab === "non-registrati"),
+    );
+  });
+  document
+    .getElementById("tab-registrati")
+    ?.classList.toggle("active", tab === "registrati");
+  document
+    .getElementById("tab-non-registrati")
+    ?.classList.toggle("active", tab === "non-registrati");
 };
 
 // ─── Nuovo utente ───────────────────────────────────────────
@@ -337,12 +351,12 @@ window.eliminaUtente = () => {
     window.openModal('conferma-elimina');
 };
 
-const btnEliminaOk = document.getElementById('btn-conferma-elimina-ok');
+const btnEliminaOk = document.getElementById("btn-conferma-elimina-ok");
 if (btnEliminaOk) {
-    btnEliminaOk.onclick = () => {
-        pendingDeleteFn?.();
-        pendingDeleteFn = null;
-    };
+  btnEliminaOk.onclick = () => {
+    pendingDeleteFn?.();
+    pendingDeleteFn = null;
+  };
 }
 
 // ─── Turni ──────────────────────────────────────────────────
@@ -427,9 +441,9 @@ function renderTurni() {
                 ${bottoneToggle}
             </div>
         `;
-        list.appendChild(row);
-    }
-    if (window.lucide?.createIcons) window.lucide.createIcons();
+    list.appendChild(row);
+  }
+  if (window.lucide?.createIcons) window.lucide.createIcons();
 }
 
 window.openNuovoTurno = () => {
@@ -546,6 +560,11 @@ window.salvaModificaTurno = async () => {
     } catch (e) {
         showError('modifica-turno-error', e.message ?? 'Errore.');
     }
+    window.closeModal("modifica-turno");
+    await window.loadTurni();
+  } catch (e) {
+    showError("modifica-turno-error", e.message ?? "Errore.");
+  }
 };
 
 window.salvaNuovoTurno = async () => {
@@ -644,35 +663,51 @@ window.apriNuovaPrenotazioneAdmin = () => {
     if (statoEl) statoEl.value = ''; // Ripristina lo stato di default
     if (forzaEl) forzaEl.checked = false;      // Disattiva la checkbox "Forza"
 
-    // 2. Nascondi eventuali messaggi di errore rimasti appesi
-    showError('prenota-admin-error', '');
+  // 2. Nascondi eventuali messaggi di errore rimasti appesi
+  showError("prenota-admin-error", "");
 
-    // 3. Disabilita nuovamente il bottone di conferma (perché il form ora è vuoto)
-    const btn = document.getElementById('btn-conferma-prenota-admin');
-    if (btn) btn.disabled = true;
+  // 3. Disabilita nuovamente il bottone di conferma (perché il form ora è vuoto)
+  const btn = document.getElementById("btn-conferma-prenota-admin");
+  if (btn) btn.disabled = true;
 
-    // 4. Infine, apri il modal in sicurezza
-    window.openModal('prenota-admin');
+  // 4. Infine, apri il modal in sicurezza
+  window.openModal("prenota-admin");
 };
 
 window.populatePaUtenti = () => {
-    const sel = document.getElementById('pa-utente');
-    if (!sel) return;
-    sel.replaceChildren();
-    sel.appendChild(Object.assign(document.createElement('option'), { value: '', textContent: 'Seleziona utente…', disabled: true, selected: true }));
-    for (const u of allUtenti.filter(u => u.registrato)) {
-        sel.appendChild(Object.assign(document.createElement('option'), {
-            value: u.id_utente,
-            textContent: `${u.cognome} ${u.nome} — n.${u.numero_tessera}`,
-        }));
-    }
+  const sel = document.getElementById("pa-utente");
+  if (!sel) return;
+  sel.replaceChildren();
+  sel.appendChild(
+    Object.assign(document.createElement("option"), {
+      value: "",
+      textContent: "Seleziona utente…",
+      disabled: true,
+      selected: true,
+    }),
+  );
+  for (const u of allUtenti.filter((u) => u.registrato)) {
+    sel.appendChild(
+      Object.assign(document.createElement("option"), {
+        value: u.id_utente,
+        textContent: `${u.cognome} ${u.nome} — n.${u.numero_tessera}`,
+      }),
+    );
+  }
 };
 
 window.populatePaTurni = () => {
-    const sel = document.getElementById('pa-turno');
-    if (!sel) return;
-    sel.replaceChildren();
-    sel.appendChild(Object.assign(document.createElement('option'), { value: '', textContent: 'Seleziona prima una data', disabled: true, selected: true }));
+  const sel = document.getElementById("pa-turno");
+  if (!sel) return;
+  sel.replaceChildren();
+  sel.appendChild(
+    Object.assign(document.createElement("option"), {
+      value: "",
+      textContent: "Seleziona prima una data",
+      disabled: true,
+      selected: true,
+    }),
+  );
 };
 
 ['pa-data', 'pa-forza'].forEach(id => {
@@ -705,16 +740,19 @@ window.populatePaTurni = () => {
     });
 });
 
-['pa-utente', 'pa-turno', 'pa-data'].forEach(id => {
-    document.getElementById(id)?.addEventListener('change', () => window.validatePrenotaAdmin());
+["pa-utente", "pa-turno", "pa-data"].forEach((id) => {
+  document
+    .getElementById(id)
+    ?.addEventListener("change", () => window.validatePrenotaAdmin());
 });
 
 window.validatePrenotaAdmin = () => {
-    const ok = document.getElementById('pa-utente')?.value
-        && document.getElementById('pa-data')?.value
-        && document.getElementById('pa-turno')?.value;
-    const btn = document.getElementById('btn-conferma-prenota-admin');
-    if (btn) btn.disabled = !ok;
+  const ok =
+    document.getElementById("pa-utente")?.value &&
+    document.getElementById("pa-data")?.value &&
+    document.getElementById("pa-turno")?.value;
+  const btn = document.getElementById("btn-conferma-prenota-admin");
+  if (btn) btn.disabled = !ok;
 };
 
 window.confermaPrenotaAdmin = async () => {
@@ -774,40 +812,38 @@ window.confermaPrenotaAdmin = async () => {
     }
 };
 
-
-
 // ─── Impostazioni ───────────────────────────────────────────
 function loadImpostazioni() {
-    const limEl = document.getElementById('input-limite-settimanale');
-    if (limEl) limEl.value = limiteSettimanale;
-    const antEl = document.getElementById('input-settimane-anticipo');
-    if (antEl) antEl.value = window.calendarRender?.weeksBeforeNextMonthView ?? 1;
+  const limEl = document.getElementById("input-limite-settimanale");
+  if (limEl) limEl.value = limiteSettimanale;
+  const antEl = document.getElementById("input-settimane-anticipo");
+  if (antEl) antEl.value = window.calendarRender?.weeksBeforeNextMonthView ?? 1;
 }
 
 window.salvaLimite = () => {
-    const v = parseInt(document.getElementById('input-limite-settimanale').value);
-    if (!v || v < 1) return;
-    limiteSettimanale = v;
-    if (window.ldrBookingConfig) window.ldrBookingConfig.MAX_WEEKLY_BOOKINGS = v;
-    document.getElementById('stat-limite').textContent = v;
-    alert(`Limite aggiornato a ${v} prenotazioni/settimana.`);
+  const v = parseInt(document.getElementById("input-limite-settimanale").value);
+  if (!v || v < 1) return;
+  limiteSettimanale = v;
+  if (window.ldrBookingConfig) window.ldrBookingConfig.MAX_WEEKLY_BOOKINGS = v;
+  document.getElementById("stat-limite").textContent = v;
+  alert(`Limite aggiornato a ${v} prenotazioni/settimana.`);
 };
 
 window.salvaAnticipo = () => {
-    const v = parseInt(document.getElementById('input-settimane-anticipo').value);
-    if (v === undefined || v < 0) return;
-    if (window.calendarRender) {
-        window.calendarRender.weeksBeforeNextMonthView = v;
-        window.calendarRender.render?.();
-    }
+  const v = parseInt(document.getElementById("input-settimane-anticipo").value);
+  if (v === undefined || v < 0) return;
+  if (window.calendarRender) {
+    window.calendarRender.weeksBeforeNextMonthView = v;
+    window.calendarRender.render?.();
+  }
 };
 
 // ─── Inizializzazione ───────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
-    const isAllowed = await guardAdminAccess();
-    if (!isAllowed) return;
+document.addEventListener("DOMContentLoaded", async () => {
+  const isAllowed = await guardAdminAccess();
+  if (!isAllowed) return;
 
-    document.body.classList.add('admin-access-checked');
+  document.body.classList.add("admin-access-checked");
 
     document.getElementById('btn-nav-utenti')?.classList.add('active');
 
@@ -815,7 +851,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await window.loadUtenti();
     await window.loadTurni();
 
-    window.populatePaUtenti();
+  await window.loadStats();
+  await window.loadUtenti();
+  await window.loadTurni();
 
     if (window.calendarRender) {
         window.calendarRender.getNavigableMonthOffsets = function () {
@@ -824,15 +862,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.calendarRender.canViewNextMonth = () => true;
     }
 
-    const user = window.ldrProfilo;
-    if (user) {
-        const infoEl = document.getElementById('dash-admin-info');
-        if (infoEl) infoEl.textContent = `Connesso come ${user.nome} ${user.cognome}`;
-    }
+  if (window.calendarRender) {
+    window.calendarRender.getNavigableMonthOffsets = function () {
+      return { min: -12, max: 12 };
+    };
+    window.calendarRender.canViewNextMonth = () => true;
+  }
+
+  const user = window.ldrProfilo;
+  if (user) {
+    const infoEl = document.getElementById("dash-admin-info");
+    if (infoEl)
+      infoEl.textContent = `Connesso come ${user.nome} ${user.cognome}`;
+  }
 });
 
-document.querySelector('[onclick="openModal(\'nuovo-turno\')"]')
-    ?.addEventListener('click', (e) => {
-        e.preventDefault();
-        window.openNuovoTurno?.();
-    });
+document
+  .querySelector("[onclick=\"openModal('nuovo-turno')\"]")
+  ?.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.openNuovoTurno?.();
+  });
