@@ -619,14 +619,28 @@ const calendarRender = {
   },
 
   // crea l’elemento visuale con le faccine giorno per gli utenti prenotati
+  // crea l'elemento visuale con le faccine/pallini per gli utenti prenotati
   createBookedDayRecap(bookings) {
+    const mostraFoto = window.ldrProfilo?.mostra_foto_prenotazioni ?? true;
+
+    if (mostraFoto) {
+      const recap = document.createElement("div");
+      recap.className = "booked-day-recap";
+      bookings.forEach((booking) => {
+        const img = document.createElement("img");
+        img.src = booking?.foto_profilo || this.stockProfilePic;
+        img.alt = "";
+        recap.appendChild(img);
+      });
+      return recap;
+    }
+
     const recap = document.createElement("div");
-    recap.className = "booked-day-recap";
-    bookings.forEach((booking) => {
-      const img = document.createElement("img");
-      img.src = booking?.foto_profilo || this.stockProfilePic;
-      img.alt = "";
-      recap.appendChild(img);
+    recap.className = "booked-day-recap shorted";
+    bookings.forEach(() => {
+      const dot = document.createElement("div");
+      dot.classList.add("dot");
+      recap.appendChild(dot);
     });
     return recap;
   },

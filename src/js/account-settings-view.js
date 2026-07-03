@@ -109,11 +109,7 @@ export function renderAccountSettings() {
 
     // gestisci eventuali errori di upload
     if (error || !data) {
-      showToast(
-        "error",
-        "Impossibile caricare l'immagine. Riprova più tardi.",
-        "image-off",
-      );
+      showToast("error","Impossibile caricare l'immagine. Riprova più tardi.","image-off",);
       btnUpload.disabled = false;
       return;
     }
@@ -195,6 +191,73 @@ export function renderAccountSettings() {
   pushButtonsRow.append(btnNotifiche, btnDisabilitaNotifiche);
   pushBlock.append(pushLabel, pushDesc, pushDesc2, pushButtonsRow);
   container.appendChild(pushBlock);
+
+  // blocco preferenza visualizzazione utenti prenotati nel calendario mese
+  const recapBlock = document.createElement("div");
+  recapBlock.className = "form-block account-recap-block";
+
+  const recapLabel = document.createElement("label");
+  recapLabel.innerHTML = `<span>Visualizzazione utenti prenotati</span>`;
+
+  const recapDesc = document.createElement("span");
+  recapDesc.className = "setting-desc disabled";
+  recapDesc.textContent =
+    "Scegli come vengono mostrati gli utenti che hanno prenotato un turno nella vista mensile";
+
+  const recapButtonsRow = document.createElement("div");
+  recapButtonsRow.className = "horizontal-container";
+
+  const btnRecapFoto = document.createElement("button");
+  btnRecapFoto.type = "button";
+  btnRecapFoto.className = "w-text active";
+  btnRecapFoto.innerHTML = "<span>Immagini profilo</span>";
+
+  const btnRecapDot = document.createElement("button");
+  btnRecapDot.type = "button";
+  btnRecapDot.className = "w-text active";
+  btnRecapDot.innerHTML = "<span>Pallini</span>";
+
+  // evidenzia il bottone corrispondente alla preferenza attuale
+  function syncRecapButtonsState(mostraFoto) {
+    btnRecapFoto.classList.toggle("active", mostraFoto);
+    btnRecapDot.classList.toggle("active", !mostraFoto);
+  }
+
+  syncRecapButtonsState(profilo.mostra_foto_prenotazioni ?? true);
+
+  // salva la preferenza sul profilo e aggiorna subito il calendario
+  async function updateRecapPreference(mostraFoto) {
+    btnRecapFoto.disabled = true;
+    btnRecapDot.disabled = true;
+
+    const { data, error } = await updateProfiloUtente(profilo.id_utente, {
+      mostra_foto_prenotazioni: mostraFoto,
+    });
+
+    if (error || !data) {
+      showToast(
+        "error",
+        "Impossibile salvare la preferenza. Riprova più tardi.",
+        "x",
+      );
+    } else {
+      window.ldrProfilo = data;
+      syncRecapButtonsState(data.mostra_foto_prenotazioni);
+      showToast("success","Preferenze aggiornate");
+      // ridisegna la vista mese per applicare subito la nuova preferenza
+      // window.calendarRender?.render?.();
+    }
+
+    btnRecapFoto.disabled = false;
+    btnRecapDot.disabled = false;
+  }
+
+  btnRecapFoto.addEventListener("click", () => updateRecapPreference(true));
+  btnRecapDot.addEventListener("click", () => updateRecapPreference(false));
+
+  recapButtonsRow.append(btnRecapFoto, btnRecapDot);
+  recapBlock.append(recapLabel, recapDesc, recapButtonsRow);
+  container.appendChild(recapBlock);
 
   // determina quale dei due bottoni mostrare in base allo stato attuale
   syncPushButtonsState(btnNotifiche, btnDisabilitaNotifiche);
