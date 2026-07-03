@@ -1397,6 +1397,13 @@ footer {
   text-decoration: none;
   max-height: none;
 }
+#login-form h3 a,
+#register-form h3 a,
+#register-by-name-form h3 a,
+#set-password-form h3 a,
+#reset-password-form h3 a {
+  text-decoration: underline;
+}
 
 #login-form h1,
 #register-form h1,
@@ -1457,6 +1464,9 @@ input:focus {
 }
 input[type="checkbox"] {
   width: fit-content;
+}
+input[type="date"] {
+  color: var(--black);
 }
 
 .form-error {

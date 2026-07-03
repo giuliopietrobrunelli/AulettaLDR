@@ -109,8 +109,8 @@
         top: 0;
     }
 
-    nav.dynamic-nav .nav-switch{
-        display: none;
+    nav.dynamic-nav .nav-switch {
+        display: none !important;
     }
 
     #logo img {

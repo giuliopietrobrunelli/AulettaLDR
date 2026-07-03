@@ -158,7 +158,7 @@
     </header>
 
     <!-- navbar dinamica -->
-    <nav>
+    <nav class="dynamic-nav">
 
         <!-- barra navigazione mobile -->
         
@@ -333,7 +333,9 @@
             </div>
 
         <!-- vista "le mie prenotazioni" -->
-        <div id="my-bookings" class="hidden"></div>
+        <div id="my-bookings" class="hidden">
+            <span>Caricamento in corso</span>
+        </div>
 
         <!-- impostazioni account utente -->
         <div id="account-settings" class="hidden"></div>
@@ -457,14 +459,14 @@
             <div class="full-modal-footer">
                 <button type="button" class="w-text" data-modal="close-modal">Annulla</button>
                 <button type="button" class="w-text active" id="btn-modal-conferma-prenota" disabled>
-                    <i data-lucide="plus"></i>
+                    <i data-lucide="check"></i>
                     <span>Conferma prenotazione</span>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Modifica Turno -->
+    <!-- modifica Turno -->
     <div id="modal-modifica-prenotazione" class="full-modal">
         <div class="full-modal-body">
             <div class="modal-header">
@@ -513,7 +515,7 @@
         </div>
     </div>
 
-    <!-- Prenotazione avvenuta con successo -->
+    <!-- prenotazione avvenuta con successo -->
     <div id="modal-booking-success" class="full-modal">
         <div class="full-modal-body">
             <div class="modal-header result-modal-header">
@@ -530,7 +532,7 @@
         </div>
     </div>
 
-    <!-- Limite prenotazioni settimanali raggiunto -->
+    <!-- limite prenotazioni settimanali raggiunto -->
     <div id="modal-booking-denied" class="full-modal">
         <div class="full-modal-body">
             <div class="modal-header result-modal-header">
@@ -545,7 +547,7 @@
         </div>
     </div>
 
-    <!-- Avvertimento autoconferma turno irrevocabile -->
+    <!-- avvertimento autoconferma turno irrevocabile -->
     <div id="modal-auto-confirm-warning" class="full-modal">
         <div class="full-modal-body">
             <div class="modal-header">
@@ -563,6 +565,26 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- conferma una specifica azione -->
+    <div id="modal-confirm" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+              <span class="modal-title" id="confirm-action-title">Conferma -</span>
+              <span class="modal-subtitle" id="confirm-action-subtitle"></span>
+            </div>
+            <div class="full-modal-content">
+              <span id="confirm-action-message" style="font-size:13px"></span>
+            </div>
+            <div class="full-modal-footer">
+              <button type="button" class="w-text" id="btn-confirm-action-cancel">Annulla</button>
+              <button type="button" class="w-text active" id="btn-confirm-action-confirm">
+                <i data-lucide="check" class="lucide"></i>
+                <span id="confirm-action-confirm-text">Conferma</span>
+              </button>
+            </div>
+          </div>
     </div>
 
     <!-- modali per menu -------------------------------------------------------------------------------------------------------- -->

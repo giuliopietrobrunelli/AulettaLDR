@@ -11,10 +11,10 @@ const modal = {
   init() {
     this.discover();
     // ascolta i click globali per aprire o chiudere i modal
-    document.addEventListener('click', (e) => this.onClick(e));
+    document.addEventListener("click", (e) => this.onClick(e));
     // chiude tutto se si preme esc
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') this.closeAll();
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") this.closeAll();
     });
   },
 
@@ -23,8 +23,8 @@ const modal = {
     document.querySelectorAll('[id^="modal-"]').forEach((el) => {
       const id = el.id.slice(6);
       if (!id) return;
-      if (el.classList.contains('full-modal')) this.fullIds.add(id);
-      else if (el.classList.contains('modal')) this.smallIds.add(id);
+      if (el.classList.contains("full-modal")) this.fullIds.add(id);
+      else if (el.classList.contains("modal")) this.smallIds.add(id);
     });
   },
 
@@ -35,28 +35,28 @@ const modal = {
 
   // restituisce l'elemento modal dato l'id
   getEl(id) {
-    return document.getElementById('modal-' + id);
+    return document.getElementById("modal-" + id);
   },
 
   // restituisce tutti gli elementi modal o full-modal attualmente visibili
   getShowing() {
-    return document.querySelectorAll('.modal.showing, .full-modal.showing');
+    return document.querySelectorAll(".modal.showing, .full-modal.showing");
   },
 
   // gestisce i click globali sulla pagina
   onClick(e) {
     const target = e.target;
     // cerca un bottone (o qualsiasi elemento) che attiva un modal tramite data-modal
-    const activator = target.closest('[data-modal]');
+    const activator = target.closest("[data-modal]");
 
     if (activator) {
       const id = activator.dataset.modal;
 
       // se si clicca su un bottone di chiusura
-      if (id === 'close-modal') {
+      if (id === "close-modal") {
         e.preventDefault();
         // prova a chiudere solo il modal padre, altrimenti chiudi tutti i modal visibili
-        const parent = activator.closest('.modal.showing, .full-modal.showing');
+        const parent = activator.closest(".modal.showing, .full-modal.showing");
         if (parent) this.closeEl(parent);
         else this.closeAll();
         return;
@@ -83,8 +83,8 @@ const modal = {
   // controlla se il click era dentro la zona che deve restare aperta
   shouldKeepOpen(modalEl, target) {
     // per i full-modal considera solo il corpo come zona attiva da non chiudere se cliccata
-    if (modalEl.classList.contains('full-modal')) {
-      const body = modalEl.querySelector('.full-modal-body');
+    if (modalEl.classList.contains("full-modal")) {
+      const body = modalEl.querySelector(".full-modal-body");
       return body?.contains(target) ?? false;
     }
     // per modal normali resta aperto se si clicca all'interno
@@ -95,7 +95,7 @@ const modal = {
   toggle(id) {
     const el = this.getEl(id);
     if (!el) return;
-    if (el.classList.contains('showing')) {
+    if (el.classList.contains("showing")) {
       this.closeEl(el);
       return;
     }
@@ -105,10 +105,10 @@ const modal = {
   // aggiorna lo stato attivo dei bottoni che aprono i modal
   syncActivatorActive(id) {
     const known = new Set([...this.smallIds, ...this.fullIds]);
-    document.querySelectorAll('[data-modal]').forEach((btn) => {
+    document.querySelectorAll("[data-modal]").forEach((btn) => {
       const btnId = btn.dataset.modal;
       if (!known.has(btnId)) return;
-      btn.classList.toggle('active', btnId === id);
+      btn.classList.toggle("active", btnId === id);
     });
   },
 
@@ -123,10 +123,10 @@ const modal = {
       el._hideT = null;
     }
     // mostra l'elemento
-    el.style.display = 'flex';
+    el.style.display = "flex";
     // forza il ricalcolo del layout per triggerare la transizione
     void el.offsetHeight;
-    el.classList.add('showing');
+    el.classList.add("showing");
     this.syncActivatorActive(id);
     this._openedAt = Date.now();
   },
@@ -134,9 +134,9 @@ const modal = {
   // chiude un singolo modal con transizione
   closeEl(el) {
     if (!el) return;
-    el.classList.remove('showing');
+    el.classList.remove("showing");
     // aggiorna lo stato dei bottoni associati
-    if (el.id.startsWith('modal-')) {
+    if (el.id.startsWith("modal-")) {
       this.syncActivatorActive(null);
     }
     // cancella eventuali timer di hide precedenti
@@ -147,7 +147,7 @@ const modal = {
     // nasconde l'elemento dopo la transizione
     el._hideT = setTimeout(() => {
       if (el._closeToken !== token) return;
-      el.style.display = 'none';
+      el.style.display = "none";
       el._hideT = null;
     }, MODAL_TRANSITION_MS);
   },
@@ -159,6 +159,6 @@ const modal = {
 };
 
 // inizializza tutto quando il dom è pronto
-document.addEventListener('DOMContentLoaded', () => modal.init());
+document.addEventListener("DOMContentLoaded", () => modal.init());
 // rende l'oggetto disponibile globalmente
 window.modal = modal;
