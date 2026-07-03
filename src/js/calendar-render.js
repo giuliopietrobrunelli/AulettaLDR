@@ -2,10 +2,6 @@ import { showToast } from "./toast.js";
 import { openModificaModal } from "./bookings-view.js";
 import { supabase } from "./supabase-client.js";
 import { getAllTurni } from "./db.js";
-import { showToast } from "./toast.js";
-import { openModificaModal } from "./bookings-view.js";
-import { supabase } from "./supabase-client.js";
-import { getAllTurni } from "./db.js";
 
 // array dei nomi dei mesi in italiano
 const MONTHS = [

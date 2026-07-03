@@ -54,6 +54,7 @@ let allUtenti = [];
 let turniCache = [];
 let limiteSettimanale = 7;
 let pendingDeleteFn = null;
+let turnoInModificaId = null; // id del turno attualmente aperto nel modal "Modifica turno"
 
 // ─── Helpers UI ─────────────────────────────────────────────
 window.openModal = (id) => {
@@ -356,21 +357,14 @@ window.loadTurni = async () => {
     window.populatePaTurni();
 };
 
-window.cambiaStatoTurnoAdmin = async (id_turno, indice, rendiAttivo) => {
+window.cambiaStatoTurnoAdmin = async (id_turno, rendiAttivo) => {
     //se si sta riattivando un turno, controlla che non si sovrapponga a un turno già attivo prima di procedere
-    if (rendiAttivo){
+    if (rendiAttivo) {
         const t = turniCache.find(x => x.id_turno === id_turno);
         if (t) {
             const conflittoSovrapposizione = trovaTurnoSovrapposto(t.orario_inizio, t.orario_fine, id_turno);
-            if (conflittoSovrapposizione){
+            if (conflittoSovrapposizione) {
                 const msg = `Impossibile riattivare: si sovrappone al turno ${conflittoSovrapposizione.indice}°(${fmtTime(conflittoSovrapposizione.orario_inizio)} – ${fmtTime(conflittoSovrapposizione.orario_fine)}), che è attivo`;
-                showToast('error', msg);
-                return;
-            }
-
-            const conflittoIndice = trovaIndiceduplicato(indice, id_turno);
-            if (conflittoIndice){
-                const msg = 'Impossibile riattivare: si sovrappone al turno ' + (conflitto.indice) + '°, due turni non possono avere lo stesso indice';
                 showToast('error', msg);
                 return;
             }
@@ -391,12 +385,12 @@ window.cambiaStatoTurnoAdmin = async (id_turno, indice, rendiAttivo) => {
         const msg = "Turno " + (rendiAttivo ? 'riattivato' : 'disattivato') + " con successo!";
         showToast('success', msg);
         //alert(`Turno ${rendiAttivo ? 'riattivato' : 'disattivato'} con successo!`);
-        
-        // Ricarica la tabella dei turni nella dashboard
+
+        // Ricarica la tabella dei turni nella dashboard (indici già ricalcolati dal DB)
         await window.loadTurni();
-        
+
         // Se hai una funzione per ripopolare le select dei moduli admin, eseguila qui
-        if (window.populatePaUtenti) window.populatePaUtenti(); 
+        if (window.populatePaUtenti) window.populatePaUtenti();
 
     } catch (err) {
         alert("Errore durante l'operazione: " + (err.message ?? err));
@@ -419,11 +413,11 @@ function renderTurni() {
             ? '<span class="badge badge-green">Attivo</span>'
             : '<span class="badge badge-gray">Inattivo</span>';
         const bottoneToggle = isAttivo
-            ? `<button class="btn-icon" title="Disattiva" onclick="window.cambiaStatoTurnoAdmin('${t.id_turno}', '${t.indice}', false)"><i data-lucide="power-off" class="lucide"></i></button>`
-            : `<button class="btn-icon" title="Riattiva" onclick="window.cambiaStatoTurnoAdmin('${t.id_turno}', '${t.indice}', true)"><i data-lucide="power" class="lucide"></i></button>`;
+            ? `<button class="btn-icon" title="Disattiva" onclick="window.cambiaStatoTurnoAdmin('${t.id_turno}', false)"><i data-lucide="power-off" class="lucide"></i></button>`
+            : `<button class="btn-icon" title="Riattiva" onclick="window.cambiaStatoTurnoAdmin('${t.id_turno}', true)"><i data-lucide="power" class="lucide"></i></button>`;
         row.innerHTML = `
-            <span class="turno-index">${t.indice ?? '?'}</span>
-            <span class="turno-label">${t.indice}° Turno</span>
+            <span class="turno-index">${t.indice ?? '-'}</span>
+            <span class="turno-label">${(t.indice === null) ? 'Turno disattivato' : t.indice + '° Turno'}</span>
             <span class="turno-time">${fmtTime(t.orario_inizio)} – ${fmtTime(t.orario_fine)}</span>
             ${badgeStato}
             <div class="table-actions">
@@ -439,12 +433,11 @@ function renderTurni() {
 }
 
 window.openNuovoTurno = () => {
-    document.getElementById('nt-id').value = '';
-    document.getElementById('nt-indice').value = '';
     document.getElementById('nt-inizio').value = '';
     document.getElementById('nt-fine').value = '';
     document.getElementById('modal-nuovo-turno-title').textContent = 'Nuovo turno';
-    document.getElementById('modal-nuovo-turno-subtitle').textContent = 'Aggiungi una nuova fascia oraria';
+    const subtitleEl = document.getElementById('modal-nuovo-turno-subtitle');
+    if (subtitleEl) subtitleEl.textContent = 'Aggiungi una nuova fascia oraria';
     showError('nuovo-turno-error', '');
     window.openModal('nuovo-turno');
 };
@@ -452,20 +445,23 @@ window.openNuovoTurno = () => {
 window.apriModificaTurno = (id) => {
     const t = turniCache.find(x => x.id_turno === id);
     if (!t) return;
-    const isAttivo = t.attivo !== false;
-    document.getElementById('mt-id').value = t.id_turno;
-    document.getElementById('mt-indice').value = t.indice ?? '';
+    turnoInModificaId = t.id_turno;
+    // l'indice non è più modificabile manualmente: viene ricalcolato dal DB.
+    // Se in pagina è rimasto un campo mt-indice, lo mostro solo a scopo informativo (readonly).
+    const mtIndiceEl = document.getElementById('mt-indice');
+    if (mtIndiceEl) mtIndiceEl.value = t.indice ?? '';
     document.getElementById('mt-inizio').value = t.orario_inizio?.slice(0, 5) ?? '';
     document.getElementById('mt-fine').value = t.orario_fine?.slice(0, 5) ?? '';
     document.getElementById('modal-turno-title').textContent = `Turno ${t.indice}°`;
-    document.getElementById('modal-turno-subtitle').textContent = `${fmtTime(t.orario_inizio)} – ${fmtTime(t.orario_fine)}`;
+    const subtitleEl2 = document.getElementById('modal-turno-subtitle');
+    if (subtitleEl2) subtitleEl2.textContent = `${fmtTime(t.orario_inizio)} – ${fmtTime(t.orario_fine)}`;
 
     showError('modifica-turno-error', '');
     window.openModal('modifica-turno');
 };
 
 //funzione per convertire turno in minuti dalla mezzanotte
-function turnoToMinutes(t){
+function turnoToMinutes(t) {
     if (!t) return 0;
     const [h, m] = t.split(':').map(Number);
     return h * 60 + m;
@@ -473,23 +469,23 @@ function turnoToMinutes(t){
 
 //calcola l'intervallo [inizio, fine) in minuti di un turno, se manca orario di fine, è 00:00 o è <= all'inizio,
 //il turno si considera valido fino a fine giornata (mezzanotte)
-function getIntervalloTurno(inizio, fine){
+function getIntervalloTurno(inizio, fine) {
     const start = turnoToMinutes(inizio);
     const fineMin = turnoToMinutes(fine);
     const end = (!fine || fineMin === 0 || fineMin <= start) ? 24 * 60 : fineMin;
 
-    return {start, end};
+    return { start, end };
 }
 
 //controlla se due intervalli [start, end) si sovrappongono
-function intervalliSiSovrappongono(a,b){
+function intervalliSiSovrappongono(a, b) {
     return a.start < b.end && b.start < a.end;
 }
 
 //verifica che il turno non si sovrapponga a nessun turno ATTIVO esistente (escluso se stesso)
-function trovaTurnoSovrapposto(inizio, fine, idEscluso){
+function trovaTurnoSovrapposto(inizio, fine, idEscluso) {
     const nuovo = getIntervalloTurno(inizio, fine);
-    for (const t of turniCache){
+    for (const t of turniCache) {
 
         if (t.id_turno === idEscluso) continue;
 
@@ -503,10 +499,10 @@ function trovaTurnoSovrapposto(inizio, fine, idEscluso){
     return null;
 }
 
-function trovaNuovoTurnoUguale(inizio, fine){
+function trovaNuovoTurnoUguale(inizio, fine) {
     const nuovoInizio = turnoToMinutes(inizio);
     const nuovoFine = turnoToMinutes(fine);
-    for (const t of turniCache){
+    for (const t of turniCache) {
         const tInizio = turnoToMinutes(t.orario_inizio);
         const tFine = turnoToMinutes(t.orario_fine);
 
@@ -516,63 +512,35 @@ function trovaNuovoTurnoUguale(inizio, fine){
     return null;
 }
 
-function trovaIndiceduplicato(indice, idEscluso){
-    for (const t of turniCache){
-        if (t.id_turno === idEscluso) continue;
-        if (t.attivo === false) continue;
-        if(t.indice === indice)   return t;
-    }
-    return null;
-}
-
-function trovaNuovoIndiceduplicato(indice){
-    for (const t of turniCache){
-        if(t.attivo === false) continue;
-        if(t.indice === indice)   return t;
-    }
-    return null;
-}
-
-
-
 window.salvaModificaTurno = async () => {
     showError('modifica-turno-error', '');
-    const id = document.getElementById('mt-id').value;
-    const indice = parseInt(document.getElementById('mt-indice').value);
+    const id = turnoInModificaId;
     const inizio = document.getElementById('mt-inizio').value;
     const fine = document.getElementById('mt-fine').value;
 
+    if (!id) { showError('modifica-turno-error', 'Nessun turno selezionato.'); return; }
     if (!inizio || !fine) { showError('modifica-turno-error', 'Orario inizio e fine obbligatori.'); return; }
 
-    if (turnoToMinutes(fine) !== 0 && turnoToMinutes(fine) <= turnoToMinutes(inizio)){
-        showError('modifica-turno-error', 'L\'orario di fine deve essere successivo a quello di inizio');
-        
+    if (turnoToMinutes(fine) !== 0 && turnoToMinutes(fine) <= turnoToMinutes(inizio)) {
+        const msg = 'L\'orario di fine deve essere successivo a quello di inizio';
+        showToast("error", msg);
+
         return;
     }
 
-    const conflittoSovrapposizione = trovaTurnoSovrapposto(inizio, fine, id || null);
-    if(conflittoSovrapposizione){
+    const conflittoSovrapposizione = trovaTurnoSovrapposto(inizio, fine, id);
+    if (conflittoSovrapposizione) {
         const msg = `Sovrapposizione con il turno ${conflittoSovrapposizione.indice}°(${fmtTime(conflittoSovrapposizione.orario_inizio)} – ${fmtTime(conflittoSovrapposizione.orario_fine)}). Disattivalo prima se vuoi usare questa fascia oraria.`;
         showToast("error", msg);
         return;
     }
 
-    const conflittoIndice = trovaIndiceduplicato(indice, id || null);
-    if(conflittoIndice){
-        const msg = `Sovrapposizione con il turno con indice ${conflittoIndice.indice}°, due turni non possono avere lo stesso indice`;
-        showToast("error", msg);
-        return
-    }
-
-
+    // l'indice viene ricalcolato automaticamente dal DB (trigger) in base
+    // all'ordine di orario_inizio tra i turni attivi: non va più inviato dal client
     try {
-        if (id) {
-            const { error } = await supabase.from('Turno').update({ indice, orario_inizio: inizio, orario_fine: fine }).eq('id_turno', id);
-            if (error) throw error;
-        } else {
-            const { error } = await supabase.from('Turno').insert({ indice, orario_inizio: inizio, orario_fine: fine });
-            if (error) throw error;
-        }
+        const { error } = await supabase.from('Turno').update({ orario_inizio: inizio, orario_fine: fine }).eq('id_turno', id);
+        if (error) throw error;
+        turnoInModificaId = null;
         window.closeModal('modifica-turno');
         await window.loadTurni();
     } catch (e) {
@@ -582,45 +550,38 @@ window.salvaModificaTurno = async () => {
 
 window.salvaNuovoTurno = async () => {
     showError('nuovo-turno-error', '');
-    const id = document.getElementById('nt-id').value;
-    const indice = parseInt(document.getElementById('nt-indice').value);
     const inizio = document.getElementById('nt-inizio').value;
     const fine = document.getElementById('nt-fine').value;
 
     if (!inizio || !fine) { showError('nuovo-turno-error', 'Orario inizio e fine obbligatori.'); return; }
 
-    if (!indice) {showError('nuovo-turno-error', 'Indice obbligatorio'); return;}
+    if (turnoToMinutes(fine) !== 0 && turnoToMinutes(fine) <= turnoToMinutes(inizio)) {
+        const msg = 'L\'orario di fine deve essere successivo a quello di inizio';
+        showToast("error", msg);
 
-    if (turnoToMinutes(fine) !== 0 && turnoToMinutes(fine) <= turnoToMinutes(inizio)){
-        showError('nuovo-turno-error', 'L\'orario di fine deve essere successivo a quello di inizio');
-        
         return;
     }
 
     const conflittoDuplicato = trovaNuovoTurnoUguale(inizio, fine);
-    if(conflittoDuplicato){
-        const statoTurno = conflittoDuplicato.attivo !== false ? 'attivo' : 'disattivato';
-        const msg = `Esiste già il turno ${conflittoDuplicato.indice}° con la stessa fascia oraria (${conflittoDuplicato.orario_inizio } - ${conflittoDuplicato.orario_fine}). Non è possibile creare duplicati.`;
+    if (conflittoDuplicato) {
+        //const statoTurno = conflittoDuplicato.attivo !== false ? 'attivo' : 'disattivato';
+        const msg = `Esiste già un turno con la stessa fascia oraria (${fmtTime(conflittoDuplicato.orario_inizio)} - ${fmtTime(conflittoDuplicato.orario_fine)}). Non è possibile creare duplicati.`;
         showToast("error", msg);
         return;
     }
 
-    const conflittoIndice = trovaNuovoIndiceduplicato(indice);
-    if(conflittoIndice){
-        const msg = `Esiste già il turno con indice ${conflittoIndice.indice}°, due turni non possono avere lo stesso indice`;
-        showToast("error", msg);
-        return
+    const conflittoSovrapposizione = trovaTurnoSovrapposto(inizio, fine);
+    if (conflittoSovrapposizione) {
+        const msgSovrapposizione = `La fascia oraria selezionata è in sovrapposizione con la seguente (${fmtTime(conflittoSovrapposizione.orario_inizio)} - ${fmtTime(conflittoSovrapposizione.orario_fine)}).`;
+        showToast("error", msgSovrapposizione);
+        return;
     }
 
-
+    // l'indice viene assegnato automaticamente dal DB (trigger) in base
+    // all'ordine di orario_inizio tra i turni attivi: non va più inviato dal client
     try {
-        if (id) {
-            const { error } = await supabase.from('Turno').update({ indice, orario_inizio: inizio, orario_fine: fine }).eq('id_turno', id);
-            if (error) throw error;
-        } else {
-            const { error } = await supabase.from('Turno').insert({ indice, orario_inizio: inizio, orario_fine: fine });
-            if (error) throw error;
-        }
+        const { error } = await supabase.from('Turno').insert({ orario_inizio: inizio, orario_fine: fine });
+        if (error) throw error;
         window.closeModal('nuovo-turno');
         await window.loadTurni();
     } catch (e) {
@@ -628,35 +589,35 @@ window.salvaNuovoTurno = async () => {
     }
 };
 
-window.eliminaTurno = async (id_turno) => {
-    // const conferma = confirm("Vuoi davvero disattivare questo turno? Non sarà più disponibile per prenotazioni future, ma le prenotazioni passate rimarrano memorizzate");
-    // if (!conferma) return;
+window.eliminaTurno = async () => {
+    const conferma = confirm("ATTENZIONE: Eliminando definitivamente questo turno cancellerai anche TUTTE le prenotazioni passate e future collegate ad esso. Vuoi procedere?");
+    if (!conferma) return;
 
-    // try {
-    //     const { error } = await supabase
-    //         .from('Turno')
-    //         .update({ attivo: false })
-    //         .eq('id_turno', id_turno);
+    const id_turno = turnoInModificaId; 
+    if (!id_turno) {
+        showToast("error", "Nessun turno selezionato per l'eliminazione.");
+        return;
+    }
 
-    //     if (error) throw error;
+    try {
+        const { error } = await supabase
+            .from('Turno')
+            .delete()
+            .eq('id_turno', id_turno);
 
-    //     alert("Turno disattivato con successo!");
+        if (error) throw error;
 
-    //     //Ricarica la lista dei turni nella dashboard admin
-    //     if (window.loadAdminTurni) await window.loadAdminTurni();
-    // }
-
-    const id = document.getElementById('mt-id').value;
-    const label = document.getElementById('modal-turno-title').textContent;
-    document.getElementById('conferma-elimina-text').textContent =
-        `Sei sicuro di voler eliminare "${label}"? Le prenotazioni esistenti non verranno cancellate.`;
-    pendingDeleteFn = async () => {
-        await supabase.from('Turno').delete().eq('id_turno', id);
         window.closeModal('modifica-turno');
-        window.closeModal('conferma-elimina');
-        await window.loadTurni();
-    };
-    window.openModal('conferma-elimina');
+
+        await window.loadTurni(); 
+        
+        const msg = "Turno e prenotazioni collegate eliminati definitivamente."
+        showToast("success", msg);
+
+    } catch (err) {
+        console.error("Errore durante l'eliminazione del turno:", err);
+        showToast("error", "Impossibile eliminare il turno: " + (err.message ?? err));
+    }
 };
 
 // ─── Prenotazione privilegiata ───────────────────────────────
@@ -680,7 +641,7 @@ window.apriNuovaPrenotazioneAdmin = () => {
             selected: true
         }));
     }
-    if (statoEl) statoEl.value = 'confermata'; // Ripristina lo stato di default
+    if (statoEl) statoEl.value = ''; // Ripristina lo stato di default
     if (forzaEl) forzaEl.checked = false;      // Disattiva la checkbox "Forza"
 
     // 2. Nascondi eventuali messaggi di errore rimasti appesi
@@ -714,30 +675,34 @@ window.populatePaTurni = () => {
     sel.appendChild(Object.assign(document.createElement('option'), { value: '', textContent: 'Seleziona prima una data', disabled: true, selected: true }));
 };
 
-document.getElementById('pa-data')?.addEventListener('change', async () => {
-    const data = document.getElementById('pa-data').value;
-    if (!data) return;
-    const sel = document.getElementById('pa-turno');
-    if (!sel) return;
-    sel.disabled = true;
-    sel.innerHTML = '<option disabled selected>Caricamento…</option>';
+['pa-data', 'pa-forza'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', async () => {
+        const data = document.getElementById('pa-data').value;
+        if (!data) return;
+        const sel = document.getElementById('pa-turno');
+        if (!sel) return;
+        sel.disabled = true;
+        sel.innerHTML = '<option disabled selected>Caricamento…</option>';
 
-    const { data: prenOcc } = await supabase.from('Prenotazione').select('id_turno').eq('data_prenotazione', data);
-    const occIds = new Set((prenOcc ?? []).map(p => p.id_turno));
+        const { data: prenOcc } = await supabase.from('Prenotazione').select('id_turno').eq('data_prenotazione', data);
+        const occIds = new Set((prenOcc ?? []).map(p => p.id_turno));
 
-    sel.replaceChildren();
-    sel.appendChild(Object.assign(document.createElement('option'), { value: '', textContent: 'Seleziona turno', disabled: true, selected: true }));
-    for (const t of turniCache) {
-        const occ = occIds.has(t.id_turno);
-        const opt = Object.assign(document.createElement('option'), {
-            value: t.id_turno,
-            textContent: `${t.indice}° — ${fmtTime(t.orario_inizio)} - ${fmtTime(t.orario_fine)}${occ ? ' (Occupato)' : ''}`,
-        });
-        if (occ && !document.getElementById('pa-forza').checked) opt.disabled = true;
-        sel.appendChild(opt);
-    }
-    sel.disabled = false;
-    window.validatePrenotaAdmin();
+        sel.replaceChildren();
+        sel.appendChild(Object.assign(document.createElement('option'), { value: '', textContent: 'Seleziona turno', disabled: true, selected: true }));
+        for (const t of turniCache) {
+            const occ = occIds.has(t.id_turno);
+            const opt = Object.assign(document.createElement('option'), {
+                value: t.id_turno,
+                textContent: `${t.indice}° — ${fmtTime(t.orario_inizio)} - ${fmtTime(t.orario_fine)}${occ ? ' (Occupato)' : ''}`,
+            });
+            if (occ && !document.getElementById('pa-forza').checked) {
+                opt.disabled = true;
+            }
+            sel.appendChild(opt);
+        }
+        sel.disabled = false;
+        window.validatePrenotaAdmin();
+    });
 });
 
 ['pa-utente', 'pa-turno', 'pa-data'].forEach(id => {
@@ -761,10 +726,44 @@ window.confermaPrenotaAdmin = async () => {
     const btn = document.getElementById('btn-conferma-prenota-admin');
     if (btn) btn.disabled = true;
     try {
-        const { error } = await supabase.from('Prenotazione').insert({
-            id_utente, id_turno, data_prenotazione, stato,
-        });
-        if (error) throw error;
+        if (!document.getElementById('pa-forza').checked) {
+            const { error } = await supabase.from('Prenotazione').insert({
+                id_utente, id_turno, data_prenotazione, stato,
+            });
+            if (error) throw error;
+        }
+        else {
+            const { data, error } = await supabase
+                .from('Prenotazione')
+                .select('id_prenotazione')
+                .eq('data_prenotazione', data_prenotazione)
+                .eq('id_turno', id_turno)
+                .maybeSingle();
+
+            if (error) {
+                console.error("Errore:", error);
+            } else if (data) {
+                const { error1 } = await supabase
+                .from('Prenotazione')
+                .delete()
+                .eq('id_prenotazione', data.id_prenotazione)
+                .eq('id_turno', id_turno)
+                .eq('data_prenotazione', data_prenotazione);
+
+                const { errorfains } = await supabase.from('Prenotazione').insert({
+                    id_utente, id_turno, data_prenotazione, stato,
+                });
+                if (error1) throw error1;
+                console.log("ID Utente che ha prenotato:", data.id_utente);
+            } else {
+                const { errorfains } = await supabase.from('Prenotazione').insert({
+                    id_utente, id_turno, data_prenotazione, stato,
+                });
+                console.log("Nessuna prenotazione trovata per questa data e turno.");
+            }
+            
+        }
+
         window.closeModal('prenota-admin');
         window.calendarRender?.invalidateBookingsCache?.();
         window.calendarRender?.render?.();

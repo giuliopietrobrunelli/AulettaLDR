@@ -409,7 +409,8 @@
         #modal-modifica-utente .full-modal-content,
         #modal-prenota-admin .full-modal-content,
         #modal-modifica-turno .full-modal-content,
-        #modal-nuovo-turno .full-modal-content {
+        #modal-nuovo-turno .full-modal-content,
+        #modal-elimina-turno .full-modal-content {
             gap: 12px;
         }
 
@@ -417,7 +418,8 @@
         #modal-modifica-utente .form-block label span,
         #modal-prenota-admin .form-block label span,
         #modal-modifica-turno .form-block label span,
-        #modal-nuovo-turno .form-block label span {
+        #modal-nuovo-turno .form-block label span,
+        #modal-elimina-turno .form-block label span {
             font-size: 12px;
             opacity: .6;
         }
@@ -562,7 +564,7 @@
             </div>
 
             <!-- Ultime prenotazioni -->
-            
+
 
         </section>
 
@@ -658,6 +660,11 @@
                 <span style="font-size:12px; opacity:.4; font-style:italic">Caricamento turni…</span>
             </div>
 
+        </section>
+
+        <!-- ════ SEZIONE: PRENOTAZIONI ════ -->
+        <section class="dash-section" id="section-calendario">
+
             <!-- Prenotazione privilegiata admin -->
             <div class="divider"></div>
             <div class="section-header">
@@ -671,13 +678,8 @@
                 Come amministratore puoi prenotare un turno per qualsiasi utente, senza limitazioni di data o settimana.
             </div>
 
-        </section>
-
-        <!-- ════ SEZIONE: CALENDARIO ════ -->
-        <section class="dash-section" id="section-calendario">
-
             <div class="section-header" style="margin-top:8px">
-                <span class="section-title" style="font-size:14px">Ultime prenotazioni</span>
+                <span class="section-title" style="font-size:14px">Prenotazioni</span>
             </div>
             <div class="table-container">
                 <table class="data-table">
@@ -697,6 +699,8 @@
                     </tbody>
                 </table>
             </div>
+
+
 
         </section>
 
@@ -876,15 +880,9 @@
     <div id="modal-modifica-turno" class="full-modal">
         <div class="full-modal-body">
             <div class="modal-header">
-                <span class="modal-title" id="modal-turno-title">Turno</span>
-                <span class="modal-subtitle" id="modal-turno-subtitle">—</span>
+                <span class="modal-title" id="modal-turno-title">Modifica turno</span>
             </div>
             <div class="full-modal-content">
-                <input type="hidden" id="mt-id">
-                <div class="form-block">
-                    <label for="mt-indice"><span>Indice (posizione)</span></label>
-                    <input type="number" id="mt-indice" min="1" max="10" placeholder="1">
-                </div>
                 <div class="form-block">
                     <label for="mt-inizio"><span>Orario inizio *</span></label>
                     <input type="time" id="mt-inizio">
@@ -893,6 +891,13 @@
                     <label for="mt-fine"><span>Orario fine *</span></label>
                     <input type="time" id="mt-fine">
                 </div>
+                <div class="form-block">
+                    <label for="btn-elimina-turno"><span>Elimina turno</span></label>
+                    <button type="button" class="w-text danger" onclick="eliminaTurno()">
+                        <i data-lucide="trash-2"></i> Elimina Turno
+                    </button>
+                </div>
+
                 <p id="modifica-turno-error" class="form-error" style="display:none"></p>
             </div>
             <div class="full-modal-footer">
@@ -910,15 +915,9 @@
     <div id="modal-nuovo-turno" class="full-modal">
         <div class="full-modal-body">
             <div class="modal-header">
-                <span class="modal-title" id="modal-nuovo-turno-title">Turno</span>
-                <span class="modal-subtitle" id="modal-nuovo-turno-subtitle">—</span>
+                <span class="modal-title" id="modal-nuovo-turno-title">Nuovo turno</span>
             </div>
             <div class="full-modal-content">
-                <input type="hidden" id="nt-id">
-                <div class="form-block">
-                    <label for="nt-indice"><span>Indice (posizione)</span></label>
-                    <input type="number" id="nt-indice" min="1" max="10" placeholder="1">
-                </div>
                 <div class="form-block">
                     <label for="nt-inizio"><span>Orario inizio *</span></label>
                     <input type="time" id="nt-inizio">
@@ -933,6 +932,34 @@
                 <div class="horizontal-container" style="gap:8px">
                     <button type="button" class="w-text" onclick="closeModal('nuovo-turno')">Annulla</button>
                     <button type="button" class="w-text active" onclick="salvaNuovoTurno()">
+                        <i data-lucide="save" class="lucide"></i><span>Salva</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Elimina turno -->
+    <div id="modal-elimina-turno" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-elimina-turno-title">Elimina turno</span>
+            </div>
+            <div class="full-modal-content">
+                <div class="form-block">
+                    <label for="nt-inizio"><span>Orario inizio *</span></label>
+                    <input type="time" id="nt-inizio">
+                </div>
+                <div class="form-block">
+                    <label for="nt-fine"><span>Orario fine *</span></label>
+                    <input type="time" id="nt-fine">
+                </div>
+                <p id="elimina-turno-error" class="form-error" style="display:none"></p>
+            </div>
+            <div class="full-modal-footer">
+                <div class="horizontal-container" style="gap:8px">
+                    <button type="button" class="w-text" onclick="closeModal('elimina-turno')">Annulla</button>
+                    <button type="button" class="w-text active" onclick="eliminaTurno()">
                         <i data-lucide="save" class="lucide"></i><span>Salva</span>
                     </button>
                 </div>
@@ -969,7 +996,7 @@
                     <select id="pa-stato" class="form-control">
                         <option value="confermata" selected>Confermata</option>
                         <option value="non_confermata">Non confermata</option>
-                        
+
                         <option value="riservata">Riservata</option>
                     </select>
                 </div>
