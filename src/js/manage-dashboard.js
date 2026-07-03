@@ -848,9 +848,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await window.loadUtenti();
     await window.loadTurni();
 
-  await window.loadStats();
-  await window.loadUtenti();
-  await window.loadTurni();
+    window.populateUtentiPa();
 
     if (window.calendarRender) {
         window.calendarRender.getNavigableMonthOffsets = function () {
@@ -858,13 +856,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
         window.calendarRender.canViewNextMonth = () => true;
     }
-
-  if (window.calendarRender) {
-    window.calendarRender.getNavigableMonthOffsets = function () {
-      return { min: -12, max: 12 };
-    };
-    window.calendarRender.canViewNextMonth = () => true;
-  }
 
   const user = window.ldrProfilo;
   if (user) {
