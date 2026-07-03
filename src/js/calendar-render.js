@@ -2,6 +2,10 @@ import { showToast } from "./toast.js";
 import { openModificaModal } from "./bookings-view.js";
 import { supabase } from "./supabase-client.js";
 import { getAllTurni } from "./db.js";
+import { showToast } from "./toast.js";
+import { openModificaModal } from "./bookings-view.js";
+import { supabase } from "./supabase-client.js";
+import { getAllTurni } from "./db.js";
 
 // array dei nomi dei mesi in italiano
 const MONTHS = [
@@ -176,38 +180,6 @@ const calendarRender = {
 
     // avvia la sottoscrizione realtime alle prenotazioni
     this.initRealtimeSync();
-  },
-
-  // sottoscrive ai cambiamenti realtime sulla tabella Prenotazione,
-  // invalidando la cache locale e ridisegnando la vista corrente quando
-  // qualcosa cambia (da qualunque utente/dispositivo/trigger)
-  initRealtimeSync() {
-    // evita doppie sottoscrizioni se init() venisse richiamato più volte
-    if (this.realtimeChannel) {
-      supabase.removeChannel(this.realtimeChannel);
-      this.realtimeChannel = null;
-    }
-
-    this.realtimeChannel = supabase
-      .channel("prenotazioni-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "Prenotazione" },
-        () => {
-          this.invalidateBookingsCache();
-          this.render();
-          window.ldrBookings?.refresh?.();
-        },
-      )
-      .subscribe((status) => {
-        // alla riconnessione dopo un drop, risincronizza tutto per sicurezza
-        // (potrebbero essere stati persi eventi durante la disconnessione)
-        if (status === "SUBSCRIBED") {
-          this.invalidateBookingsCache();
-          this.render();
-          window.ldrBookings?.refresh?.();
-        }
-      });
   },
 
   // sottoscrive ai cambiamenti realtime sulla tabella Prenotazione,
