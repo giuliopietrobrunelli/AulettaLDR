@@ -561,10 +561,7 @@ window.salvaModificaTurno = async () => {
         showError('modifica-turno-error', e.message ?? 'Errore.');
     }
     window.closeModal("modifica-turno");
-    await window.loadTurni();
-  } catch (e) {
-    showError("modifica-turno-error", e.message ?? "Errore.");
-  }
+    await window.loadTurni(); 
 };
 
 window.salvaNuovoTurno = async () => {
