@@ -1,5 +1,5 @@
 import { showToast } from "./toast.js";
-import { openModificaModal } from "./bookings-view.js"
+import { openModificaModal } from "./bookings-view.js";
 import { supabase } from "./supabase-client.js";
 
 // array dei nomi dei mesi in italiano
@@ -108,8 +108,12 @@ const calendarRender = {
     this.btnDayPrev?.addEventListener("click", () => this.goDayPrev());
     this.btnDayNext?.addEventListener("click", () => this.goDayNext());
     this.btnDayToday?.addEventListener("click", () => this.goDayToday());
-    this.btnBookingCancel?.addEventListener("click", () => this.clearSelection());
-    this.btnBookingConfirm?.addEventListener("click", () => this.confirmBooking());
+    this.btnBookingCancel?.addEventListener("click", () =>
+      this.clearSelection(),
+    );
+    this.btnBookingConfirm?.addEventListener("click", () =>
+      this.confirmBooking(),
+    );
 
     // cambio modalità tra mese e settimana
     document.querySelectorAll("[data-calendar-switch]").forEach((btn) => {
@@ -133,7 +137,9 @@ const calendarRender = {
         this.openDayView(this.parseDateISO(header.dataset.date));
         return;
       }
-      const turn = e.target.closest('.turn[data-status="available"], .turn[data-status="auto-confirm"]');
+      const turn = e.target.closest(
+        '.turn[data-status="available"], .turn[data-status="auto-confirm"]',
+      );
       if (turn) this.selectSlot(turn);
     });
 
@@ -147,26 +153,30 @@ const calendarRender = {
 
       const ownTurn = e.target.closest('.day-turn[data-status="own"]');
       if (ownTurn) {
-        const day    = ownTurn.dataset.day;
+        const day = ownTurn.dataset.day;
         const turnId = ownTurn.dataset.turn;
         const booking = this.getSlotBooking(day, turnId);
 
         if (booking) {
-          const [d, m, y] = day.split('.').map(Number);
-          const [h, min]  = (booking.Turno?.orario_inizio ?? '00:00').split(':').map(Number);
+          const [d, m, y] = day.split(".").map(Number);
+          const [h, min] = (booking.Turno?.orario_inizio ?? "00:00")
+            .split(":")
+            .map(Number);
           const turnoStart = new Date(y, m - 1, d, h, min, 0, 0);
           const now = new Date();
           const diffMinuti = (now - turnoStart) / 60000; // positivo = turno già iniziato
 
           // modificabile se non ancora iniziato, o entro 30 min dall'inizio
-          if (diffMinuti < 30 && booking.stato !== 'confermata') {
+          if (diffMinuti < 30 && booking.stato !== "confermata") {
             openModificaModal(booking);
           }
         }
         return;
       }
 
-      const turn = e.target.closest('.day-turn[data-status="available"], .day-turn[data-status="auto-confirm"]');
+      const turn = e.target.closest(
+        '.day-turn[data-status="available"], .day-turn[data-status="auto-confirm"]',
+      );
       if (turn) this.selectSlot(turn);
     });
 
@@ -218,7 +228,10 @@ const calendarRender = {
     }
     const { data, error } = await getAllTurni();
     if (error || !data?.length) {
-      console.error("calendarRender: impossibile caricare i turni dal db", error);
+      console.error(
+        "calendarRender: impossibile caricare i turni dal db",
+        error,
+      );
       return;
     }
     // trasforma i turni dal db in array di oggetti con id e label
@@ -232,13 +245,14 @@ const calendarRender = {
 
   // restituisce l'orario in formato hh:mm
   formatClock(timeStr) {
-    return timeStr?.slice(0, 5) ?? '';
+    return timeStr?.slice(0, 5) ?? "";
   },
 
   // formatta l'etichetta del turno (es: '08:30 - 10:30' o '19:30 in poi')
   formatTurnLabel(turn) {
-    if (!turn) return '';
-    if (turn.indice === 7) return `${this.formatClock(turn.orario_inizio)} in poi`;
+    if (!turn) return "";
+    if (turn.indice === 7)
+      return `${this.formatClock(turn.orario_inizio)} in poi`;
     return `${this.formatClock(turn.orario_inizio)} - ${this.formatClock(turn.orario_fine)}`;
   },
 
@@ -450,24 +464,27 @@ const calendarRender = {
   getSlotStatus(date, turnId) {
     const slotBooking = this.getSlotBooking(this.formatDateISO(date), turnId);
     if (slotBooking) {
-      if (window.ldrProfilo && slotBooking.id_utente === window.ldrProfilo.id_utente) {
+      if (
+        window.ldrProfilo &&
+        slotBooking.id_utente === window.ldrProfilo.id_utente
+      ) {
         return "own";
       }
       return "occupied";
     }
     if (this.isBeforeDate(date, this.today)) return "past";
     if (!this.isBookableDate(date)) return "locked";
-  
+
     // controllo orario solo per oggi
     if (this.isSameDate(date, this.today)) {
-      const turn = this.turns.find(t => t.id === turnId);
+      const turn = this.turns.find((t) => t.id === turnId);
       if (turn?.orario_inizio && turn?.orario_fine) {
         const timeStatus = this.getTurnTimeStatus(turn);
-        if (timeStatus === 'past') return 'past';
-        if (timeStatus === 'auto-confirm') return 'auto-confirm';
+        if (timeStatus === "past") return "past";
+        if (timeStatus === "auto-confirm") return "auto-confirm";
       }
     }
-  
+
     return "available";
   },
 
@@ -488,21 +505,21 @@ const calendarRender = {
     for (const prenotazione of data ?? []) {
       const indice = prenotazione.Turno?.indice;
       if (!indice || !prenotazione.data_prenotazione) continue;
-  
+
       const day = this.formatDateISOFromDb(prenotazione.data_prenotazione);
       const turnId = String(indice);
-  
+
       map.set(`${day}.${turnId}`, {
-        id_utente:         prenotazione.id_utente,
-        nome:              prenotazione.Utente?.nome ?? '',
-        cognome:           prenotazione.Utente?.cognome ?? '',
-        foto_profilo:      prenotazione.Utente?.foto_profilo ?? null,
-        id_prenotazione:   prenotazione.id_prenotazione,
+        id_utente: prenotazione.id_utente,
+        nome: prenotazione.Utente?.nome ?? "",
+        cognome: prenotazione.Utente?.cognome ?? "",
+        foto_profilo: prenotazione.Utente?.foto_profilo ?? null,
+        id_prenotazione: prenotazione.id_prenotazione,
         data_prenotazione: prenotazione.data_prenotazione,
-        stato:             prenotazione.stato,
-        data_conferma:     prenotazione.data_conferma ?? null,
-        Turno:             prenotazione.Turno ?? null,
-        Utente:            prenotazione.Utente ?? null,
+        stato: prenotazione.stato,
+        data_conferma: prenotazione.data_conferma ?? null,
+        Turno: prenotazione.Turno ?? null,
+        Utente: prenotazione.Utente ?? null,
       });
     }
     return map;
@@ -562,9 +579,9 @@ const calendarRender = {
 
   // svuota la cache delle prenotazioni
   async invalidateBookingsCache() {
-      // console.log("invalidati e refresh");
-      this.bookingsRangeCache.clear();
-      this.bookingsBySlot.clear();
+    // console.log("invalidati e refresh");
+    this.bookingsRangeCache.clear();
+    this.bookingsBySlot.clear();
   },
 
   // assicura che il db sia pronto prima di fare richieste
@@ -637,26 +654,34 @@ const calendarRender = {
 
     const checkDiv = document.createElement("div");
     checkDiv.className = "check-day-turn";
-    checkDiv.appendChild(Object.assign(document.createElement("span"), {
-      className: "skeleton skeleton-checkbox",
-    }));
-    checkDiv.appendChild(Object.assign(document.createElement("span"), {
-      className: "skeleton skeleton-label",
-      textContent: `${index + 1}°`,
-    }));
+    checkDiv.appendChild(
+      Object.assign(document.createElement("span"), {
+        className: "skeleton skeleton-checkbox",
+      }),
+    );
+    checkDiv.appendChild(
+      Object.assign(document.createElement("span"), {
+        className: "skeleton skeleton-label",
+        textContent: `${index + 1}°`,
+      }),
+    );
 
     const timeDiv = document.createElement("div");
     timeDiv.className = "time-day-turn";
-    timeDiv.appendChild(Object.assign(document.createElement("span"), {
-      className: "skeleton skeleton-label",
-      textContent: turn.label,
-    }));
+    timeDiv.appendChild(
+      Object.assign(document.createElement("span"), {
+        className: "skeleton skeleton-label",
+        textContent: turn.label,
+      }),
+    );
 
     const userDiv = document.createElement("div");
     userDiv.className = "user-day-turn";
-    userDiv.appendChild(Object.assign(document.createElement("span"), {
-      className: "skeleton skeleton-user",
-    }));
+    userDiv.appendChild(
+      Object.assign(document.createElement("span"), {
+        className: "skeleton skeleton-user",
+      }),
+    );
 
     el.append(checkDiv, timeDiv, userDiv);
     return el;
@@ -683,7 +708,7 @@ const calendarRender = {
       el.appendChild(this.createUserPreviewEl(booking));
     } else if (status == "own") {
       el.appendChild(this.createUserPreviewEl(booking));
-      el.addEventListener('click', () => {
+      el.addEventListener("click", () => {
         // console.log('click su turno own, booking:', booking);
         openModificaModal(booking);
       });
@@ -834,7 +859,10 @@ const calendarRender = {
 
     // crea la griglia dei giorni visualizzati (anche giorni extra mese)
     const cells = this.buildMonthGrid(year, month);
-    const cacheKey = this.getBookingsCacheKey(cells[0], cells[cells.length - 1]);
+    const cacheKey = this.getBookingsCacheKey(
+      cells[0],
+      cells[cells.length - 1],
+    );
     const hasCache = this.applyBookingsCache(cells[0], cells[cells.length - 1]);
 
     rowsEl.replaceChildren();
@@ -857,7 +885,11 @@ const calendarRender = {
     }
 
     await this.ensureDbReady();
-    await this.fetchAndCacheBookings(cells[0], cells[cells.length - 1], cacheKey);
+    await this.fetchAndCacheBookings(
+      cells[0],
+      cells[cells.length - 1],
+      cacheKey,
+    );
     if (gen !== this.renderGeneration) return;
 
     this.updateMonthBookings(rowsEl);
@@ -1195,14 +1227,15 @@ const calendarRender = {
 
     const base = `${date.getDate()} ${MONTHS[date.getMonth()]}`;
 
-    if (this.isSameDate(date, this.today)) {return `Oggi, ${base}`;}
-    else if (this.isTomorrow(date)) {return `Domani, ${base}`;}
-    else {
+    if (this.isSameDate(date, this.today)) {
+      return `Oggi, ${base}`;
+    } else if (this.isTomorrow(date)) {
+      return `Domani, ${base}`;
+    } else {
       return `${weekdayLabel}, ${base}`;
     }
 
     // return base;
-
   },
 
   // controlla se la data è domani
@@ -1229,9 +1262,7 @@ const calendarRender = {
 
   // controlla se uno slot è selezionato nella selezione attuale
   isSlotSelected(day, turnId) {
-    return this.selectedSlots.some(
-      (s) => s.day === day && s.turnId === turnId,
-    );
+    return this.selectedSlots.some((s) => s.day === day && s.turnId === turnId);
   },
 
   // restituisce il nome breve utente (es. 'L. Rossi')
@@ -1289,12 +1320,14 @@ const calendarRender = {
   // deselezionare uno slot (rimuovere stato e icona/nome)
   markSlotDeselected(turnEl) {
     turnEl.classList.remove("selected");
-  
-    const isSelectable = turnEl.dataset.status === "available" || turnEl.dataset.status === "auto-confirm";
-  
+
+    const isSelectable =
+      turnEl.dataset.status === "available" ||
+      turnEl.dataset.status === "auto-confirm";
+
     const input = turnEl.querySelector('input[type="checkbox"]');
     if (input && isSelectable) input.checked = false;
-  
+
     const userDiv = turnEl.querySelector(".user-day-turn");
     if (userDiv && isSelectable) {
       userDiv.replaceChildren();
@@ -1304,7 +1337,7 @@ const calendarRender = {
       if (typeof lucide !== "undefined") lucide.createIcons();
       return;
     }
-  
+
     if (turnEl.classList.contains("turn") && isSelectable) {
       turnEl.replaceChildren();
       const icon = document.createElement("i");
@@ -1318,8 +1351,14 @@ const calendarRender = {
   selectSlot(turnEl) {
     const day = turnEl.dataset.day;
     const turnId = turnEl.dataset.turn;
-    if (!day || !turnId || (turnEl.dataset.status !== "available" && turnEl.dataset.status !== "auto-confirm")) return;
-    
+    if (
+      !day ||
+      !turnId ||
+      (turnEl.dataset.status !== "available" &&
+        turnEl.dataset.status !== "auto-confirm")
+    )
+      return;
+
     if (this.isSlotSelected(day, turnId)) {
       this.selectedSlots = this.selectedSlots.filter(
         (s) => !(s.day === day && s.turnId === turnId),
@@ -1408,7 +1447,10 @@ const calendarRender = {
           : `.turn[data-day="${day}"][data-turn="${turnId}"]`;
       const el = document.querySelector(selector);
 
-      if (el?.dataset.status === "available" || el?.dataset.status === "auto-confirm") {
+      if (
+        el?.dataset.status === "available" ||
+        el?.dataset.status === "auto-confirm"
+      ) {
         this.markSlotSelected(el, { animate: false });
         remaining.push({ day, turnId });
       }
@@ -1437,11 +1479,17 @@ const calendarRender = {
     }
 
     const { getPrenotazioniUtente } = window.ldrDb ?? {};
-    const { MAX_WEEKLY_BOOKINGS, countWeeklyBookings } = window.ldrBookingConfig ?? {};
+    const { MAX_WEEKLY_BOOKINGS, countWeeklyBookings } =
+      window.ldrBookingConfig ?? {};
 
     if (getPrenotazioniUtente && countWeeklyBookings) {
-      const weekStart = this.formatDateForDb(this.formatDateISO(this.getWeekStart(this.today)));
-      const { data: miePrenotazioni } = await getPrenotazioniUtente(profilo.id_utente, weekStart);
+      const weekStart = this.formatDateForDb(
+        this.formatDateISO(this.getWeekStart(this.today)),
+      );
+      const { data: miePrenotazioni } = await getPrenotazioniUtente(
+        profilo.id_utente,
+        weekStart,
+      );
 
       // raggruppa i nuovi slot per settimana (inizio settimana come chiave)
       const nuovePerSettimana = new Map();
@@ -1458,20 +1506,20 @@ const calendarRender = {
         wsEnd.setDate(wsEnd.getDate() + 6);
 
         // conta solo le prenotazioni già esistenti in quella specifica settimana
-        const esistenti = (miePrenotazioni ?? []).filter(p => {
-          const d = new Date(p.data_prenotazione.split('T')[0]);
+        const esistenti = (miePrenotazioni ?? []).filter((p) => {
+          const d = new Date(p.data_prenotazione.split("T")[0]);
           return d >= wsStart && d <= wsEnd;
         }).length;
 
         if (esistenti + nuove > MAX_WEEKLY_BOOKINGS) {
-          const modal = document.getElementById('modal-booking-denied');
+          const modal = document.getElementById("modal-booking-denied");
           if (modal) {
             if (window.modal && typeof window.modal.open === "function") {
-              window.modal.open('booking-denied');
+              window.modal.open("booking-denied");
             } else {
-              modal.classList.add('showing');
-              modal.style.display = 'block';
-              modal.setAttribute('aria-hidden', 'false');
+              modal.classList.add("showing");
+              modal.style.display = "block";
+              modal.setAttribute("aria-hidden", "false");
             }
           }
           return;
@@ -1480,29 +1528,32 @@ const calendarRender = {
     }
 
     // controlla se ci sono slot auto-confirm e avvisa l'utente
-    const slotsAutoConfirm = this.selectedSlots.filter(slot => {
+    const slotsAutoConfirm = this.selectedSlots.filter((slot) => {
       const el = document.querySelector(
-        `[data-day="${slot.day}"][data-turn="${slot.turnId}"]`
+        `[data-day="${slot.day}"][data-turn="${slot.turnId}"]`,
       );
-      return el?.dataset.status === 'auto-confirm';
+      return el?.dataset.status === "auto-confirm";
     });
 
     if (slotsAutoConfirm.length) {
-      const nomi = slotsAutoConfirm.map(slot => {
-        const turn = this.turns.find(t => t.id === slot.turnId);
-        return `${turn?.label ?? slot.turnId}`;
-      }).join(', ');
+      const nomi = slotsAutoConfirm
+        .map((slot) => {
+          const turn = this.turns.find((t) => t.id === slot.turnId);
+          return `${turn?.label ?? slot.turnId}`;
+        })
+        .join(", ");
 
-      const testo = slotsAutoConfirm.length === 1
-        ? `Il turno delle ${nomi} è già iniziato da più di 30 minuti. Se lo prenoti verrà confermato automaticamente e non potrai rinunciarci.`
-        : `Uno deii turni selezionati è già iniziato da più di 30 minuti. Se lo prenoti verrà confermato automaticamente e non potrai rinunciarci.`;
+      const testo =
+        slotsAutoConfirm.length === 1
+          ? `Il turno delle ${nomi} è già iniziato da più di 30 minuti. Se lo prenoti verrà confermato automaticamente e non potrai rinunciarci.`
+          : `Uno deii turni selezionati è già iniziato da più di 30 minuti. Se lo prenoti verrà confermato automaticamente e non potrai rinunciarci.`;
 
-      document.getElementById('auto-confirm-warning-text').textContent = testo;
+      document.getElementById("auto-confirm-warning-text").textContent = testo;
 
       // aspetta la scelta dell'utente prima di procedere
       const confermato = await new Promise((resolve) => {
-        const btnOk = document.getElementById('btn-auto-confirm-ok');
-        const btnAnnulla = document.getElementById('btn-auto-confirm-annulla');
+        const btnOk = document.getElementById("btn-auto-confirm-ok");
+        const btnAnnulla = document.getElementById("btn-auto-confirm-annulla");
 
         const cleanup = () => {
           btnOk.replaceWith(btnOk.cloneNode(true));
@@ -1510,16 +1561,16 @@ const calendarRender = {
           window.modal?.closeAll();
         };
 
-        document.getElementById('btn-auto-confirm-ok').onclick = () => {
+        document.getElementById("btn-auto-confirm-ok").onclick = () => {
           cleanup();
           resolve(true);
         };
-        document.getElementById('btn-auto-confirm-annulla').onclick = () => {
+        document.getElementById("btn-auto-confirm-annulla").onclick = () => {
           cleanup();
           resolve(false);
         };
 
-        window.modal?.open('auto-confirm-warning');
+        window.modal?.open("auto-confirm-warning");
         lucide.createIcons();
       });
 
@@ -1556,9 +1607,9 @@ const calendarRender = {
       }
 
       const slotEl = document.querySelector(
-        `[data-day="${slot.day}"][data-turn="${slot.turnId}"]`
+        `[data-day="${slot.day}"][data-turn="${slot.turnId}"]`,
       );
-      const autoConfirm = slotEl?.dataset.status === 'auto-confirm';
+      const autoConfirm = slotEl?.dataset.status === "auto-confirm";
 
       prenotazioni.push({
         id_utente: profilo.id_utente,
@@ -1569,16 +1620,17 @@ const calendarRender = {
 
       // Prepara dati dettagliati (incluse date, orari, indici) per la modal
       const dateObj = this.parseDateISO(slot.day);
-      const weekdayFull = WEEKDAYS_FULL[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1];
+      const weekdayFull =
+        WEEKDAYS_FULL[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1];
       const day = dateObj.getDate();
       const month = MONTHS[dateObj.getMonth()].toLowerCase();
       const year = dateObj.getFullYear();
       // Trova il turno associato
-      const turno = turni.find(t => t.id_turno === id_turno);
+      const turno = turni.find((t) => t.id_turno === id_turno);
       // console.log('turno trovato:', turno, '| id_turno cercato:', id_turno);
       let fasciaOraria = "";
 
-      const formatTime = (time) => time?.slice(0, 5) ?? '';
+      const formatTime = (time) => time?.slice(0, 5) ?? "";
       if (turno && turno.orario_inizio && turno.orario_fine) {
         fasciaOraria = `${formatTime(turno.orario_inizio)} - ${formatTime(turno.orario_fine)}`;
       } else if (slot.timeLabel) {
@@ -1601,15 +1653,15 @@ const calendarRender = {
 
     this.btnBookingConfirm.disabled = false;
 
-    if (error) { // molto probabilmente se l'errore viene sollevato è per via del turno già occupato mentre l'utente navigava. la pagina non è stata ricaricata e la prenotazione non è stata mostrata
-      const msg = 'Turno già occupato! Riprova.';
+    if (error) {
+      // molto probabilmente se l'errore viene sollevato è per via del turno già occupato mentre l'utente navigava. la pagina non è stata ricaricata e la prenotazione non è stata mostrata
+      const msg = "Turno già occupato! Riprova.";
       if (typeof showToast === "function") {
-        showToast('error', msg, 'x');
+        showToast("error", msg, "x");
         this.clearSelection();
         this.invalidateBookingsCache();
         window.ldrBookings?.refresh();
         this.render();
-
       } else {
         alert(msg);
       }
@@ -1623,27 +1675,27 @@ const calendarRender = {
     this.render();
 
     // mostra la modal di conferma prenotazione con i dati giusti
-    const modal = document.getElementById('modal-booking-success');
+    const modal = document.getElementById("modal-booking-success");
     if (modal) {
-      const summaryList = modal.querySelector('#booking-summary-list');
+      const summaryList = modal.querySelector("#booking-summary-list");
       if (summaryList) {
-        summaryList.innerHTML = '';
+        summaryList.innerHTML = "";
         for (const dati of datiModal) {
-          const row = document.createElement('div');
-          row.className = 'booking-summary-row';
+          const row = document.createElement("div");
+          row.className = "booking-summary-row";
 
-          const dateSpan = document.createElement('span');
-          dateSpan.className = 'summary-date';
+          const dateSpan = document.createElement("span");
+          dateSpan.className = "summary-date";
           dateSpan.textContent = `${dati.weekday} ${dati.day} ${dati.month} ${dati.year} — ${dati.indice}° Turno`;
 
-          const timeSpan = document.createElement('span');
-          timeSpan.className = 'summary-time';
+          const timeSpan = document.createElement("span");
+          timeSpan.className = "summary-time";
           timeSpan.textContent = dati.fasciaOraria;
 
           if (dati.autoConfirm) {
-            const badge = document.createElement('span');
-            badge.className = 'summary-badge-autoconfirm';
-            badge.textContent = 'confermato ora';
+            const badge = document.createElement("span");
+            badge.className = "summary-badge-autoconfirm";
+            badge.textContent = "confermato ora";
             row.appendChild(badge);
           }
 
@@ -1654,14 +1706,14 @@ const calendarRender = {
       }
 
       if (window.modal && typeof window.modal.open === "function") {
-        window.modal.open('booking-success');
+        window.modal.open("booking-success");
       } else {
-        modal.classList.add('showing');
-        modal.style.display = 'block';
-        modal.setAttribute('aria-hidden', 'false');
+        modal.classList.add("showing");
+        modal.style.display = "block";
+        modal.setAttribute("aria-hidden", "false");
       }
     }
-},
+  },
 
   // funzioni utili ------------------
 
@@ -1700,26 +1752,24 @@ const calendarRender = {
     const now = new Date();
     const toMinutes = (t) => {
       if (!t) return 0;
-      const [h, m] = t.split(':').map(Number);
+      const [h, m] = t.split(":").map(Number);
       return h * 60 + m;
     };
     const nowMin = now.getHours() * 60 + now.getMinutes();
     const startMin = toMinutes(turn.orario_inizio);
-  
+
     const fine = turn.orario_fine;
     const fineMin = toMinutes(fine);
     // se manca l'orario di fine, è zero, o è mezzanotte → dura fino a fine giornata
-    const endMin = (!fine || fineMin === 0 || fineMin <= startMin)
-      ? 24 * 60
-      : fineMin;
-  
-    const midMin = Math.floor((startMin + endMin) / 2);
-  
-    if (nowMin >= endMin) return 'past';
-    if (nowMin >= midMin) return 'auto-confirm';
-    return 'future';
-  },
+    const endMin =
+      !fine || fineMin === 0 || fineMin <= startMin ? 24 * 60 : fineMin;
 
+    const midMin = Math.floor((startMin + endMin) / 2);
+
+    if (nowMin >= endMin) return "past";
+    if (nowMin >= midMin) return "auto-confirm";
+    return "future";
+  },
 };
 
 // avvia il calendario al caricamento della pagina
