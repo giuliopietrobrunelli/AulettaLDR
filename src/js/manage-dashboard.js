@@ -848,7 +848,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await window.loadUtenti();
     await window.loadTurni();
 
-    window.populateUtentiPa();
+    window.populatePaUtenti();
 
     if (window.calendarRender) {
         window.calendarRender.getNavigableMonthOffsets = function () {
