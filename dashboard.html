@@ -283,6 +283,11 @@
             font-weight: 500;
         }
 
+        .badge-red {
+            background: var(--red);
+            color: var(--red-text);
+        }
+
         .badge-green {
             background: var(--green);
             color: var(--green-text);
@@ -297,6 +302,11 @@
         .badge-yellow {
             background: var(--aula);
             color: var(--black);
+        }
+
+        .badge-blue {
+            background: #dbeafe;
+            color: #1d4ed8;
         }
 
         .table-actions {
@@ -459,6 +469,12 @@
             font-size: 12px;
             opacity: .75;
         }
+
+        #gf-contenuto[readonly] {
+            background: var(--gray);
+            resize: none;
+        }
+
     </style>
 </head>
 
@@ -471,7 +487,7 @@
                 <a href="index.html">
                     <img src="/src/img/logo-prenotaldr-giallo.webp" alt="">
                 </a>
-                <h2>Dashboard <span class="semibold">Admin</span></h2>
+                <h2>Dashboard amministratori</h2>
             </div>
         </div>
 
@@ -505,7 +521,7 @@
                 <i data-lucide="bar-chart-2" class="lucide"></i>
                 <span>Statistiche</span>
             </button>
-            <button type="button" class="w-text mini" id="btn-nav-feedback" onclick="showSection('impostazioni')">
+            <button type="button" class="w-text mini" id="btn-nav-feedback" onclick="showSection('feedback')">
                 <i data-lucide="megaphone" class="lucide"></i>
                 <span>Feedback</span>
             </button>
@@ -704,6 +720,38 @@
 
         </section>
 
+        <!-- ════ SEZIONE: FEEDBACK ════ -->
+        <section class="dash-section" id="section-feedback">
+
+            <div class="section-header">
+                <span class="section-title">Feedback ricevuti</span>
+                <button class="w-text mini" onclick="window.loadFeedback()">
+                    <i data-lucide="refresh-cw" class="lucide"></i>
+                    <span>Aggiorna</span>
+                </button>
+            </div>
+
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Utente</th>
+                            <th>Categoria</th>
+                            <th>Contenuto</th>
+                            <th>Data</th>
+                            <th>Stato</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-feedback">
+                        <tr class="empty-row">
+                            <td colspan="5">Caricamento…</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
         <!-- ════ SEZIONE: IMPOSTAZIONI ════ -->
         <section class="dash-section" id="section-impostazioni">
 
@@ -716,7 +764,7 @@
                 <div class="setting-row">
                     <label for="input-limite-settimanale">Limite prenotazioni settimanali</label>
                     <div class="horizontal-container">
-                        <input type="number" id="input-limite-settimanale" min="1" max="30" value="7"
+                        <input type="number" id="input-limite-settimanale" min="1" max="100" value=""
                             style="max-width:100px">
                         <button class="w-text" onclick="salvaLimite()">
                             <i data-lucide="save" class="lucide"></i>
@@ -751,7 +799,7 @@
 
     <!-- ── Footer ─────────────────────────────────────────────────── -->
     <footer>
-        <h5>© 2010-2026 Il Lume della Ragione — Dashboard Admin</h5>
+        <h5>© 2010-2026 Il Lume della Ragione — Dashboard amministratori</h5>
         <h5 id="dash-admin-info" style="opacity:.4; font-style:italic"></h5>
     </footer>
 
@@ -1064,6 +1112,75 @@
             </div>
             <div class="full-modal-footer">
                 <button type="button" class="w-text" onclick="closeModal('booking-denied')">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gestisci feedback -->
+    <div id="modal-gestisci-feedback" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+                <span class="modal-title">Dettaglio feedback</span>
+            </div>
+            <div class="full-modal-content">
+                <div class="form-block">
+                    <label><span>Categoria</span></label>
+                    <div id="gf-categoria">—</div>
+                </div>
+                <div class="form-block">
+                    <label><span>Utente</span></label>
+                    <span class="" id="gf-utente">—</sp>
+                </div>
+                <div class="form-block">
+                    <label><span>Data invio</span></label>
+                    <span class="" id="gf-subtitle">—</sp>
+                </div>
+                <div class="form-block">
+                    <label><span>Contenuto</span></label>
+                    <textarea id="gf-contenuto" rows="8" readonly></textarea>
+                </div>
+                <div class="form-block">
+                    <label><span>Stato</span></label>
+                    <select id="gf-stato">
+                        <option value="non_gestito">Non gestito</option>
+                        <option value="in_lavorazione">In lavorazione</option>
+                        <option value="gestito">Gestito</option>
+                    </select>
+                </div>
+                <p id="gestisci-feedback-error" class="form-error" style="display:none"></p>
+            </div>
+            <div class="full-modal-footer">
+                <button type="button" class="w-text danger" id="btn-elimina-feedback">
+                    <i data-lucide="trash-2" class="lucide"></i>
+                    <span>Elimina</span>
+                </button>
+                <div class="horizontal-container" style="gap:8px">
+                    <button type="button" class="w-text" onclick="closeModal('gestisci-feedback')">Chiudi</button>
+                    <button type="button" class="w-text active" id="btn-salva-stato-feedback">
+                        <i data-lucide="save" class="lucide"></i>
+                        <span>Salva stato</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conferma una specifica azione -->
+    <div id="modal-confirm" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+            <span class="modal-title" id="confirm-action-title">Conferma -</span>
+            <span class="modal-subtitle" id="confirm-action-subtitle"></span>
+            </div>
+            <div class="full-modal-content">
+            <span id="confirm-action-message" style="font-size:13px"></span>
+            </div>
+            <div class="full-modal-footer">
+            <button type="button" class="w-text" id="btn-confirm-action-cancel">Annulla</button>
+            <button type="button" class="w-text active" id="btn-confirm-action-confirm">
+                <i data-lucide="check" class="lucide"></i>
+                <span id="confirm-action-confirm-text">Conferma</span>
+            </button>
             </div>
         </div>
     </div>

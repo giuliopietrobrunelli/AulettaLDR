@@ -7,13 +7,17 @@ import {
     getProfiloUtente,
     isAmministratore,
     setTurnoAttivo,
+    getAllFeedback,
+    deleteFeedback,
+    getSettimaneAnticipo,
+    updateSettimaneAnticipo,
+    updateLimiteSettimanale,
+    getLimiteSettimanale,
 } from './db.js';
-
 import { supabase } from "./supabase-client.js";
-
 import { setMainView } from "./main-view.js";
-
 import { showToast } from './toast.js';
+import { confirmAction } from "./confirm.js";
 
 // ─── 1. ESPOSIZIONE DI SICUREZZA ──────────────────────────────
 window.ldrDb = {
@@ -22,6 +26,12 @@ window.ldrDb = {
   getAllTurni,
   getPrenotazioniByDateRange,
   createPrenotazione,
+  getAllFeedback,
+  deleteFeedback,
+  getSettimaneAnticipo,
+  updateSettimaneAnticipo,
+  updateLimiteSettimanale,
+  getLimiteSettimanale,
 };
 
 // ─── Controllo accesso amministratore ───────────────────────────────────────────
@@ -50,7 +60,7 @@ async function guardAdminAccess() {
 // ─── Stato locale ───────────────────────────────────────────
 let allUtenti = [];
 let turniCache = [];
-let limiteSettimanale = 7;
+let limiteSettimanale = null;
 let pendingDeleteFn = null;
 let turnoInModificaId = null; // id del turno attualmente aperto nel modal "Modifica turno"
 
@@ -101,6 +111,7 @@ window.showSection = (id) => {
     if (id === 'utenti') window.loadUtenti();
     if (id === 'turni') window.loadTurni();
     if (id === 'calendario') window.calendarRender?.render?.();
+    if (id === 'feedback') window.loadFeedback();
     if (id === 'impostazioni') loadImpostazioni();
 };
 
@@ -809,31 +820,297 @@ window.confermaPrenotaAdmin = async () => {
     }
 };
 
-// ─── Impostazioni ───────────────────────────────────────────
-function loadImpostazioni() {
-  const limEl = document.getElementById("input-limite-settimanale");
-  if (limEl) limEl.value = limiteSettimanale;
-  const antEl = document.getElementById("input-settimane-anticipo");
-  if (antEl) antEl.value = window.calendarRender?.weeksBeforeNextMonthView ?? 1;
-}
+// ─── Feedback ───────────────────────────────────────────────
+let feedbackCache = [];
 
-window.salvaLimite = () => {
-  const v = parseInt(document.getElementById("input-limite-settimanale").value);
-  if (!v || v < 1) return;
-  limiteSettimanale = v;
-  if (window.ldrBookingConfig) window.ldrBookingConfig.MAX_WEEKLY_BOOKINGS = v;
-  document.getElementById("stat-limite").textContent = v;
-  alert(`Limite aggiornato a ${v} prenotazioni/settimana.`);
+// peso di ordinamento: non gestiti prima, gestiti in fondo
+const STATO_PESO = {
+  non_gestito: 0,
+  in_lavorazione: 1,
+  gestito: 2,
 };
 
-window.salvaAnticipo = () => {
-  const v = parseInt(document.getElementById("input-settimane-anticipo").value);
-  if (v === undefined || v < 0) return;
-  if (window.calendarRender) {
-    window.calendarRender.weeksBeforeNextMonthView = v;
-    window.calendarRender.render?.();
+window.loadFeedback = async () => {
+  try {
+    const { data, error } =
+      typeof window.ldrDb?.getAllFeedback === "function"
+        ? await window.ldrDb.getAllFeedback()
+        : await supabase
+            .from("Feedback")
+            .select(
+              "id_feedback, categoria, contenuto, created_at, stato, Utente:id_utente (nome, cognome, numero_tessera)",
+            )
+            .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    feedbackCache = (data ?? []).slice().sort((a, b) => {
+      const pesoA = STATO_PESO[a.stato] ?? 1;
+      const pesoB = STATO_PESO[b.stato] ?? 1;
+      if (pesoA !== pesoB) return pesoA - pesoB;
+      // a parità di stato, i più recenti prima
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+
+    renderFeedbackTable();
+  } catch (e) {
+    console.error("loadFeedback:", e);
   }
 };
+
+function renderFeedbackTable() {
+  const tbody = document.getElementById("table-feedback");
+  if (!tbody) return;
+
+  tbody.replaceChildren();
+
+  if (!feedbackCache.length) {
+    tbody.innerHTML =
+      '<tr class="empty-row"><td colspan="5">Nessun feedback ricevuto</td></tr>';
+    return;
+  }
+
+  for (const f of feedbackCache) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+        <td>${f.Utente ? `${escapeHtml(f.Utente.cognome)} ${escapeHtml(f.Utente.nome)}` : "—"}</td>
+        <td>${fmtCategoriaBadge(f.categoria)}</td>
+        <td class="feedback-content">${escapeHtml(troncaTesto(f.contenuto))}</td>
+        <td>${fmtDate(f.created_at)}</td>
+        <td>${fmtStatoBadge(f.stato)}</td>
+        `;
+
+    // apertura più comoda con click sulla tupla
+    tr.style.cursor = "pointer";
+    tr.addEventListener("click", function (e) {
+      if (e.target.closest("button")) return;
+      window.apriGestisciFeedback(f.id_feedback);
+    });
+    tbody.appendChild(tr);
+  }
+  if (window.lucide?.createIcons) window.lucide.createIcons();
+}
+
+// tronca il testo del feedback per la vista tabellare
+function troncaTesto(testo, max = 80) {
+  if (!testo) return "—";
+  return testo.length > max ? testo.slice(0, max) + "…" : testo;
+}
+
+// previene injection html dai campi testuali inseriti dagli utenti
+function escapeHtml(str) {
+  if (str == null) return "";
+  return String(str).replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+  );
+}
+
+// restituisce data e ora formattate (usato nel dettaglio feedback)
+function fmtDateTime(str) {
+  if (!str) return "—";
+  const d = new Date(str);
+  return d.toLocaleString("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+// apre il modal di dettaglio con tutte le informazioni del feedback selezionato
+window.apriGestisciFeedback = (id) => {
+  const f = feedbackCache.find((x) => x.id_feedback === id);
+  if (!f) return;
+
+  document.getElementById("gf-utente").textContent = f.Utente
+    ? `${f.Utente.cognome} ${f.Utente.nome} — n.${f.Utente.numero_tessera}`
+    : "Utente non disponibile";
+  document.getElementById("gf-categoria").innerHTML = fmtCategoriaBadge(f.categoria);
+  document.getElementById("gf-contenuto").value = f.contenuto ?? "";
+  document.getElementById("gf-subtitle").textContent = `${fmtDateTime(f.created_at)}`;
+
+  const statoSelect = document.getElementById("gf-stato");
+  if (statoSelect) statoSelect.value = f.stato ?? "non_gestito";
+
+  showError("gestisci-feedback-error", "");
+
+  const btnElimina = document.getElementById("btn-elimina-feedback");
+  if (btnElimina) {
+    btnElimina.onclick = () => confermaEliminaFeedback(f.id_feedback);
+  }
+
+  const btnSalvaStato = document.getElementById("btn-salva-stato-feedback");
+  if (btnSalvaStato) {
+    btnSalvaStato.onclick = () => salvaStatoFeedback(f.id_feedback);
+  }
+
+  window.openModal("gestisci-feedback");
+};
+
+// salva il nuovo stato scelto per il feedback
+async function salvaStatoFeedback(id_feedback) {
+  const statoSelect = document.getElementById("gf-stato");
+  const nuovoStato = statoSelect?.value;
+  if (!nuovoStato) return;
+
+  const btn = document.getElementById("btn-salva-stato-feedback");
+  if (btn) btn.disabled = true;
+
+  try {
+    const { error } =
+      typeof window.ldrDb?.updateStatoFeedback === "function"
+        ? await window.ldrDb.updateStatoFeedback(id_feedback, nuovoStato)
+        : await supabase
+            .from("Feedback")
+            .update({ stato: nuovoStato })
+            .eq("id_feedback", id_feedback);
+    if (error) throw error;
+
+    showToast("success", "Stato aggiornato", "check");
+    window.closeModal("gestisci-feedback");
+    await window.loadFeedback();
+  } catch (e) {
+    console.error("salvaStatoFeedback:", e);
+    showToast("error", "Impossibile aggiornare lo stato", "x");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// chiede conferma ed elimina il feedback
+async function confermaEliminaFeedback(id_feedback) {
+  const confirmed = await confirmAction({
+    title: "Conferma eliminazione",
+    message: "Confermi di voler eliminare questo feedback? L'operazione non può essere annullata.",
+    confirmText: "Elimina",
+    danger: true,
+  });
+  if (!confirmed) return;
+
+  try {
+    const { error } =
+      typeof window.ldrDb?.deleteFeedback === "function"
+        ? await window.ldrDb.deleteFeedback(id_feedback)
+        : await supabase.from("Feedback").delete().eq("id_feedback", id_feedback);
+    if (error) throw error;
+
+    window.closeModal("gestisci-feedback");
+    showToast("success", "Feedback eliminato", "check");
+    await window.loadFeedback();
+  } catch (e) {
+    console.error("eliminaFeedback:", e);
+    showToast("error", "Impossibile eliminare il feedback", "x");
+  }
+}
+
+// restituisce il badge colorato in base alla categoria del feedback
+function fmtCategoriaBadge(categoria) {
+  const map = {
+    bug: '<span class="badge badge-red">Bug</span>',
+    suggerimento: '<span class="badge badge-green">Suggerimento</span>',
+    altro: '<span class="badge badge-gray">Altro</span>',
+  };
+  return map[categoria] ?? `<span class="badge badge-gray">${categoria}</span>`;
+}
+
+// restituisce il badge colorato in base allo stato del feedback
+function fmtStatoBadge(stato) {
+  const map = {
+    non_gestito: '<span class="badge badge-red">Non gestito</span>',
+    in_lavorazione: '<span class="badge badge-blue">In lavorazione</span>',
+    gestito: '<span class="badge badge-gray">Gestito</span>',
+  };
+  return map[stato] ?? '<span class="badge badge-red">Non gestito</span>';
+}
+
+// ─── Impostazioni ───────────────────────────────────────────
+async function loadImpostazioni() {
+    await syncLimiteSettimanale();
+    const limEl = document.getElementById("input-limite-settimanale");
+    console.log("DEBUG limEl trovato:", limEl, "valore da impostare:", limiteSettimanale); // temporaneo
+    if (limEl) limEl.value = limiteSettimanale;
+  
+    const antEl = document.getElementById("input-settimane-anticipo");
+    if (antEl) {
+      try {
+        const { data, error } =
+          typeof window.ldrDb?.getSettimaneAnticipo === "function"
+            ? await window.ldrDb.getSettimaneAnticipo()
+            : { data: null, error: null };
+        antEl.value = !error && data != null
+          ? data
+          : (window.calendarRender?.weeksBeforeNextMonthView ?? 1);
+      } catch (e) {
+        console.error("loadImpostazioni (anticipo):", e);
+        antEl.value = window.calendarRender?.weeksBeforeNextMonthView ?? 1;
+      }
+    }
+  }
+
+  async function syncLimiteSettimanale() {
+    try {
+      const { data, error } =
+        typeof window.ldrDb?.getLimiteSettimanale === "function"
+          ? await window.ldrDb.getLimiteSettimanale()
+          : { data: null, error: null };
+      console.log("DEBUG manage-dashboard syncLimiteSettimanale:", { data, error }); // temporaneo
+      if (!error && data != null) limiteSettimanale = data;
+      console.log("DEBUG limiteSettimanale dopo sync:", limiteSettimanale); // temporaneo
+    } catch (e) {
+      console.error("syncLimiteSettimanale:", e);
+    }
+  }
+
+  window.salvaLimite = async () => {
+    const v = parseInt(document.getElementById("input-limite-settimanale").value);
+    if (!v || v < 1) return;
+  
+    try {
+      const { error } =
+        typeof window.ldrDb?.updateLimiteSettimanale === "function"
+          ? await window.ldrDb.updateLimiteSettimanale(v)
+          : await supabase
+              .from("Impostazioni")
+              .update({ valore: String(v) })
+              .eq("nome", "limite_settimanale");
+      if (error) throw error;
+  
+      limiteSettimanale = v;
+      window.ldrBookingConfig?.setMaxWeeklyBookings?.(v); // viene letto correttamente dal db
+      document.getElementById("stat-limite").textContent = v;
+      showToast("success", `Limite aggiornato a ${v} prenotazioni/settimana.`, "check");
+    } catch (e) {
+      console.error("salvaLimite:", e);
+      showToast("error", "Impossibile salvare l'impostazione.", "x");
+    }
+  };
+
+window.salvaAnticipo = async () => {
+    const v = parseInt(document.getElementById("input-settimane-anticipo").value);
+    if (isNaN(v) || v < 0) return;
+  
+    try {
+      const { error } =
+        typeof window.ldrDb?.updateSettimaneAnticipo === "function"
+          ? await window.ldrDb.updateSettimaneAnticipo(v)
+          : await supabase
+              .from("Impostazioni")
+              .update({ valore: String(v) })
+              .eq("nome", "settimane_anticipo");
+      if (error) throw error;
+  
+      if (window.calendarRender) {
+        window.calendarRender.weeksBeforeNextMonthView = v;
+        window.calendarRender.render?.();
+      }
+      showToast("success", `Anticipo aggiornato a ${v} settimane.`, "check");
+    } catch (e) {
+      console.error("salvaAnticipo:", e);
+      showToast("error", "Impossibile salvare l'impostazione.", "x");
+    }
+  };
 
 // ─── Inizializzazione ───────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
@@ -844,6 +1121,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     document.getElementById('btn-nav-utenti')?.classList.add('active');
 
+    await syncLimiteSettimanale();
     await window.loadStats();
     await window.loadUtenti();
     await window.loadTurni();
