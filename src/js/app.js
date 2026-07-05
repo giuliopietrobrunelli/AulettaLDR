@@ -36,7 +36,6 @@ const VAPID_PUBLIC_KEY =
 
 // espone alcune funzioni utili globalmente (non sovrascrive quanto già presente)
 window.ldrDb = {
-  ...(window.ldrDb ?? {}),
   supabase,
   getTurniByIndici,
   createPrenotazioni,
