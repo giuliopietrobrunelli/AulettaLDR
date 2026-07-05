@@ -22,8 +22,6 @@ import { setMainView } from "./main-view.js";
 import { showToast } from './toast.js';
 import { confirmAction } from "./confirm.js";
 
-import { confirmAction } from './confirm.js';
-
 import {
     parseDbDate,
     formatDayTitle,
