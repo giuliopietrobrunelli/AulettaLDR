@@ -10,6 +10,7 @@ import {
   getRichiesteInArrivo,
   accettaRichiestaCessione,
   rifiutaRichiestaCessione,
+  getLimiteSettimanale
 } from "./db.js";
 import { getProfilePicUrl } from "./profile-utils.js";
 import { showToast } from "./toast.js";
@@ -56,10 +57,18 @@ const WEEKDAYS_FULL = [
   "venerdì",
   "sabato",
 ];
-const WEEKDAYS_SHORT = ["dom", "lun", "mar", "mer", "gio", "ven", "sab"];
 
-// massimo numero prenotazioni settimanali consentite
-export const MAX_WEEKLY_BOOKINGS = 7; // temp, verrà gestito dall'interfaccia admin!!!
+// bookings-view.js
+export let MAX_WEEKLY_BOOKINGS = null;
+
+export const limiteSettimanaleReady = (async () => {
+  const { data, error } = await getLimiteSettimanale();
+  if (!error && data != null) {
+    MAX_WEEKLY_BOOKINGS = data;
+  } else {
+    showToast("error", "Errore nel recupero di dati. Riavvia l'app");
+  }
+})();
 
 // cache dei turni caricati dal db
 let turniCache = null;
@@ -143,7 +152,7 @@ function getCurrentTurn(turni, now = new Date()) {
   for (const turn of [...turni].sort((a, b) => a.indice - b.indice)) {
     const start = parseTimeMinutes(turn.orario_inizio);
     let end = parseTimeMinutes(turn.orario_fine);
-    if (turn.indice === 7 || end <= start) end = 24 * 60;
+    if (end <= start) end = 24 * 60; // fallback
     if (minutes >= start && minutes < end) return turn;
   }
 
@@ -1214,7 +1223,16 @@ function resetTurnoSelect(select, btn) {
   btn.classList.remove("active");
 }
 
+// imposta 
+export function setMaxWeeklyBookings(valore) {
+  MAX_WEEKLY_BOOKINGS = valore;
+}
+
 window.ldrBookingConfig = {
-  MAX_WEEKLY_BOOKINGS: 7,
+  get MAX_WEEKLY_BOOKINGS() {
+    return MAX_WEEKLY_BOOKINGS;
+  },
   countWeeklyBookings,
+  setMaxWeeklyBookings,
+  ready: limiteSettimanaleReady,
 };

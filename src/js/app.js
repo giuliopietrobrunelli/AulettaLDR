@@ -34,8 +34,9 @@ import { showToast } from "./toast.js";
 const VAPID_PUBLIC_KEY =
   "BHaLkN5pLWDWpek98BHimSKWBthlvdbrSu_j77UHw41wV38ILeoyK5YJotZf1j_xD6hWbH62npJY9OyDWpbPTQU";
 
-// espone alcune funzioni utili globalmente
+// espone alcune funzioni utili globalmente (non sovrascrive quanto già presente)
 window.ldrDb = {
+  ...(window.ldrDb ?? {}),
   supabase,
   getTurniByIndici,
   createPrenotazioni,

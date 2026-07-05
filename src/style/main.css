@@ -1251,6 +1251,10 @@ footer {
   accent-color: var(--black);
 }
 
+.feedback-content {
+  max-width: 300px;
+}
+
 .booking-week-row {
   display: flex;
   justify-content: space-between;

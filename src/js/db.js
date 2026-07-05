@@ -572,3 +572,84 @@ export async function isAmministratore(id_utente) {
 
   return { data: false, error: null };
 }
+
+// acquisisci la variabile limite settimanale
+export async function getLimiteSettimanale() {
+  const { data, error } = await supabase
+    .from('Impostazioni')
+    .select('valore')
+    .eq('nome', "limite_settimanale")
+    .maybeSingle();
+
+  console.log("DEBUG getLimiteSettimanale:", JSON.stringify({ data, error }));
+
+  if (error) return { data: null, error };
+
+  if (data && data.valore != null) {
+    const valore = Number(data.valore);
+    return { data: valore, error: null };
+  }
+
+  return { data: null, error: null };
+}
+
+// recupera tutti i feedback ricevuti, con i dati dell'utente che li ha inviati
+export async function getAllFeedback() {
+  const { data, error } = await supabase
+    .from("Feedback")
+    .select(
+      "id_feedback, categoria, contenuto, created_at, stato, Utente:id_utente (nome, cognome, numero_tessera)",
+    )
+    .order("created_at", { ascending: false });
+
+  return { data: data ?? [], error };
+}
+
+// elimina un feedback dato il suo id
+export async function deleteFeedback(id_feedback) {
+  return await supabase
+    .from("Feedback")
+    .delete()
+    .eq("id_feedback", id_feedback);
+}
+
+// aggiorna lo stato di un feedback (non_gestito / in_lavorazione / gestito)
+export async function updateStatoFeedback(id_feedback, stato) {
+  return await supabase
+    .from("Feedback")
+    .update({ stato })
+    .eq("id_feedback", id_feedback);
+}
+
+// acquisisci la variabile "settimane di anticipo" per la vista mese successivo
+export async function getSettimaneAnticipo() {
+  const { data, error } = await supabase
+    .from('Impostazioni')
+    .select('valore')
+    .eq('nome', 'settimane_anticipo')
+    .maybeSingle();
+
+  if (error) return { data: null, error };
+
+  if (data && data.valore != null) {
+    return { data: Number(data.valore), error: null };
+  }
+
+  return { data: null, error: null };
+}
+
+// aggiorna la variabile "settimane di anticipo"
+export async function updateSettimaneAnticipo(valore) {
+  return await supabase
+    .from('Impostazioni')
+    .update({ valore: String(valore) })
+    .eq('nome', 'settimane_anticipo');
+}
+
+// aggiorna il limite settimanale (finora salvaLimite() lo impostava solo in memoria)
+export async function updateLimiteSettimanale(valore) {
+  return await supabase
+    .from('Impostazioni')
+    .update({ valore: String(valore) })
+    .eq('nome', 'limite_settimanale');
+}

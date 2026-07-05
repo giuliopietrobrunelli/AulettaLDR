@@ -1,7 +1,7 @@
 import { showToast } from "./toast.js";
 import { openModificaModal } from "./bookings-view.js";
 import { supabase } from "./supabase-client.js";
-import { getAllTurni } from "./db.js";
+import { getAllTurni, getSettimaneAnticipo } from "./db.js";
 
 // array dei nomi dei mesi in italiano
 const MONTHS = [
@@ -181,8 +181,11 @@ const calendarRender = {
       if (turn) this.selectSlot(turn);
     });
 
-    // carica i turni dal db prima del primo render
-    this.loadTurni().then(() => this.setViewMode(this.viewMode));
+    // this.loadTurni().then(() => this.setViewMode(this.viewMode));
+    // carica turni e impostazioni dal db prima del primo render
+    Promise.all([this.loadSettimaneAnticipo(), this.loadTurni()]).then(() =>
+      this.setViewMode(this.viewMode),
+    );
 
     // avvia la sottoscrizione realtime alle prenotazioni
     this.initRealtimeSync();
@@ -241,6 +244,18 @@ async loadTurni() {
 
   } catch (err) {
     console.error("calendarRender: impossibile caricare i turni dal db", err);
+  }
+},
+
+// carica il numero di settimane di anticipo dalle impostazioni del db
+async loadSettimaneAnticipo() {
+  try {
+    const { data, error } = await getSettimaneAnticipo();
+    if (!error && data != null) {
+      this.weeksBeforeNextMonthView = data;
+    }
+  } catch (err) {
+    console.error("calendarRender: impossibile caricare le settimane di anticipo", err);
   }
 },
 
@@ -1493,8 +1508,10 @@ async loadTurni() {
     }
 
     const { getPrenotazioniUtente } = window.ldrDb ?? {};
-    const { MAX_WEEKLY_BOOKINGS, countWeeklyBookings } =
+    const { MAX_WEEKLY_BOOKINGS, countWeeklyBookings, ready } =
       window.ldrBookingConfig ?? {};
+
+    if (ready) await ready; // aspetta che il limite sia caricato prima di controllare (evita bypass del limite)
 
     if (getPrenotazioniUtente && countWeeklyBookings) {
       const weekStart = this.formatDateForDb(
