@@ -586,8 +586,8 @@
             </div>
 
             <div class="tab-bar">
-                <button class="tab-btn active" onclick="switchTab('registrati')">Registrati</button>
-                <button class="tab-btn" onclick="switchTab('non-registrati')">Non registrati</button>
+                <button class="tab-btn active" onclick="switchTab('registrati', this)">Registrati</button>
+                <button class="tab-btn" onclick="switchTab('non-registrati', this)">Non registrati</button>
             </div>
 
             <!-- Tabella registrati -->
@@ -680,25 +680,65 @@
 
             <div class="section-header" style="margin-top:8px">
                 <span class="section-title" style="font-size:14px">Prenotazioni</span>
+                <div class="horizontal-container">
+                    <div class="search-bar">
+                        <input type="text" id="search-prenotazioni" placeholder="Cerca per utente, data, stato"
+                            oninput="filterPrenotazioni()">
+                    </div>
+                </div>
             </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Utente</th>
-                            <th>Data</th>
-                            <th>Turno</th>
-                            <th>Stato</th>
-                            <th>Creata il</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-ultime-prenot">
-                        <tr class="empty-row">
-                            <td colspan="5">Caricamento…</td>
-                        </tr>
-                    </tbody>
-                </table>
+
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('prenotazioni-future', this)">Prenotazioni
+                    future</button>
+                <button class="tab-btn" onclick="switchTab('prenotazioni-passate', this)">Prenotazioni passate</button>
             </div>
+
+            <!-- Tabella prenotazioni future -->
+            <div class="table-panel active" id="panel-prenotazioni-future">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Utente</th>
+                                <th>Data</th>
+                                <th>Turno</th>
+                                <th>Stato</th>
+                                <th>Creata il</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-prenotazioni-future">
+                            <tr class="empty-row">
+                                <td colspan="5">Caricamento…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tabella prenotazioni passate -->
+            <div class="table-panel" id="panel-prenotazioni-passate">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Utente</th>
+                                <th>Data</th>
+                                <th>Turno</th>
+                                <th>Stato</th>
+                                <th>Creata il</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-prenotazioni-passate">
+                            <tr class="empty-row">
+                                <td colspan="5">Caricamento…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
 
 
 
@@ -939,34 +979,6 @@
         </div>
     </div>
 
-    <!-- Elimina turno -->
-    <div id="modal-elimina-turno" class="full-modal">
-        <div class="full-modal-body">
-            <div class="modal-header">
-                <span class="modal-title" id="modal-elimina-turno-title">Elimina turno</span>
-            </div>
-            <div class="full-modal-content">
-                <div class="form-block">
-                    <label for="nt-inizio"><span>Orario inizio *</span></label>
-                    <input type="time" id="nt-inizio">
-                </div>
-                <div class="form-block">
-                    <label for="nt-fine"><span>Orario fine *</span></label>
-                    <input type="time" id="nt-fine">
-                </div>
-                <p id="elimina-turno-error" class="form-error" style="display:none"></p>
-            </div>
-            <div class="full-modal-footer">
-                <div class="horizontal-container" style="gap:8px">
-                    <button type="button" class="w-text" onclick="closeModal('elimina-turno')">Annulla</button>
-                    <button type="button" class="w-text active" onclick="eliminaTurno()">
-                        <i data-lucide="save" class="lucide"></i><span>Salva</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Prenotazione privilegiata admin -->
     <div id="modal-prenota-admin" class="full-modal">
         <div class="full-modal-body">
@@ -1066,6 +1078,75 @@
                 <button type="button" class="w-text" onclick="closeModal('booking-denied')">Chiudi</button>
             </div>
         </div>
+    </div>
+
+    <!-- Modifica prenotazione -->
+    <div id="modal-modifica-prenotazione" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+                <span class="modal-title">Modifica la prenotazione</span>
+                <span class="modal-subtitle">Dettagli del turno e opzioni di modifica</span>
+            </div>
+
+            <!-- Informazioni Prenotazione -->
+            <div class="form-section">
+                <div class="form-block">
+                    <label for="modifica-turno-data"><span>Data:</span></label>
+                    <input id="modifica-turno-data" name="data" type="text" readonly="readonly" tabindex="-1" style="pointer-events:none; background-color:#f5f5f5;">
+                </div>
+
+                <div class="form-block">
+                    <label for="modifica-turno-orario"><span>Turno:</span></label>
+                    <input id="modifica-turno-orario" name="turno" type="text" readonly="readonly" tabindex="-1" style="pointer-events:none; background-color:#f5f5f5;">
+                </div>
+            </div>
+
+            <!-- Azioni -->
+            <div class="form-section">
+                <div class="form-block">
+                    <label for="modifica-turno-cedi"><span>Riassegna turno a:</span></label>
+                    <select id="modifica-turno-cedi" name="cedi">
+                        <option value="" selected>Seleziona utente</option>
+                    </select>
+                </div>
+                <button type="button" class="w-text action-btn" id="btn-cedi-turno" disabled>
+                    <i data-lucide="handshake"></i> Riassegna Turno
+                </button>
+            </div>
+
+            <!-- Bottone Rinuncia Turno -->
+            <div class="form-section">
+                <label for="btn-rinuncia-turno"><span>Rinuncia al tuo turno</span></label>
+                <button type="button" class="w-text danger" id="btn-rinuncia-turno">
+                    <i data-lucide="calendar-off"></i> Elimina prenotazione
+                </button>
+            </div>
+
+            <!-- Footer Modale -->
+            <div class="full-modal-footer">
+                <button type="button" class="w-text button-secondary" data-modal="close-modal">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- conferma una specifica azione -->
+    <div id="modal-confirm" class="full-modal">
+        <div class="full-modal-body">
+            <div class="modal-header">
+              <span class="modal-title" id="confirm-action-title">Conferma -</span>
+              <span class="modal-subtitle" id="confirm-action-subtitle"></span>
+            </div>
+            <div class="full-modal-content">
+              <span id="confirm-action-message" style="font-size:13px"></span>
+            </div>
+            <div class="full-modal-footer">
+              <button type="button" class="w-text" id="btn-confirm-action-cancel">Annulla</button>
+              <button type="button" class="w-text active" id="btn-confirm-action-confirm">
+                <i data-lucide="check" class="lucide"></i>
+                <span id="confirm-action-confirm-text">Conferma</span>
+              </button>
+            </div>
+          </div>
     </div>
 
     <!-- ── Scripts ────────────────────────────────────────────────── -->

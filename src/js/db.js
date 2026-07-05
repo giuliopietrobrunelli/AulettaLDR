@@ -55,6 +55,13 @@ export async function getAllUtenti() {
     .order("cognome");
 }
 
+export async function getAllUtentiAdmin() {
+  return await supabase
+    .from("Utente")
+    .select("id_utente, nome, cognome, numero_tessera")
+    .order("cognome");
+}
+
 // restituisce tutti gli utenti escluso quello loggato (per la funzione cedi turno)
 export async function getAllUtentiRegistrati() {
   const {
@@ -251,6 +258,20 @@ export async function annullaPrenotazione(id_prenotazione) {
     .eq("id_prenotazione", id_prenotazione)
     .eq("id_utente", myId); // garantisce che l'utente possa cancellare solo le proprie
 }
+
+export async function annullaPrenotazioneAdmin(id_prenotazione) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const myId = session?.user?.id;
+  if (!myId) return { error: new Error("non autenticato") };
+
+  return await supabase
+    .from("Prenotazione")
+    .delete()
+    .eq("id_prenotazione", id_prenotazione);
+}
+
 
 // invia una richiesta di cessione (non sposta più il turno direttamente)
 export async function cediPrenotazione(id_prenotazione, id_destinatario) {
