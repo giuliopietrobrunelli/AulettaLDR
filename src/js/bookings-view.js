@@ -87,7 +87,7 @@ function formatDbDate(date) {
 }
 
 // converte una stringa data del db in oggetto js date
-function parseDbDate(str) {
+export function parseDbDate(str) {
   const [y, m, d] = str.split("T")[0].split("-").map(Number);
   return new Date(y, m - 1, d);
 }
@@ -104,7 +104,7 @@ function formatClock(timeStr) {
 }
 
 // crea etichetta oraria leggibile per il turno
-function formatTurnLabel(turn) {
+export function formatTurnLabel(turn) {
   if (!turn) return "";
   if (turn.indice === 7) return `${formatClock(turn.orario_inizio)} in poi`;
   return `${formatClock(turn.orario_inizio)} - ${formatClock(turn.orario_fine)}`;
@@ -117,7 +117,7 @@ function formatUserShortName(user) {
 }
 
 // formatta la data del giorno per titoli (es. Martedì 17 Maggio 2024)
-function formatDayTitle(date) {
+export function formatDayTitle(date) {
   const weekday = WEEKDAYS_FULL[date.getDay()];
   const label = weekday.charAt(0).toUpperCase() + weekday.slice(1);
   return `${label} ${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
@@ -713,7 +713,7 @@ export async function renderBookingsView() {
 let utentiCache = null;
 
 // carica l'elenco utenti dal db e salva in cache
-async function loadUtenti() {
+export async function loadUtenti() {
   if (utentiCache) return utentiCache;
   const { data, error } = await getAllUtentiRegistrati();
   if (error) {

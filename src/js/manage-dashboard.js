@@ -1,12 +1,15 @@
 import {
     getAllUtenti,
+    getAllUtentiAdmin,
     getAllUtentiRegistrati,
     getAllTurni,
+    getPrenotazioniUtente,
     getPrenotazioniByDateRange,
     createPrenotazione,
     getProfiloUtente,
     isAmministratore,
     setTurnoAttivo,
+    annullaPrenotazioneAdmin,
     getAllFeedback,
     deleteFeedback,
     getSettimaneAnticipo,
@@ -18,6 +21,15 @@ import { supabase } from "./supabase-client.js";
 import { setMainView } from "./main-view.js";
 import { showToast } from './toast.js';
 import { confirmAction } from "./confirm.js";
+
+import { confirmAction } from './confirm.js';
+
+import {
+    parseDbDate,
+    formatDayTitle,
+    formatTurnLabel,
+    loadUtenti,
+} from './bookings-view.js';
 
 // ─── 1. ESPOSIZIONE DI SICUREZZA ──────────────────────────────
 window.ldrDb = {
@@ -59,6 +71,9 @@ async function guardAdminAccess() {
 
 // ─── Stato locale ───────────────────────────────────────────
 let allUtenti = [];
+let allPrenotazioni = [];
+let prenotazioniFuture = [];
+let prenotazioniPassate = [];
 let turniCache = [];
 let limiteSettimanale = null;
 let pendingDeleteFn = null;
@@ -71,28 +86,28 @@ window.openModal = (id) => {
 };
 
 window.closeModal = (id) => {
-  if (window.modal?.close) {
-    window.modal.close(id);
-    return;
-  }
-  document.getElementById(`modal-${id}`)?.classList.remove("showing");
+    if (window.modal?.close) {
+        window.modal.close(id);
+        return;
+    }
+    document.getElementById(`modal-${id}`)?.classList.remove("showing");
 };
 
 function showError(elId, msg) {
-  const el = document.getElementById(elId);
-  if (!el) return;
-  el.textContent = msg;
-  el.style.display = msg ? "block" : "none";
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = msg ? "block" : "none";
 }
 
 function fmtDate(str) {
-  if (!str) return "—";
-  const d = new Date(str.split("T")[0]);
-  return d.toLocaleDateString("it-IT");
+    if (!str) return "—";
+    const d = new Date(str.split("T")[0]);
+    return d.toLocaleDateString("it-IT");
 }
 
 function fmtTime(t) {
-  return t?.slice(0, 5) ?? "—";
+    return t?.slice(0, 5) ?? "—";
 }
 
 // ─── Gestione Viste Estesa con main-view.js ──────────────────
@@ -114,6 +129,199 @@ window.showSection = (id) => {
     if (id === 'feedback') window.loadFeedback();
     if (id === 'impostazioni') loadImpostazioni();
 };
+
+let utentiCache = null;
+
+// apre il modal per modificare una prenotazione
+export async function openModificaPrenotazioneAdmin(prenotazione) {
+    const modal = document.getElementById("modal-modifica-prenotazione");
+    if (!modal) {
+        return;
+    }
+
+    const inputData = document.getElementById("modifica-turno-data");
+    const inputTurno = document.getElementById("modifica-turno-orario");
+    const selectCedi = document.getElementById("modifica-turno-cedi");
+    const btnCedi = document.getElementById("btn-cedi-turno");
+    const btnRinuncia = document.getElementById("btn-rinuncia-turno");
+
+    // resetto i bottoni ad ogni apertura modal
+    if (btnCedi) {
+        btnCedi.disabled = true;
+        btnCedi.onclick = null;
+    }
+    if (btnRinuncia) {
+        btnRinuncia.disabled = false;
+        btnRinuncia.onclick = null;
+    }
+
+    // aggiorno la data visualizzata
+    if (inputData) {
+        const date = parseDbDate(prenotazione.data_prenotazione);
+        inputData.value = formatDayTitle(date);
+    }
+
+    // aggiorno il turno visualizzato
+    if (inputTurno) {
+        const turn = prenotazione.Turno;
+        inputTurno.value = turn
+            ? `${turn.indice}° Turno — ${formatTurnLabel(turn)}`
+            : "";
+    }
+
+    // popolo la select degli utenti a cui cedere il turno
+    if (selectCedi) {
+        selectCedi.innerHTML = '<option value="">Seleziona utente</option>';
+        const { data: utenti, error } = await getAllUtentiAdmin();
+        if (error) {
+            console.error("impossibile caricare gli utetni: ", error);
+        }
+        else {
+            (utenti ?? []).forEach((u) => {
+                const opt = document.createElement("option");
+                opt.value = u.id_utente;
+                opt.textContent = `${u.cognome} ${u.nome}`;
+                selectCedi.appendChild(opt);
+            });
+        }
+
+        // reset della select e del suo handler
+        selectCedi.value = "";
+        selectCedi.onchange = () => {
+            if (btnCedi) {
+                btnCedi.disabled = !selectCedi.value;
+                btnCedi.classList.toggle("active", !!selectCedi.value);
+            }
+        };
+    }
+
+    // assegno handler ai bottoni alla fine per evitare errori
+    if (btnCedi) {
+        btnCedi.onclick = () =>
+            handleCediTurnoAdmin(prenotazione.id_prenotazione, selectCedi);
+    }
+
+    if (btnRinuncia) {
+        btnRinuncia.onclick = () =>
+            handleRinunciaTurnoAdmin(prenotazione.id_prenotazione);
+    }
+
+    window.modal?.open("modifica-prenotazione");
+}
+
+// gestisce la cessione del turno ad altro utente
+async function handleCediTurnoAdmin(id_prenotazione, selectCedi) {
+    const id_destinatario = selectCedi?.value;
+    if (!id_destinatario) return;
+
+    const nomeDestinatario =
+        selectCedi.options[selectCedi.selectedIndex]?.text ?? "questo utente";
+    const confirmed = await confirmAction({
+        title: "Conferma riassegnazione turno",
+        message: `Stai per riassegnare questa prenotazione a ${nomeDestinatario}. La modifica sarà immediata, senza bisogno di conferma da parte dell'utente`,
+        confirmText: "Riassegna",
+    });
+    if (!confirmed) return;
+
+    const btnCedi = document.getElementById("btn-cedi-turno");
+    if (btnCedi) {
+        btnCedi.disabled = true;
+    }
+
+    try {
+        const { error } = await supabase
+            .from("Prenotazione")
+            .update({ id_utente: id_destinatario })
+            .eq("id_prenotazione", id_prenotazione);
+
+        if (error) throw error;
+        window.modal?.closeAll();
+        showToast("success", "Turno riassegnato", "check");
+        await window.loadStats();
+        window.calendarRender?.invalidateBookingsCache?.();
+        window.calendarRender?.render?.();
+    } catch (e) {
+        console.error("Errore riassegnazione turno: ", e);
+        showToast("error", "Impossibile riassegnare il turno", "x");
+        if (btnCedi) btnCedi.disabled = false;
+    }
+
+    if (window.lucide?.createIcons) window.lucide.createIcons();
+
+}
+
+// gestisce la rinuncia a una prenotazione
+// gestisce la rinuncia/eliminazione di una prenotazione (lato admin)
+async function handleRinunciaTurnoAdmin(id_prenotazione) {
+  const confirmed = await confirmAction({
+    title: "Conferma eliminazione prenotazione",
+    message: `Stai per eliminare questa prenotazione. L'operazione è immediata e non richiede conferma da parte dell'utente.`,
+    confirmText: "Elimina",
+  });
+  if (!confirmed) return;
+
+  const btnRinuncia = document.getElementById("btn-rinuncia-turno");
+  if (btnRinuncia) btnRinuncia.disabled = true;
+
+  try {
+    const { error } = await annullaPrenotazioneAdmin(id_prenotazione);
+    if (error) throw error;
+
+    window.modal?.closeAll();
+    showToast("success", "Prenotazione eliminata", "check");
+
+    // ricarica le tabelle prenotazioni future/passate + statistiche
+    await window.loadStats();
+
+    // tiene allineata anche la vista calendario
+    window.calendarRender?.invalidateBookingsCache?.();
+    window.calendarRender?.render?.();
+  } catch (e) {
+    console.error("Errore eliminazione prenotazione:", e);
+    showToast("error", "Impossibile eliminare la prenotazione", "x");
+    if (btnRinuncia) btnRinuncia.disabled = false;
+  }
+
+  if (window.lucide?.createIcons) window.lucide.createIcons();
+}
+
+// ─── Rendering tabelle prenotazioni (future / passate) ───────
+function renderTabellaPrenotazioni(tbodyId, lista) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.replaceChildren();
+    if (!lista?.length) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Nessuna prenotazione</td></tr>';
+        return;
+    }
+    for (const p of lista) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${p.Utente?.cognome ?? ''} ${p.Utente?.nome ?? ''}</td>
+            <td>${fmtDate(p.data_prenotazione)}</td>
+            <td>${p.Turno?.indice ?? "?"}°</td>
+            <td>
+            ${(() => {
+                if (p.stato === "riservata") return '<span class="badge badge-yellow">Riservata</span>';
+                if (p.stato === "confermata" || p.data_conferma) return '<span class="badge badge-green">Confermata</span>';
+                return '<span class="badge badge-gray">Non confermata</span>';
+            })()}
+            </td>
+            <td>${fmtDate(p.data_creazione_prenotazione)}</td>
+            <td>
+                <div class="table-actions">
+                    <button class="btn-icon btn-modifica-prenotazione" title="Modifica">
+                        <i data-lucide="pencil" class="lucide"></i>
+                    </button>
+                </div>
+            </td>
+            
+        `;
+        tr.querySelector('.btn-modifica-prenotazione')
+            ?.addEventListener('click', () => openModificaPrenotazioneAdmin(p));
+        tbody.appendChild(tr);
+    }
+}
 
 // ─── Statistiche (Corretto controllo di sicurezza) ──────────
 window.loadStats = async () => {
@@ -156,50 +364,79 @@ window.loadStats = async () => {
         const labelEl = document.getElementById('stat-prenot-mese-label');
         if (labelEl) labelEl.textContent = label;
 
-        // Caricamento Ultime 10 prenotazioni
-        const { data: ultime, error: errUltime } = await supabase
+        // Caricamento prenotazioni future
+        const dataOggi = new Date().toISOString().split('T')[0];
+        const nowMinuti = ora.getHours() * 60 + ora.getMinutes();
+
+        const { data: future, error: errFuture } = await supabase
             .from('Prenotazione')
             .select('*, Utente(nome,cognome), Turno(indice,orario_inizio,orario_fine)')
-            .order('data_creazione_prenotazione', { ascending: false });
+            .gte('data_prenotazione', dataOggi)
+            .order('data_prenotazione', { ascending: true });
 
-        if (errUltime) throw errUltime;
+        if (errFuture) throw errFuture;
 
-        const tbody = document.getElementById('table-ultime-prenot');
-        if (tbody) {
-            tbody.replaceChildren();
-            if (!ultime?.length) {
-                tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Nessuna prenotazione recente</td></tr>';
+        const { data: passate, error: errPassate } = await supabase
+            .from('Prenotazione')
+            .select('*, Utente(nome,cognome), Turno(indice, orario_inizio, orario_fine)')
+            .lt('data_prenotazione', dataOggi)
+            .order('data_prenotazione', { ascending: false });
+
+        if (errPassate) throw errPassate;
+
+        // Le prenotazioni di oggi il cui turno è già terminato vanno considerate
+        // "passate" anche se la data è quella odierna: le sposto dall'elenco future.
+        const futureEffettive = [];
+        const oggiConclusePassateAlTurno = [];
+        for (const p of (future ?? [])) {
+            const isOggi = p.data_prenotazione?.split('T')[0] === dataOggi;
+            if (isOggi && turnoGiaConcluso(p.Turno, nowMinuti)) {
+                oggiConclusePassateAlTurno.push(p);
             } else {
-                for (const p of ultime) {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${p.Utente?.cognome ?? ''} ${p.Utente?.nome ?? ''}</td>
-                        <td>${fmtDate(p.data_prenotazione)}</td>
-                        <td>${p.Turno?.indice ?? "?"}°</td>
-                        <td>${p.stato === "confermata" || p.data_conferma ? '<span class="badge badge-green">Confermata</span>' : '<span class="badge badge-gray">Non confermata</span>'}</td>
-                        <td>${fmtDate(p.data_creazione_prenotazione)}</td>
-                    `;
-          tbody.appendChild(tr);
+                futureEffettive.push(p);
+            }
         }
-      }
+        const passateEffettive = [...(passate ?? []), ...oggiConclusePassateAlTurno];
+
+        // Ordino lato client per garantire l'ordinamento richiesto anche se il DB
+        // non supporta/applica l'order sulla tabella collegata (Turno):
+        // data crescente/decrescente, e a parità di data indice di turno crescente.
+        const perIndiceTurnoCrescente = (a, b) => (a.Turno?.indice ?? 0) - (b.Turno?.indice ?? 0);
+
+        const futureOrdinate = [...futureEffettive].sort((a, b) =>
+            a.data_prenotazione.localeCompare(b.data_prenotazione) || perIndiceTurnoCrescente(a, b)
+        );
+        const passateOrdinate = [...passateEffettive].sort((a, b) =>
+            b.data_prenotazione.localeCompare(a.data_prenotazione) || perIndiceTurnoCrescente(a, b)
+        );
+
+        // Aggiorno lo stato locale e le tabelle una sola volta, tramite l'helper condiviso
+        prenotazioniFuture = futureOrdinate;
+        prenotazioniPassate = passateOrdinate;
+        allPrenotazioni = [...prenotazioniFuture, ...prenotazioniPassate];
+
+        renderTabellaPrenotazioni('table-prenotazioni-future', prenotazioniFuture);
+        renderTabellaPrenotazioni('table-prenotazioni-passate', prenotazioniPassate);
+    } catch (e) {
+        console.error("loadStats:", e);
     }
-  } catch (e) {
-    console.error("loadStats:", e);
-  }
+
+    if (window.lucide?.createIcons) window.lucide.createIcons();
+
 };
 
 // ─── Utenti ─────────────────────────────────────────────────
 window.loadUtenti = async () => {
-  try {
-    const { data } =
-      typeof window.ldrDb?.getAllUtenti === "function"
-        ? await window.ldrDb.getAllUtenti()
-        : await supabase.from("Utente").select("*").order("cognome");
-    allUtenti = data ?? [];
-    window.renderUtenti();
-  } catch (e) {
-    console.error("loadUtenti:", e);
-  }
+    try {
+        const { data } =
+            typeof window.ldrDb?.getAllUtenti === "function"
+                ? await window.ldrDb.getAllUtenti()
+                : await supabase.from("Utente").select("*").order("cognome");
+        allUtenti = data ?? [];
+        window.renderUtenti();
+    } catch (e) {
+        console.error("loadUtenti:", e);
+    }
 };
 
 window.renderUtenti = (filter = '') => {
@@ -213,17 +450,29 @@ window.renderUtenti = (filter = '') => {
     fillTable('table-non-registrati', nonReg, false);
 };
 
+// ─── Prenotazioni (ricerca su future + passate) ──────────────
+window.renderPrenotazioni = (filter = '') => {
+    const q = filter.toLowerCase();
+    const match = (p) => {
+        if (!q) return true;
+        const testo = `${p.Utente?.nome ?? ''} ${p.Utente?.cognome ?? ''} ${p.data_prenotazione ?? ''} ${p.stato ?? ''}`.toLowerCase();
+        return testo.includes(q);
+    };
+    renderTabellaPrenotazioni('table-prenotazioni-future', prenotazioniFuture.filter(match));
+    renderTabellaPrenotazioni('table-prenotazioni-passate', prenotazioniPassate.filter(match));
+};
+
 function fillTable(tbodyId, utenti, isReg) {
-  const tbody = document.getElementById(tbodyId);
-  if (!tbody) return;
-  tbody.replaceChildren();
-  if (!utenti.length) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Nessun utente trovato</td></tr>`;
-    return;
-  }
-  for (const u of utenti) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.replaceChildren();
+    if (!utenti.length) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Nessun utente trovato</td></tr>`;
+        return;
+    }
+    for (const u of utenti) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
             <td>${u.numero_tessera}</td>
             <td class="semibold">${u.cognome} ${u.nome}</td>
             <td>${u.email}</td>
@@ -238,29 +487,57 @@ function fillTable(tbodyId, utenti, isReg) {
                 </div>
             </td>
         `;
-    tbody.appendChild(tr);
-  }
-  if (window.lucide?.createIcons) window.lucide.createIcons();
+        tbody.appendChild(tr);
+    }
+    if (window.lucide?.createIcons) window.lucide.createIcons();
 }
 
 window.filterUtenti = () => {
-  window.renderUtenti(document.getElementById("search-utenti").value);
+    window.renderUtenti(document.getElementById("search-utenti").value);
 };
 
-window.switchTab = (tab) => {
-  document.querySelectorAll(".tab-btn").forEach((b, i) => {
-    b.classList.toggle(
-      "active",
-      (i === 0 && tab === "registrati") ||
-        (i === 1 && tab === "non-registrati"),
-    );
-  });
-  document
-    .getElementById("tab-registrati")
-    ?.classList.toggle("active", tab === "registrati");
-  document
-    .getElementById("tab-non-registrati")
-    ?.classList.toggle("active", tab === "non-registrati");
+window.filterPrenotazioni = () => {
+    window.renderPrenotazioni(document.getElementById("search-prenotazioni").value);
+};
+
+// ─── Gestione tab (generalizzata per gruppo) ─────────────────
+const TAB_GROUPS = {
+    'registrati': { group: ['registrati', 'non-registrati'], panel: 'tab-registrati' },
+    'non-registrati': { group: ['registrati', 'non-registrati'], panel: 'tab-non-registrati' },
+    'prenotazioni-future': { group: ['prenotazioni-future', 'prenotazioni-passate'], panel: 'panel-prenotazioni-future' },
+    'prenotazioni-passate': { group: ['prenotazioni-future', 'prenotazioni-passate'], panel: 'panel-prenotazioni-passate' },
+};
+
+const TAB_PANEL_IDS = {
+    'registrati': 'tab-registrati',
+    'non-registrati': 'tab-non-registrati',
+    'prenotazioni-future': 'panel-prenotazioni-future',
+    'prenotazioni-passate': 'panel-prenotazioni-passate',
+};
+
+window.switchTab = (tab, btnEl) => {
+    const info = TAB_GROUPS[tab];
+    if (!info) return;
+
+    // Aggiorna i pannelli del gruppo corretto (utenti oppure prenotazioni)
+    info.group.forEach((t) => {
+        const panelId = TAB_PANEL_IDS[t];
+        document.getElementById(panelId)?.classList.toggle('active', t === tab);
+    });
+
+    // Aggiorna solo i bottoni della stessa .tab-bar del bottone cliccato
+    // (fallback: se non passato, aggiorna in base al testo/onclick corrispondente)
+    const bar = btnEl?.closest('.tab-bar');
+    if (bar) {
+        bar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btnEl.classList.add('active');
+    } else {
+        // Fallback retrocompatibile se switchTab viene chiamato senza l'elemento bottone
+        document.querySelectorAll('.tab-btn').forEach((b) => {
+            const onclickAttr = b.getAttribute('onclick') || '';
+            b.classList.toggle('active', onclickAttr.includes(`'${tab}'`));
+        });
+    }
 };
 
 // ─── Nuovo utente ───────────────────────────────────────────
@@ -364,10 +641,10 @@ window.eliminaUtente = () => {
 
 const btnEliminaOk = document.getElementById("btn-conferma-elimina-ok");
 if (btnEliminaOk) {
-  btnEliminaOk.onclick = () => {
-    pendingDeleteFn?.();
-    pendingDeleteFn = null;
-  };
+    btnEliminaOk.onclick = () => {
+        pendingDeleteFn?.();
+        pendingDeleteFn = null;
+    };
 }
 
 // ─── Turni ──────────────────────────────────────────────────
@@ -395,8 +672,14 @@ window.cambiaStatoTurnoAdmin = async (id_turno, rendiAttivo) => {
             }
         }
     }
+    const azioneTestoTitolo = rendiAttivo ? "riattivazione" : "disattivazione";
     const azioneTesto = rendiAttivo ? "riattivare" : "disattivare";
-    const conferma = confirm(`Sei sicuro di voler ${azioneTesto} questo turno?`);
+    const azioneTestoBottone = rendiAttivo ? "Attiva" : "Disattiva";
+    const conferma = await confirmAction({
+        title: `Conferma ${azioneTestoTitolo} turno`,
+        message: `Sei sicuro di voler ${azioneTesto} questo turno?`,
+        confirmText: `${azioneTestoBottone}`,
+    });
     if (!conferma) return;
 
     try {
@@ -452,9 +735,9 @@ function renderTurni() {
                 ${bottoneToggle}
             </div>
         `;
-    list.appendChild(row);
-  }
-  if (window.lucide?.createIcons) window.lucide.createIcons();
+        list.appendChild(row);
+    }
+    if (window.lucide?.createIcons) window.lucide.createIcons();
 }
 
 window.openNuovoTurno = () => {
@@ -490,6 +773,17 @@ function turnoToMinutes(t) {
     if (!t) return 0;
     const [h, m] = t.split(':').map(Number);
     return h * 60 + m;
+}
+
+//verifica se un turno (per una prenotazione di OGGI) è già terminato rispetto all'ora corrente.
+//stessa convenzione usata altrove: se manca l'orario di fine, è "00:00" o è <= all'inizio,
+//il turno si considera valido fino a fine giornata (mezzanotte), quindi mai "concluso" prima della mezzanotte.
+function turnoGiaConcluso(turno, nowMinuti) {
+    if (!turno) return false;
+    const inizioMin = turnoToMinutes(turno.orario_inizio);
+    const fineMinRaw = turnoToMinutes(turno.orario_fine);
+    const fineEffettiva = (!turno.orario_fine || fineMinRaw === 0 || fineMinRaw <= inizioMin) ? 24 * 60 : fineMinRaw;
+    return nowMinuti >= fineEffettiva;
 }
 
 //calcola l'intervallo [inizio, fine) in minuti di un turno, se manca orario di fine, è 00:00 o è <= all'inizio,
@@ -571,8 +865,6 @@ window.salvaModificaTurno = async () => {
     } catch (e) {
         showError('modifica-turno-error', e.message ?? 'Errore.');
     }
-    window.closeModal("modifica-turno");
-    await window.loadTurni(); 
 };
 
 window.salvaNuovoTurno = async () => {
@@ -617,10 +909,14 @@ window.salvaNuovoTurno = async () => {
 };
 
 window.eliminaTurno = async () => {
-    const conferma = confirm("ATTENZIONE: Eliminando definitivamente questo turno cancellerai anche TUTTE le prenotazioni passate e future collegate ad esso. Vuoi procedere?");
+    const conferma = await confirmAction({
+        title: `Eliminazione turno`,
+        message:"ATTENZIONE: Eliminando definitivamente questo turno cancellerai anche TUTTE le prenotazioni passate e future collegate ad esso. Vuoi procedere?",
+        confirmText: "Elimina",
+    });
     if (!conferma) return;
 
-    const id_turno = turnoInModificaId; 
+    const id_turno = turnoInModificaId;
     if (!id_turno) {
         showToast("error", "Nessun turno selezionato per l'eliminazione.");
         return;
@@ -636,8 +932,14 @@ window.eliminaTurno = async () => {
 
         window.closeModal('modifica-turno');
 
-        await window.loadTurni(); 
-        
+        await window.loadTurni();
+        // L'eliminazione del turno cancella (in cascata) anche le sue prenotazioni:
+        // ricarico le statistiche per aggiornare le tabelle prenotazioni future/passate,
+        // e invalido la cache del calendario così anche quella vista resta coerente.
+        await window.loadStats();
+        window.calendarRender?.invalidateBookingsCache?.();
+        window.calendarRender?.render?.();
+
         const msg = "Turno e prenotazioni collegate eliminati definitivamente."
         showToast("success", msg);
 
@@ -671,51 +973,51 @@ window.apriNuovaPrenotazioneAdmin = () => {
     if (statoEl) statoEl.value = ''; // Ripristina lo stato di default
     if (forzaEl) forzaEl.checked = false;      // Disattiva la checkbox "Forza"
 
-  // 2. Nascondi eventuali messaggi di errore rimasti appesi
-  showError("prenota-admin-error", "");
+    // 2. Nascondi eventuali messaggi di errore rimasti appesi
+    showError("prenota-admin-error", "");
 
-  // 3. Disabilita nuovamente il bottone di conferma (perché il form ora è vuoto)
-  const btn = document.getElementById("btn-conferma-prenota-admin");
-  if (btn) btn.disabled = true;
+    // 3. Disabilita nuovamente il bottone di conferma (perché il form ora è vuoto)
+    const btn = document.getElementById("btn-conferma-prenota-admin");
+    if (btn) btn.disabled = true;
 
-  // 4. Infine, apri il modal in sicurezza
-  window.openModal("prenota-admin");
+    // 4. Infine, apri il modal in sicurezza
+    window.openModal("prenota-admin");
 };
 
 window.populatePaUtenti = () => {
-  const sel = document.getElementById("pa-utente");
-  if (!sel) return;
-  sel.replaceChildren();
-  sel.appendChild(
-    Object.assign(document.createElement("option"), {
-      value: "",
-      textContent: "Seleziona utente…",
-      disabled: true,
-      selected: true,
-    }),
-  );
-  for (const u of allUtenti.filter((u) => u.registrato)) {
+    const sel = document.getElementById("pa-utente");
+    if (!sel) return;
+    sel.replaceChildren();
     sel.appendChild(
-      Object.assign(document.createElement("option"), {
-        value: u.id_utente,
-        textContent: `${u.cognome} ${u.nome} — n.${u.numero_tessera}`,
-      }),
+        Object.assign(document.createElement("option"), {
+            value: "",
+            textContent: "Seleziona utente…",
+            disabled: true,
+            selected: true,
+        }),
     );
-  }
+    for (const u of allUtenti) {
+        sel.appendChild(
+            Object.assign(document.createElement("option"), {
+                value: u.id_utente,
+                textContent: `${u.cognome} ${u.nome} — n.${u.numero_tessera}`,
+            }),
+        );
+    }
 };
 
 window.populatePaTurni = () => {
-  const sel = document.getElementById("pa-turno");
-  if (!sel) return;
-  sel.replaceChildren();
-  sel.appendChild(
-    Object.assign(document.createElement("option"), {
-      value: "",
-      textContent: "Seleziona prima una data",
-      disabled: true,
-      selected: true,
-    }),
-  );
+    const sel = document.getElementById("pa-turno");
+    if (!sel) return;
+    sel.replaceChildren();
+    sel.appendChild(
+        Object.assign(document.createElement("option"), {
+            value: "",
+            textContent: "Seleziona prima una data",
+            disabled: true,
+            selected: true,
+        }),
+    );
 };
 
 ['pa-data', 'pa-forza'].forEach(id => {
@@ -749,18 +1051,18 @@ window.populatePaTurni = () => {
 });
 
 ["pa-utente", "pa-turno", "pa-data"].forEach((id) => {
-  document
-    .getElementById(id)
-    ?.addEventListener("change", () => window.validatePrenotaAdmin());
+    document
+        .getElementById(id)
+        ?.addEventListener("change", () => window.validatePrenotaAdmin());
 });
 
 window.validatePrenotaAdmin = () => {
-  const ok =
-    document.getElementById("pa-utente")?.value &&
-    document.getElementById("pa-data")?.value &&
-    document.getElementById("pa-turno")?.value;
-  const btn = document.getElementById("btn-conferma-prenota-admin");
-  if (btn) btn.disabled = !ok;
+    const ok =
+        document.getElementById("pa-utente")?.value &&
+        document.getElementById("pa-data")?.value &&
+        document.getElementById("pa-turno")?.value;
+    const btn = document.getElementById("btn-conferma-prenota-admin");
+    if (btn) btn.disabled = !ok;
 };
 
 window.confermaPrenotaAdmin = async () => {
@@ -789,30 +1091,32 @@ window.confermaPrenotaAdmin = async () => {
             if (error) {
                 console.error("Errore:", error);
             } else if (data) {
-                const { error1 } = await supabase
-                .from('Prenotazione')
-                .delete()
-                .eq('id_prenotazione', data.id_prenotazione)
-                .eq('id_turno', id_turno)
-                .eq('data_prenotazione', data_prenotazione);
+                const { error: errorDelete } = await supabase
+                    .from('Prenotazione')
+                    .delete()
+                    .eq('id_prenotazione', data.id_prenotazione)
+                    .eq('id_turno', id_turno)
+                    .eq('data_prenotazione', data_prenotazione);
 
-                const { errorfains } = await supabase.from('Prenotazione').insert({
+                if (errorDelete) throw errorDelete;
+
+                const { error: errorInsert } = await supabase.from('Prenotazione').insert({
                     id_utente, id_turno, data_prenotazione, stato,
                 });
-                if (error1) throw error1;
-                console.log("ID Utente che ha prenotato:", data.id_utente);
+                if (errorInsert) throw errorInsert;
             } else {
-                const { errorfains } = await supabase.from('Prenotazione').insert({
+                const { error: errorInsert } = await supabase.from('Prenotazione').insert({
                     id_utente, id_turno, data_prenotazione, stato,
                 });
-                console.log("Nessuna prenotazione trovata per questa data e turno.");
+                if (errorInsert) throw errorInsert;
             }
-            
+
         }
 
         window.closeModal('prenota-admin');
         window.calendarRender?.invalidateBookingsCache?.();
         window.calendarRender?.render?.();
+        await window.loadStats();
     } catch (e) {
         showError('prenota-admin-error', e.message ?? 'Errore.');
     } finally {
@@ -1114,10 +1418,10 @@ window.salvaAnticipo = async () => {
 
 // ─── Inizializzazione ───────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
-  const isAllowed = await guardAdminAccess();
-  if (!isAllowed) return;
+    const isAllowed = await guardAdminAccess();
+    if (!isAllowed) return;
 
-  document.body.classList.add("admin-access-checked");
+    document.body.classList.add("admin-access-checked");
 
     document.getElementById('btn-nav-utenti')?.classList.add('active');
 
@@ -1135,17 +1439,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         window.calendarRender.canViewNextMonth = () => true;
     }
 
-  const user = window.ldrProfilo;
-  if (user) {
-    const infoEl = document.getElementById("dash-admin-info");
-    if (infoEl)
-      infoEl.textContent = `Connesso come ${user.nome} ${user.cognome}`;
-  }
+    const user = window.ldrProfilo;
+    if (user) {
+        const infoEl = document.getElementById("dash-admin-info");
+        if (infoEl)
+            infoEl.textContent = `Connesso come ${user.nome} ${user.cognome}`;
+    }
 });
 
 document
-  .querySelector("[onclick=\"openModal('nuovo-turno')\"]")
-  ?.addEventListener("click", (e) => {
-    e.preventDefault();
-    window.openNuovoTurno?.();
-  });
+    .querySelector("[onclick=\"openModal('nuovo-turno')\"]")
+    ?.addEventListener("click", (e) => {
+        e.preventDefault();
+        window.openNuovoTurno?.();
+    });
