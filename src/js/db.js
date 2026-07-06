@@ -602,7 +602,7 @@ export async function getLimiteSettimanale() {
     .eq('nome', "limite_settimanale")
     .maybeSingle();
 
-  console.log("DEBUG getLimiteSettimanale:", JSON.stringify({ data, error }));
+  // console.log("DEBUG getLimiteSettimanale:", JSON.stringify({ data, error }));
 
   if (error) return { data: null, error };
 

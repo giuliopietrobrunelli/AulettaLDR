@@ -1,0 +1,249 @@
+/* ── Layout guida ─────────────────────────────────── */
+
+main {
+    display: flex;
+    flex-direction: row;
+    gap: 32px;
+    align-items: flex-start;
+}
+
+span {
+    opacity: .8;
+}
+
+/* Sommario laterale */
+#guida-toc {
+    position: sticky;
+    top: 20px;
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-right: 20px;
+    border-right: .5px solid var(--gray2);
+    min-height: 90vh;
+}
+
+#guida-toc a {
+    font-size: 12px;
+    color: var(--black);
+    opacity: .55;
+    text-decoration: none;
+    padding: 7px 8px;
+    border-radius: 4px;
+    transition: opacity .15s, background-color .15s;
+}
+
+#guida-toc a:hover {
+    opacity: 1;
+    background-color: var(--gray);
+}
+
+#guida-toc a.active {
+    opacity: 1;
+    font-weight: 500;
+    background-color: var(--gray);
+}
+
+#guida-toc-label {
+    font-size: 10px;
+    font-family: var(--plex-sans);
+    opacity: .4;
+    padding: 4px 8px 8px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+/* Contenuto */
+#guida-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+}
+
+.guida-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.guida-intro h1 {
+    font-size: 26px;
+}
+
+.guida-intro p {
+    font-size: 14px;
+    opacity: .7;
+    max-width: 640px;
+}
+
+.guida-section {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    scroll-margin-top: 20px;
+}
+
+.guida-section h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-family: var(--plex-sans);
+    font-weight: 500;
+}
+
+.guida-section h2 .lucide {
+    width: 18px;
+    height: 18px;
+    opacity: .7;
+}
+
+.guida-section h3 {
+    font-size: 14px;
+    font-family: var(--plex-sans);
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+.guida-section p,
+.guida-section li {
+    font-size: 13px;
+    line-height: 1.55;
+    opacity: .85;
+}
+
+.guida-section ul,
+.guida-section ol {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-left: 20px;
+    margin: 0;
+}
+
+.guida-card {
+    border: .5px solid var(--gray2);
+    border-radius: 4px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.guida-card-title {
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.guida-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.guida-tip {
+    background: var(--gray);
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-size: 12px;
+    opacity: .8;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.guida-tip .lucide {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.guida-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    width: fit-content;
+}
+
+.badge-available { background: var(--green); color: var(--green-text); }
+.badge-occupied { background: var(--gray); color: var(--black); opacity: .7; }
+.badge-own { background: var(--aula); color: var(--black); }
+.badge-locked { background: var(--red); color: var(--red-text); }
+
+.guida-faq-item {
+    border-bottom: .5px solid var(--gray2);
+    padding-bottom: 12px;
+}
+
+.guida-faq-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.guida-faq-q {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+code {
+    background: var(--gray);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+/* ── Responsive ───────────────────────────────────── */
+@media (max-width: 800px) {
+
+    body {
+        margin-top: 50px;
+    }
+
+    main {
+        flex-direction: column;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    #guida-toc {
+        position: fixed;
+        width: 100%;
+        flex-direction: row;
+        padding-right: 0;
+        padding-block: 10px;
+        padding-inline: 10px;
+        border-right: none;
+        border-bottom: .5px solid var(--gray2);
+        background-color: var(--white);
+        overflow-x: scroll;
+        z-index: 9999;
+        top: 0;
+        left: 0;
+        min-height: fit-content;
+    }
+
+    #guida-toc a {
+        min-width: max-content;
+    }
+
+    #guida-toc-label {
+        display: none;
+    }
+
+    .guida-grid {
+        grid-template-columns: 1fr;
+    }
+}

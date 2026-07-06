@@ -256,7 +256,7 @@ async function syncAdminDashboardLink(profilo) {
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").then(() => {
-    console.log("PWA pronta");
+    // console.log("PWA pronta");
   });
 }
 

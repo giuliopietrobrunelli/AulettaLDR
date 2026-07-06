@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Guida — Auletta LDR</title>
+
+    <link rel="stylesheet" href="/src/style/main.css">
+    <link rel="stylesheet" href="/src/style/guida.css">
+    <link rel="stylesheet" href="/src/style/responsive.css">
+    <link rel="icon" type="image/webp" href="/src/img/logo-prenotaldr-giallo.webp">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+
+</head>
+
+<body>
+
+    <!-- ── Header ────────────────────────────────────────────────── -->
+    <header>
+        <div id="logo">
+            <div class="horizontal-container">
+                <a href="/">
+                    <img src="/src/img/logo-prenotaldr-giallo.webp" alt="">
+                </a>
+                <h2>Guida</h2>
+            </div>
+        </div>
+
+        <div class="horizontal-container">
+            <button class="w-text mini" onclick="location.href='/'">
+                <i data-lucide="arrow-left" class="lucide"></i>
+                <span>Torna all'app</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ── Main content ───────────────────────────────────────────── -->
+    <main>
+
+        <!-- Sommario -->
+        <nav id="guida-toc">
+            <span id="guida-toc-label">Sommario</span>
+            <a href="#cos-e">1. Cos'è Auletta LDR</a>
+            <a href="#accesso">2. Accesso e registrazione</a>
+            <a href="#calendario">3. Il calendario</a>
+            <a href="#prenotare">4. Prenotare un turno</a>
+            <a href="#le-mie-prenotazioni">5. Le mie prenotazioni</a>
+            <a href="#cessione">6. Cedere un turno</a>
+            <a href="#notifiche">7. Notifiche</a>
+            <a href="#account">8. Account e preferenze</a>
+            <a href="#feedback">9. Inviare un feedback</a>
+            <a href="#app-mobile">10. Installare l'app</a>
+            <a href="#faq">11. Domande frequenti</a>
+        </nav>
+
+        <div id="guida-content">
+
+            <div class="guida-intro">
+                <h1>Guida all'uso</h1>
+            </div>
+
+            <!-- 1. COS'È -->
+            <section class="guida-section" id="cos-e">
+                <h2>1. Cos'è Auletta LDR</h2>
+                <span>
+                    Auletta LDR è la piattaforma con la quale puoi prenotare i turni dell'auletta. Da qui puoi consultare la disponibilità in tempo reale, prenotare
+                    un turno in pochi secondi, gestire le tue prenotazioni esistenti e ricevere notifiche quando
+                    qualcuno ti cede il proprio turno.
+                </span>
+                <span>
+                    La piattaforma funziona da browser, sia su computer che su smartphone, e può anche essere
+                    installata come app sul telefono (vedi la sezione <a href="#app-mobile">10. Installare l'app</a>).
+                </span>
+            </section>
+
+            <!-- 2. ACCESSO E REGISTRAZIONE -->
+            <section class="guida-section" id="accesso">
+                <h2>2. Accesso e registrazione</h2>
+
+                <h3>Registrazione</h3>
+                <span>
+                    Per creare un account ti basta il tuo numero di tessera. Se non hai la tessera a portata di mano puoi sempre accedere tramite nome e cognome, oppure contattare il direttivo per ricevere assistenza. 
+                    <br>
+                    Una volta che il sistema avrà verificato che fai effettivamente parte dell'aula studio ti verrà recapitata una mail all'indirizzo utilizzato quando hai effettuato la registrazione all'associazione, con la quale potrai impostare la password del tuo account.
+                    <br>
+                    Non puoi più accedere a quella mail? ti basta contattare il direttivo (tramite <a href="mailto:illumedellaragione6@gmail.com">email</a>) indicandoci il tuo nuovo indirizzo mail.
+                </span>
+
+                <h3>Accesso</h3>
+                <span>
+                    Una volta creato il tuo account, potrai accedere inserendo il tuo indirizzo mail (o il numero tessera) e la
+                    password scelta in fase di registrazione.
+                </span>
+
+                <h3>Password dimenticata</h3>
+                <span>
+                    Nella pagina di accesso trovi il link "Password dimenticata": inserendo email o numero tessera
+                    riceverai le istruzioni per impostarne una nuova.
+                </span>
+
+                <div class="guida-tip">
+                    <i data-lucide="lightbulb" class="lucide"></i>
+                    <span>Se il tuo numero tessera non viene riconosciuto durante la registrazione, contatta un
+                    amministratore: potresti non risultare ancora censito nel sistema.</span>
+                </div>
+            </section>
+
+            <!-- 3. CALENDARIO -->
+            <section class="guida-section" id="calendario">
+                <h2>3. Il calendario</h2>
+                <span>
+                    Il calendario è la schermata principale dell'app e mostra la disponibilità dell'auletta. Sono disponibili 3 diverse viste:
+                </span>
+                <ul>
+                    <span>
+                        <li><strong>Vista mensile</strong>: Mostra una panoramica delle prenotazioni durante l'intero mese attuale, precedente o successivo (se disponibile).</li>
+                    </span>
+                    <span>
+                        <li><strong>Vista settimanale</strong>: Mostra le disponibilità nelle settimane del mese attuale, precedente o successivo (se disponibile), con tutti i turni affiancati per
+                        giorno (questa vista è disponibile solamente da tablet o da pc).</li>
+                    </span>
+                    <span>
+                        <li><strong>Vista giornaliera</strong>: Mostra l'elenco completo dei turni di un singolo giorno, con
+                        lo stato di ciascuno; si apre cliccando su un giorno dal calendario mensile o settimanale.</li>
+                    </span>
+                </ul>
+                <span>
+                    In ogni vista puoi navigare avanti e indietro nel tempo con le frecce, oltre a tornare rapidamente al giorno attuale con il pulsante "Oggi". 
+                    <br>
+                    La navigazione è comunque limitata: puoi consultare
+                    il mese precedente e, a seconda delle impostazioni stabilite dagli amministratori, il mese
+                    successivo solo a partire da un certo numero di settimane prima del cambio mese (solitamente 1 settimana).
+                </span>
+
+                <h3>Disponibilità e stati di un turno</h3>
+                <span>Ogni turno nel calendario può trovarsi in uno di questi stati:</span>
+                <div class="guida-grid">
+                    <div class="guida-card">
+                        <span class="guida-badge badge-available">Disponibile</span>
+                        <span>Nessuno lo ha ancora prenotato: puoi selezionarlo.</span>
+                    </div>
+                    <div class="guida-card">
+                        <span class="guida-badge badge-own">Occupato da te</span>
+                        <span>Hai già prenotato tu questo turno: cliccandoci sopra puoi modificarlo, oppure puoi gestirlo dalla vista <a href="#le-mie-prenotazioni">5. Le mie prenotazioni</a></span>
+                    </div>
+                    <div class="guida-card">
+                        <span class="guida-badge badge-occupied">Occupato</span>
+                        <span>È già stato prenotato da un altro tesserato o tesserata.</span>
+                    </div>
+                    <div class="guida-card">
+                        <span class="guida-badge badge-occupied">Non prenotabile</span>
+                        <span>Turno passato, o fuori dall'intervallo di date al momento consultabile.</span>
+                    </div>
+                </div>
+                <span>
+                    Se prenoti un turno che è già iniziato da più di 30 minuti, l'app te lo segnala e la
+                    prenotazione viene confermata automaticamente: in quel caso non potrai più
+                    rinunciarvi (vedi <a href="#le-mie-prenotazioni">5. Le mie prenotazioni</a>).
+                </span>
+            </section>
+
+            <!-- 4. PRENOTARE -->
+            <section class="guida-section" id="prenotare">
+                <h2>4. Prenotare un turno</h2>
+                <h3>Modalità di prenotazione</h3>
+                <ol>
+                    <span>
+                        <li>
+                            <strong>Dal calendario</strong>: Apri la vista giornaliera o settimanale e clicca
+                            direttamente su uno o più turni disponibili. Ogni turno selezionato viene evidenziato e
+                            compare in basso una barra con i pulsanti "Annulla" e
+                            "Conferma": premendo Conferma tutte le prenotazioni selezionate vengono
+                            create in un'unica operazione.
+                        </li>
+                    </span>
+                    <span>
+                        <li>
+                            <strong>Dal pulsante "Prenota"</strong>: Situato tra i pulsanti di navigazione delle varie viste del calendario, apre una finestra dove
+                            scegliere data e turno da un menu a tendina che mostra automaticamente quali orari sono
+                            già occupati.
+                        </li>
+                    </span>
+                </ol>
+
+                <h3>Limite di prenotazioni settimanali</h3>
+                <span>
+                    Per garantire un utilizzo equo dell'auletta, ogni tesserato e tesserata può avere un numero massimo di
+                    prenotazioni attive per settimana (da lunedì a domenica). 
+                    <br>
+                    Il numero massimo consentito e quante ne hai già utilizzate nelle varie settimane sono sempre visibili cliccando sull'icona
+                    calendario con orologio in alto (es. <code>2/7</code>). 
+                    <br>
+                    Se provi a prenotare oltre il limite, l'app te lo segnala e blocca l'operazione.
+                </span>
+
+                <div class="guida-tip">
+                    <i data-lucide="lightbulb" class="lucide"></i>
+                    <span>Puoi selezionare più turni solamente nello stesso giorno prima di confermare: verranno tutti
+                    creati insieme, e riceverai un riepilogo con l'elenco completo a conferma avvenuta.</span>
+                </div>
+            </section>
+
+            <!-- 5. LE MIE PRENOTAZIONI -->
+            <section class="guida-section" id="le-mie-prenotazioni">
+                <h2>5. Le mie prenotazioni</h2>
+                <span>
+                    Dalla scheda Prenotazioni (barra di navigazione o menu laterale su mobile) vedi
+                    l'elenco di tutti i tuoi turni futuri, raggruppati per giorno, e — se è il momento del tuo turno
+                    — anche l'indicazione se l'auletta è attualmente occupata da te o da qualcun altro.
+                </span>
+
+                <h3>Confermare la presenza</h3>
+                <span>
+                    Quando il tuo turno è in corso, comparirà il pulsante "Conferma presenza": usalo
+                    per segnalare che stai effettivamente utilizzando l'auletta.
+                </span>
+
+                <h3>Modificare o rinunciare a un turno</h3>
+                <span>
+                    Cliccando su una tua prenotazione (dal calendario o dall'elenco) puoi:
+                </span>
+                <ul>
+                    <span>
+                        <li><strong>Rinunciare al turno</strong>: Lo elimina e lo rende subito disponibile per gli
+                            altri tesserati.</li>
+                    </span>
+                    <span>
+                        <li><strong>Cederlo a un altro tesserato</strong>: Vedi la sezione <a href="#cessione">6. Cedere un
+                            turno</a>.</li>
+                    </span>
+                </ul>
+                <span>
+                    Puoi modificare una prenotazione solo se il turno non è ancora iniziato, oppure entro 30 minuti
+                    dal suo inizio. Superata questa finestra, o se il turno risulta già confermato, la modifica non
+                    è più possibile.
+                </span>
+            </section>
+
+            <!-- 6. CESSIONE -->
+            <section class="guida-section" id="cessione">
+                <h2>6. Cedere un turno</h2>
+                <span>
+                    Se hai prenotato un turno che non puoi più utilizzare, puoi cederlo a un altro tesserato invece di
+                    semplicemente rinunciarvi:
+                </span>
+                <ol>
+                    <span>
+                        <li>Apri la tua prenotazione e scegli "Cedi turno a".</li>
+                    </span>
+                    <span>
+                        <li>Seleziona il tesserato destinatario dall'elenco.</li>
+                    </span>
+                    <span>
+                        <li>Conferma: il destinatario riceverà una notifica con la richiesta.</li>
+                    </span>
+                </ol>
+                <span>
+                    Il turno resta a tuo nome finché il destinatario non accetta la richiesta dalla propria scheda
+                    notifiche. Se accetta, la prenotazione passa a lui; se rifiuta, resta tua e ricevi una notifica
+                    dell'esito.
+                </span>
+            </section>
+
+            <!-- 7. NOTIFICHE -->
+            <section class="guida-section" id="notifiche">
+                <h2>7. Notifiche</h2>
+                <span>
+                    L'icona a forma di posta in arrivo, in alto nella pagina (o nel menu su mobile), raccoglie le
+                    notifiche relative alle richieste di cessione turno che altri tesserati ti hanno inviato. Un
+                    pallino rosso ti segnala la presenza di notifiche non ancora gestite.
+                </span>
+                <span>
+                    Da qui puoi accettare e prenotare il turno propostoti, oppure
+                    rifiutare la richiesta.
+                </span>
+                <div class="guida-tip">
+                    <i data-lucide="lightbulb" class="lucide"></i>
+                    <span>Attiva le notifiche push (vedi <a href="#account">8. Account e preferenze</a>) per essere
+                    avvisato anche quando non hai l'app aperta.</span>
+                </div>
+            </section>
+
+            <!-- 8. ACCOUNT -->
+            <section class="guida-section" id="account">
+                <h2>8. Account e preferenze</h2>
+                <span>
+                    Dalla scheda profilo (icona in alto a destra, o "Impostazioni account" nel menu su mobile) puoi:
+                </span>
+                <ul>
+                    <span>
+                        <li><strong>Cambiare la foto profilo</strong> — formati supportati: JPG, PNG, WEBP, GIF, fino a
+                            3 MB.</li>
+                    </span>
+                    <span>
+                        <li><strong>Consultare i tuoi dati anagrafici</strong> — nome, cognome, numero tessera, email
+                            (di sola lettura: per correggerli contatta un amministratore).</li>
+                    </span>
+                    <span>
+                        <li><strong>Attivare o disattivare le notifiche push</strong> sul tuo dispositivo.</li>
+                    </span>
+                    <span>
+                        <li><strong>Scegliere come vengono mostrati gli altri utenti prenotati</strong> nella vista
+                            mensile del calendario: con le loro immagini profilo, oppure con semplici pallini, per maggiore
+                            privacy.</li>
+                    </span>
+                </ul>
+                <div class="guida-tip">
+                    <i data-lucide="apple" class="lucide"></i>
+                    <span>Su iPhone/iPad, le notifiche push funzionano solo se hai prima aggiunto Auletta LDR alla
+                    schermata Home (vedi <a href="#app-mobile">10. Installare l'app</a>).</span>
+                </div>
+            </section>
+
+            <!-- 9. FEEDBACK -->
+            <section class="guida-section" id="feedback">
+                <h2>9. Inviare un feedback</h2>
+                <span>
+                    Hai trovato un problema, hai un'idea per migliorare la piattaforma o vuoi semplicemente
+                    segnalare qualcosa agli amministratori? Usa il pulsante "Lascia un feedback"
+                    (in alto, nel footer, o nel menu su mobile), scegli una categoria e scrivi il tuo messaggio:
+                </span>
+                <div class="guida-grid">
+                    <div class="guida-card">
+                        <span class="guida-card-title"><i data-lucide="bug" class="lucide"></i> Bug</span>
+                        <span>Qualcosa non funziona come dovrebbe.</span>
+                    </div>
+                    <div class="guida-card">
+                        <span class="guida-card-title"><i data-lucide="sparkles" class="lucide"></i> Suggerimento</span>
+                        <span>Un'idea per migliorare l'app.</span>
+                    </div>
+                    <div class="guida-card">
+                        <span class="guida-card-title"><i data-lucide="message-circle" class="lucide"></i> Altro</span>
+                        <span>Qualsiasi altra comunicazione.</span>
+                    </div>
+                </div>
+                <span>Il tuo messaggio arriva direttamente agli amministratori, che potranno rispondere o intervenire.</span>
+            </section>
+
+            <!-- 10. APP MOBILE -->
+            <section class="guida-section" id="app-mobile">
+                <h2>10. Installare l'app sul telefono</h2>
+                <span>
+                    Auletta LDR può essere installata come app, senza passare da nessuno store, il vantaggio principale è quello di poter ricevere notifiche push come se fosse un'applicazione vera e propria.
+                </span>
+                <h3>Su Android (Chrome)</h3>
+                <ol>
+                    <span><li>Apri Auletta LDR dal browser.</li></span>
+                    <span><li>Tocca il menu del browser (i tre puntini) e apri le impostazioni del sito.</li></span>
+                    <span><li>Seleziona "Installa app" o "Aggiungi a schermata Home".</li></span>
+                    <span><li>Ora puoi abilitare le notifiche push direttamente dalla pagina Impostazioni di Auletta LDR.</li></span>
+                </ol>
+                <h3>Su iPhone/iPad (Safari)</h3>
+                <ol>
+                    <span><li>Apri Auletta LDR da Safari.</li></span>
+                    <span><li>Tocca l'icona "Condividi" (il quadrato con la freccia verso l'alto).</li></span>
+                    <span><li>Seleziona "Aggiungi alla schermata Home".</li></span>
+                    <span><li>Ora puoi abilitare le notifiche push direttamente dalla pagina Impostazioni di Auletta LDR.</li></span>
+                </ol>
+            </section>
+
+            <!-- 11. FAQ -->
+            <section class="guida-section" id="faq">
+                <h2>11. Domande frequenti</h2>
+
+                <div class="guida-faq-item">
+                    <div class="guida-faq-q"><h2>Perché non riesco a vedere il mese successivo?</h2></div>
+                    <span>La navigazione al mese successivo si apre solo a un certo numero di settimane dal cambio
+                    mese, secondo le regole stabilite dagli amministratori.</span>
+                </div>
+
+                <div class="guida-faq-item">
+                    <div class="guida-faq-q"><h2>Ho prenotato per errore un turno già iniziato: posso annullarlo?</h2></div>
+                    <span>Se sono passati più di 30 minuti dall'inizio del turno, o se il sistema l'ha già confermato
+                    automaticamente, la prenotazione non è più modificabile. In quel caso considera di cederla a
+                    un altro tesserato se possibile, oppure contatta un amministratore.</span>
+                </div>
+
+                <div class="guida-faq-item">
+                    <div class="guida-faq-q"><h2>Ho raggiunto il limite settimanale ma mi serve prenotare comunque un altro turno.</h2></div>
+                    <span>Il limite è pensato per garantire un accesso equo a tutti i tesserati. Se hai un'esigenza
+                    particolare, puoi contattare un amministratore.</span>
+                </div>
+
+                <div class="guida-faq-item">
+                    <div class="guida-faq-q"><h2>Non ricevo le notifiche sul mio telefono.</h2></div>
+                    <span>Verifica di aver dato il permesso al browser di inviarti notifiche nella vista impostazioni e preferenze (raggiungibile tramite il menu laterale) e, su iPhone/iPad, di
+                    aver installato l'app dalla schermata Home (vedi <a href="#app-mobile">10. Installare
+                    l'app</a>). Su alcuni browser desktop le notifiche push non sono supportate.</span>
+                </div>
+
+                <div class="guida-faq-item">
+                    <div class="guida-faq-q"><h2>Ho un problema che questa guida non copre.</h2></div>
+                    <span>Usa il pulsante <a href="#feedback">9. Lascia un feedback</a> per segnalarlo direttamente agli
+                    amministratori.</span>
+                </div>
+            </section>
+
+        </div>
+
+    </main>
+
+    <!-- ── Footer ─────────────────────────────────────────────────── -->
+    <footer>
+        <h5>© 2010-2026 Il Lume della Ragione</h5>
+        <div class="horizontal-container">
+
+            <button class="no-style" onclick="location.href='/'">
+                <h5>Torna all'app</h5>
+            </button>
+                
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>lucide.createIcons();</script>
+
+    <!-- ── Sommario dinamico ──────────────────────────────────────── -->
+    <script src="/src/js/manage-guida.js"></script>
+
+</body>
+</html>

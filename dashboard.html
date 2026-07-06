@@ -668,8 +668,7 @@
             </div>
 
             <div class="info-box">
-                I turni definiscono le fasce orarie prenotabili dagli utenti. Modifica o disattiva un turno con
-                attenzione: le prenotazioni esistenti non vengono cancellate automaticamente.
+               <span>I turni definiscono le fasce orarie prenotabili dagli utenti. Modifica o disattiva un turno con attenzione: le prenotazioni esistenti non vengono cancellate automaticamente.</span>
             </div>
 
             <div class="turni-list" id="turni-list">
@@ -681,8 +680,10 @@
         <!-- ════ SEZIONE: PRENOTAZIONI ════ -->
         <section class="dash-section" id="section-calendario">
 
-            <!-- Prenotazione privilegiata admin -->
+            <span class="section-title">Prenotazioni</span>
+
             <div class="divider"></div>
+            
             <div class="section-header">
                 <span class="section-title" style="font-size:14px">Prenotazione privilegiata</span>
                 <button class="w-text" onclick="window.apriNuovaPrenotazioneAdmin()">
@@ -691,11 +692,13 @@
                 </button>
             </div>
             <div class="info-box">
-                Come amministratore puoi prenotare un turno per qualsiasi utente, senza limitazioni di data o settimana.
+                <span>Come amministratore puoi prenotare un turno per qualsiasi utente, senza limitazioni di data o settimana.</span>
             </div>
+            
+            <div class="divider"></div>
 
             <div class="section-header" style="margin-top:8px">
-                <span class="section-title" style="font-size:14px">Prenotazioni</span>
+                <span class="section-title" style="font-size:14px">Tutte le prenotazioni</span>
                 <div class="horizontal-container">
                     <div class="search-bar">
                         <input type="text" id="search-prenotazioni" placeholder="Cerca per utente, data, stato"
@@ -744,6 +747,7 @@
                                 <th>Turno</th>
                                 <th>Stato</th>
                                 <th>Creata il</th>
+                                <th>Azioni</th>
                             </tr>
                         </thead>
                         <tbody id="table-prenotazioni-passate">
@@ -901,7 +905,7 @@
                         <span>Trattamento dati accettato</span>
                     </label>
                 </div>
-                <p id="nuovo-utente-error" class="form-error" style="display:none"></p>
+                <span id="nuovo-utente-error" class="form-error" style="display:none"></span>
             </div>
             <div class="full-modal-footer">
                 <button type="button" class="w-text" onclick="closeModal('nuovo-utente')">Annulla</button>
@@ -946,7 +950,7 @@
                         <span>Accesso attivo (registrato)</span>
                     </label>
                 </div>
-                <p id="modifica-utente-error" class="form-error" style="display:none"></p>
+                <span id="modifica-utente-error" class="form-error" style="display:none"></span>
             </div>
             <div class="full-modal-footer">
                 <button type="button" class="w-text danger" onclick="eliminaUtente()" id="btn-elimina-utente">
@@ -986,7 +990,7 @@
                     </button>
                 </div>
 
-                <p id="modifica-turno-error" class="form-error" style="display:none"></p>
+                <span id="modifica-turno-error" class="form-error" style="display:none"></span>
             </div>
             <div class="full-modal-footer">
                 <div class="horizontal-container" style="gap:8px">
@@ -1014,7 +1018,7 @@
                     <label for="nt-fine"><span>Orario fine *</span></label>
                     <input type="time" id="nt-fine">
                 </div>
-                <p id="nuovo-turno-error" class="form-error" style="display:none"></p>
+                <span id="nuovo-turno-error" class="form-error" style="display:none"></span>
             </div>
             <div class="full-modal-footer">
                 <div class="horizontal-container" style="gap:8px">
@@ -1066,7 +1070,7 @@
                         <span>Forza se turno occupato</span>
                     </label>
                 </div>
-                <p id="prenota-admin-error" class="form-error" style="display:none"></p>
+                <span id="prenota-admin-error" class="form-error" style="display:none"></span>
             </div>
             <div class="full-modal-footer">
                 <button type="button" class="w-text" onclick="closeModal('prenota-admin')">Annulla</button>
@@ -1086,7 +1090,7 @@
                 <span class="modal-title">Conferma eliminazione</span>
             </div>
             <div class="full-modal-content">
-                <p id="conferma-elimina-text" style="font-size:13px"></p>
+                <span id="conferma-elimina-text" style="font-size:13px"></span>
             </div>
             <div class="full-modal-footer">
                 <button class="w-text" onclick="closeModal('conferma-elimina')">Annulla</button>
@@ -1207,7 +1211,7 @@
                         <option value="gestito">Gestito</option>
                     </select>
                 </div>
-                <p id="gestisci-feedback-error" class="form-error" style="display:none"></p>
+                <span id="gestisci-feedback-error" class="form-error" style="display:none"></span>
             </div>
             <div class="full-modal-footer">
                 <button type="button" class="w-text danger" id="btn-elimina-feedback">

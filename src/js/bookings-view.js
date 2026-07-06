@@ -106,7 +106,7 @@ function formatClock(timeStr) {
 // crea etichetta oraria leggibile per il turno
 export function formatTurnLabel(turn) {
   if (!turn) return "";
-  if (turn.indice === 7) return `${formatClock(turn.orario_inizio)} in poi`;
+  // if (turn.indice === 7) return `${formatClock(turn.orario_inizio)} in poi`;
   return `${formatClock(turn.orario_inizio)} - ${formatClock(turn.orario_fine)}`;
 }
 
