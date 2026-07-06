@@ -43,27 +43,32 @@
 
         <!-- container azioni header -->
         <div id="desktop-header" class="horizontal-container">
+
+            <!-- guida -->
+            <button class="w-text" onclick="location.href='/guida.html'" title="Guida all'uso">
+                <i data-lucide="circle-question-mark"></i>
+            </button>
             
             <!-- feedback -->
-            <button class="w-text" data-modal="feedback">
+            <button class="w-text" data-modal="feedback" title="Invia un feedback">
                 <i data-lucide="megaphone"></i>
                 <span>Lascia un feedback</span>
             </button>
 
             <!-- prenotazioni -->
-            <button class="w-text" data-modal="le-mie-prenotazioni">
+            <button class="w-text" data-modal="le-mie-prenotazioni" title="Limiti delle tue prenotazioni">
                 <i data-lucide="calendar-clock"></i>
                 <span data-booking-count="">-/-</span>
             </button>
 
             <!-- inbox -->
-            <button data-modal="notifiche" class="notification-button">
+            <button data-modal="notifiche" class="notification-button" title="Le tue notifiche">
                 <i data-lucide="inbox"></i>
                 <span class="notification-dot hidden"></span>
             </button>
 
             <!-- profilo utente -->
-            <button data-modal="account" class="no-style">
+            <button data-modal="account" class="no-style" title="Impostazioni account e profilo">
                 <img class="profile-pic" data-profile-pic alt="">
             </button>
 
@@ -179,6 +184,11 @@
             <button type="button" class="w-text nav-switch" data-main-view="bookings">
                 <i data-lucide="calendar-clock"></i>
                 <span>Prenotazioni</span>
+            </button>
+
+            <button type="button" class="w-text nav-switch" data-main-view="account">
+                <i data-lucide="circle-user-round"></i>
+                <span>Account</span>
             </button>
 
         </div>
@@ -357,7 +367,7 @@
                 <h5>Feedback</h5>
             </button>
 
-            <button class="no-style" data-modal="guida">
+            <button class="no-style" onclick="location.href='/guida.html'">
                 <h5>Guida</h5>
             </button>
                 
@@ -614,14 +624,14 @@
                     <i data-lucide="calendar-clock" class="lucide"></i>
                     <span>Le mie prenotazioni</span>
                 </button>
-    
-                <div class="divider"></div>
-                <span class="side-menu-section-label">Account</span>
-    
-                <button type="button" class="side-menu-btn" data-goto="opzioni">
+                <button type="button" class="side-menu-btn" data-main-view="account" data-modal="close-modal">
                     <i data-lucide="circle-user" class="lucide"></i>
                     <span>Impostazioni account</span>
                 </button>
+    
+                <div class="divider"></div>
+                <span class="side-menu-section-label">Altre informazioni</span>
+    
                 <button type="button" class="side-menu-btn" data-modal="le-mie-prenotazioni">
                     <i data-lucide="bar-chart-2" class="lucide"></i>
                     <span>Riepilogo prenotazioni e limiti</span>
@@ -633,6 +643,14 @@
                 <button type="button" class="side-menu-btn" data-modal="feedback">
                     <i data-lucide="megaphone" class="lucide"></i>
                     <span>Lascia un feedback</span>
+                </button>
+
+                <div class="divider"></div>
+                <span class="side-menu-section-label">Serve aiuto?</span>
+
+                <button type="button" class="side-menu-btn" onclick="location.href='/guida.html'">
+                    <i data-lucide="help-circle" class="lucide"></i>
+                    <span>Visita la guida</span>
                 </button>
     
                 <div class="divider"></div>

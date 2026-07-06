@@ -1331,7 +1331,7 @@ function fmtStatoBadge(stato) {
 async function loadImpostazioni() {
     await syncLimiteSettimanale();
     const limEl = document.getElementById("input-limite-settimanale");
-    console.log("DEBUG limEl trovato:", limEl, "valore da impostare:", limiteSettimanale); // temporaneo
+    // console.log("DEBUG limEl trovato:", limEl, "valore da impostare:", limiteSettimanale);
     if (limEl) limEl.value = limiteSettimanale;
   
     const antEl = document.getElementById("input-settimane-anticipo");
@@ -1357,9 +1357,9 @@ async function loadImpostazioni() {
         typeof window.ldrDb?.getLimiteSettimanale === "function"
           ? await window.ldrDb.getLimiteSettimanale()
           : { data: null, error: null };
-      console.log("DEBUG manage-dashboard syncLimiteSettimanale:", { data, error }); // temporaneo
+    //   console.log("DEBUG manage-dashboard syncLimiteSettimanale:", { data, error });
       if (!error && data != null) limiteSettimanale = data;
-      console.log("DEBUG limiteSettimanale dopo sync:", limiteSettimanale); // temporaneo
+    //   console.log("DEBUG limiteSettimanale dopo sync:", limiteSettimanale);
     } catch (e) {
       console.error("syncLimiteSettimanale:", e);
     }
