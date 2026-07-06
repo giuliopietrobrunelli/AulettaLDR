@@ -252,7 +252,7 @@ function updateAulettaState(currentBooking, profilo, turnoDisattivato = false) {
       el.textContent = 'è occupata da te';
       el.className = 'mine';
     } else {
-      el.textContent = "occupata";
+      el.textContent = "è occupata";
       el.className = "occupied";
     }
   });
