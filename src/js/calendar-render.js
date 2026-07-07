@@ -171,6 +171,10 @@ const calendarRender = {
           if (diffMinuti < 30 && booking.stato !== "confermata") {
             openModificaModal(booking);
           }
+          else{
+            const msg = "Prenotazione già confermata, non è modificabile";
+            showToast("info", msg);
+          }
         }
         return;
       }

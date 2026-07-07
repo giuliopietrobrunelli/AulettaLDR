@@ -212,9 +212,14 @@ function getStatoInfo(prenotazione, isActive) {
 }
 
 // conta il numero di prenotazioni dell'utente nella settimana attuale
-export function countWeeklyBookings(prenotazioni) {
-  const now = new Date();
-  const weekStart = getWeekStart(now);
+export function countWeeklyBookings(prenotazioni, referenceDate) {
+  const ref = !referenceDate
+    ? new Date()
+    : referenceDate instanceof Date
+      ? referenceDate
+      : parseDbDate(referenceDate);
+
+  const weekStart = getWeekStart(ref);
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 6);
 
@@ -818,11 +823,11 @@ async function handleCediTurno(id_prenotazione, selectCedi) {
     btnCedi.disabled = true;
   }
 
-  const { error } = await cediPrenotazione(id_prenotazione, id_destinatario);
+  const { data, error } = await cediPrenotazione(id_prenotazione, id_destinatario);
 
   if (error) {
     // alert('impossibile cedere il turno. riprova più tardi.');
-    showToast("error", "Impossibile cedere il turno", "x");
+    showToast("error", error.message, "x");
     if (btnCedi) {
       btnCedi.disabled = false;
     }

@@ -474,7 +474,6 @@
             background: var(--gray);
             resize: none;
         }
-
     </style>
 </head>
 
@@ -668,7 +667,8 @@
             </div>
 
             <div class="info-box">
-               <span>I turni definiscono le fasce orarie prenotabili dagli utenti. Modifica o disattiva un turno con attenzione: le prenotazioni esistenti non vengono cancellate automaticamente.</span>
+                <span>I turni definiscono le fasce orarie prenotabili dagli utenti. Modifica o disattiva un turno con
+                    attenzione: le prenotazioni esistenti non vengono cancellate automaticamente.</span>
             </div>
 
             <div class="turni-list" id="turni-list">
@@ -683,7 +683,7 @@
             <span class="section-title">Prenotazioni</span>
 
             <div class="divider"></div>
-            
+
             <div class="section-header">
                 <span class="section-title" style="font-size:14px">Prenotazione privilegiata</span>
                 <button class="w-text" onclick="window.apriNuovaPrenotazioneAdmin()">
@@ -692,9 +692,10 @@
                 </button>
             </div>
             <div class="info-box">
-                <span>Come amministratore puoi prenotare un turno per qualsiasi utente, senza limitazioni di data o settimana.</span>
+                <span>Come amministratore puoi prenotare un turno per qualsiasi utente, senza limitazioni di data o
+                    settimana.</span>
             </div>
-            
+
             <div class="divider"></div>
 
             <div class="section-header" style="margin-top:8px">
@@ -1144,13 +1145,29 @@
             <div class="form-section">
                 <div class="form-block">
                     <label for="modifica-turno-data"><span>Data:</span></label>
-                    <input id="modifica-turno-data" name="data" type="text" readonly="readonly" tabindex="-1" style="pointer-events:none; background-color:#f5f5f5;">
+                    <input id="modifica-turno-data" name="data" type="text" readonly="readonly" tabindex="-1"
+                        style="pointer-events:none; background-color:#f5f5f5;">
                 </div>
 
                 <div class="form-block">
                     <label for="modifica-turno-orario"><span>Turno:</span></label>
-                    <input id="modifica-turno-orario" name="turno" type="text" readonly="readonly" tabindex="-1" style="pointer-events:none; background-color:#f5f5f5;">
+                    <input id="modifica-turno-orario" name="turno" type="text" readonly="readonly" tabindex="-1"
+                        style="pointer-events:none; background-color:#f5f5f5;">
                 </div>
+            </div>
+
+            <div class="form-section hidden" id="admin-stato-section">
+                <div class="form-block">
+                    <label for="modifica-turno-stato"><span>Stato prenotazione:</span></label>
+                    <select id="modifica-turno-stato" name="stato">
+                        <option value="confermata">Confermata</option>
+                        <option value="non_confermata">Non confermata</option>
+                        <option value="riservata">Riservata</option>
+                    </select>
+                </div>
+                <button type="button" class="w-text action-btn" id="btn-salva-stato-prenotazione">
+                    <i data-lucide="save"></i> Salva stato
+                </button>
             </div>
 
             <!-- Azioni -->
@@ -1177,9 +1194,9 @@
             <!-- Footer Modale -->
             <div class="full-modal-footer">
                 <button type="button" class="w-text button-secondary" data-modal="close-modal">Annulla</button>
-          </div>
-      </div>
-  </div>
+            </div>
+        </div>
+    </div>
     <!-- Gestisci feedback -->
     <div id="modal-gestisci-feedback" class="full-modal">
         <div class="full-modal-body">
@@ -1233,20 +1250,20 @@
     <div id="modal-confirm" class="full-modal">
         <div class="full-modal-body">
             <div class="modal-header">
-              <span class="modal-title" id="confirm-action-title">Conferma -</span>
-              <span class="modal-subtitle" id="confirm-action-subtitle"></span>
+                <span class="modal-title" id="confirm-action-title">Conferma -</span>
+                <span class="modal-subtitle" id="confirm-action-subtitle"></span>
             </div>
             <div class="full-modal-content">
-              <span id="confirm-action-message" style="font-size:13px"></span>
+                <span id="confirm-action-message" style="font-size:13px"></span>
             </div>
             <div class="full-modal-footer">
-              <button type="button" class="w-text" id="btn-confirm-action-cancel">Annulla</button>
-              <button type="button" class="w-text active" id="btn-confirm-action-confirm">
-                <i data-lucide="check" class="lucide"></i>
-                <span id="confirm-action-confirm-text">Conferma</span>
-              </button>
+                <button type="button" class="w-text" id="btn-confirm-action-cancel">Annulla</button>
+                <button type="button" class="w-text active" id="btn-confirm-action-confirm">
+                    <i data-lucide="check" class="lucide"></i>
+                    <span id="confirm-action-confirm-text">Conferma</span>
+                </button>
             </div>
-          </div>
+        </div>
     </div>
 
     <!-- ── Scripts ────────────────────────────────────────────────── -->

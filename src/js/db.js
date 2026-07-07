@@ -1,5 +1,8 @@
 import { supabase } from "./supabase-client.js";
 
+import { countWeeklyBookings } from "./bookings-view.js";
+import { showToast } from "./toast.js";
+
 // ─── get informazioni utente loggato e altri utenti ────────────────────────────────────────────
 
 // restituisce le info del profilo utente loggato
@@ -296,6 +299,27 @@ export async function cediPrenotazione(id_prenotazione, id_destinatario) {
       error: new Error("prenotazione non trovata o non di tua proprietà"),
     };
   }
+
+  const { data: prenDest, error: prenErrorDest } = await supabase
+    .from("Prenotazione")
+    .select("id_prenotazione, data_prenotazione")
+    .eq("id_utente", id_destinatario);
+
+  if (prenErrorDest) return { error: prenErrorDest };
+
+  const { data: limiteSettimanale, error: limiteError } = await getLimiteSettimanale();
+  if (limiteError) return { error: limiteError };
+
+  const numeroPrenotazioniSettimanali = countWeeklyBookings(prenDest || [], pren.data_prenotazione);
+
+  if (limiteSettimanale != null && numeroPrenotazioniSettimanali >= limiteSettimanale) {
+    // Ritorna l'errore bloccando il flusso in modo pulito
+    return {
+      error: new Error("Impossibile inviare la richiesta: il destinatario ha raggiunto il limite settimanale di prenotazioni."),
+    };
+  }
+
+  
 
   // recupera i dati del mittente per il testo della notifica
   const { data: mittente } = await supabase

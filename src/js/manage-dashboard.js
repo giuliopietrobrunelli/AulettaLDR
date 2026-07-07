@@ -31,17 +31,17 @@ import {
 
 // ─── 1. ESPOSIZIONE DI SICUREZZA ──────────────────────────────
 window.ldrDb = {
-  getAllUtenti,
-  getAllUtentiRegistrati,
-  getAllTurni,
-  getPrenotazioniByDateRange,
-  createPrenotazione,
-  getAllFeedback,
-  deleteFeedback,
-  getSettimaneAnticipo,
-  updateSettimaneAnticipo,
-  updateLimiteSettimanale,
-  getLimiteSettimanale,
+    getAllUtenti,
+    getAllUtentiRegistrati,
+    getAllTurni,
+    getPrenotazioniByDateRange,
+    createPrenotazione,
+    getAllFeedback,
+    deleteFeedback,
+    getSettimaneAnticipo,
+    updateSettimaneAnticipo,
+    updateLimiteSettimanale,
+    getLimiteSettimanale,
 };
 
 // ─── Controllo accesso amministratore ───────────────────────────────────────────
@@ -167,6 +167,27 @@ export async function openModificaPrenotazioneAdmin(prenotazione) {
             : "";
     }
 
+    const statoSection = document.getElementById("admin-stato-section");
+    const selectStato = document.getElementById("modifica-turno-stato");
+    const btnSalvaStato = document.getElementById("btn-salva-stato-prenotazione");
+
+    if (statoSection) statoSection.classList.remove("hidden");
+
+    if (selectStato) {
+        const statoAttuale =
+            prenotazione.stato === "confermata" || prenotazione.data_conferma
+                ? "confermata"
+                : ["confermata", "non_confermata", "riservata"].includes(prenotazione.stato)
+                    ? prenotazione.stato
+                    : "non_confermata";
+        selectStato.value = statoAttuale;
+    }
+
+    if (btnSalvaStato) {
+        btnSalvaStato.disabled = false;
+        btnSalvaStato.onclick = () =>
+            handleSalvaStatoPrenotazioneAdmin(prenotazione.id_prenotazione, selectStato);
+    }
     // popolo la select degli utenti a cui cedere il turno
     if (selectCedi) {
         selectCedi.innerHTML = '<option value="">Seleziona utente</option>';
@@ -248,39 +269,77 @@ async function handleCediTurnoAdmin(id_prenotazione, selectCedi) {
 
 }
 
+// aggiorna lo stato di una prenotazione (solo admin)
+async function handleSalvaStatoPrenotazioneAdmin(id_prenotazione, selectStato) {
+    const nuovoStato = selectStato?.value;
+    if (!nuovoStato) return;
+
+    const btn = document.getElementById("btn-salva-stato-prenotazione");
+    if (btn) btn.disabled = true;
+
+    try {
+        const updateFields = { stato: nuovoStato };
+        // se lo stato diventa "confermata" imposto la data di conferma ad ora,
+        // altrimenti la azzero per restare coerenti con il resto dell'app
+        updateFields.data_conferma =
+            nuovoStato === "confermata" ? new Date().toISOString() : null;
+
+        const { error } = await supabase
+            .from("Prenotazione")
+            .update(updateFields)
+            .eq("id_prenotazione", id_prenotazione);
+
+        if (error) throw error;
+
+        window.modal?.closeAll();
+        showToast("success", "Stato prenotazione aggiornato", "check");
+
+        await window.loadStats();
+        window.calendarRender?.invalidateBookingsCache?.();
+        window.calendarRender?.render?.();
+    } catch (e) {
+        console.error("Errore aggiornamento stato prenotazione:", e);
+        showToast("error", "Impossibile aggiornare lo stato della prenotazione", "x");
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+
+    if (window.lucide?.createIcons) window.lucide.createIcons();
+}
+
 // gestisce la rinuncia a una prenotazione
 // gestisce la rinuncia/eliminazione di una prenotazione (lato admin)
 async function handleRinunciaTurnoAdmin(id_prenotazione) {
-  const confirmed = await confirmAction({
-    title: "Conferma eliminazione prenotazione",
-    message: `Stai per eliminare questa prenotazione. L'operazione è immediata e non richiede conferma da parte dell'utente.`,
-    confirmText: "Elimina",
-  });
-  if (!confirmed) return;
+    const confirmed = await confirmAction({
+        title: "Conferma eliminazione prenotazione",
+        message: `Stai per eliminare questa prenotazione. L'operazione è immediata e non richiede conferma da parte dell'utente.`,
+        confirmText: "Elimina",
+    });
+    if (!confirmed) return;
 
-  const btnRinuncia = document.getElementById("btn-rinuncia-turno");
-  if (btnRinuncia) btnRinuncia.disabled = true;
+    const btnRinuncia = document.getElementById("btn-rinuncia-turno");
+    if (btnRinuncia) btnRinuncia.disabled = true;
 
-  try {
-    const { error } = await annullaPrenotazioneAdmin(id_prenotazione);
-    if (error) throw error;
+    try {
+        const { error } = await annullaPrenotazioneAdmin(id_prenotazione);
+        if (error) throw error;
 
-    window.modal?.closeAll();
-    showToast("success", "Prenotazione eliminata", "check");
+        window.modal?.closeAll();
+        showToast("success", "Prenotazione eliminata", "check");
 
-    // ricarica le tabelle prenotazioni future/passate + statistiche
-    await window.loadStats();
+        // ricarica le tabelle prenotazioni future/passate + statistiche
+        await window.loadStats();
 
-    // tiene allineata anche la vista calendario
-    window.calendarRender?.invalidateBookingsCache?.();
-    window.calendarRender?.render?.();
-  } catch (e) {
-    console.error("Errore eliminazione prenotazione:", e);
-    showToast("error", "Impossibile eliminare la prenotazione", "x");
-    if (btnRinuncia) btnRinuncia.disabled = false;
-  }
+        // tiene allineata anche la vista calendario
+        window.calendarRender?.invalidateBookingsCache?.();
+        window.calendarRender?.render?.();
+    } catch (e) {
+        console.error("Errore eliminazione prenotazione:", e);
+        showToast("error", "Impossibile eliminare la prenotazione", "x");
+        if (btnRinuncia) btnRinuncia.disabled = false;
+    }
 
-  if (window.lucide?.createIcons) window.lucide.createIcons();
+    if (window.lucide?.createIcons) window.lucide.createIcons();
 }
 
 // ─── Rendering tabelle prenotazioni (future / passate) ───────
@@ -909,7 +968,7 @@ window.salvaNuovoTurno = async () => {
 window.eliminaTurno = async () => {
     const conferma = await confirmAction({
         title: `Eliminazione turno`,
-        message:"ATTENZIONE: Eliminando definitivamente questo turno cancellerai anche TUTTE le prenotazioni passate e future collegate ad esso. Vuoi procedere?",
+        message: "ATTENZIONE: Eliminando definitivamente questo turno cancellerai anche TUTTE le prenotazioni passate e future collegate ad esso. Vuoi procedere?",
         confirmText: "Elimina",
     });
     if (!conferma) return;
@@ -1127,54 +1186,54 @@ let feedbackCache = [];
 
 // peso di ordinamento: non gestiti prima, gestiti in fondo
 const STATO_PESO = {
-  non_gestito: 0,
-  in_lavorazione: 1,
-  gestito: 2,
+    non_gestito: 0,
+    in_lavorazione: 1,
+    gestito: 2,
 };
 
 window.loadFeedback = async () => {
-  try {
-    const { data, error } =
-      typeof window.ldrDb?.getAllFeedback === "function"
-        ? await window.ldrDb.getAllFeedback()
-        : await supabase
-            .from("Feedback")
-            .select(
-              "id_feedback, categoria, contenuto, created_at, stato, Utente:id_utente (nome, cognome, numero_tessera)",
-            )
-            .order("created_at", { ascending: false });
+    try {
+        const { data, error } =
+            typeof window.ldrDb?.getAllFeedback === "function"
+                ? await window.ldrDb.getAllFeedback()
+                : await supabase
+                    .from("Feedback")
+                    .select(
+                        "id_feedback, categoria, contenuto, created_at, stato, Utente:id_utente (nome, cognome, numero_tessera)",
+                    )
+                    .order("created_at", { ascending: false });
 
-    if (error) throw error;
+        if (error) throw error;
 
-    feedbackCache = (data ?? []).slice().sort((a, b) => {
-      const pesoA = STATO_PESO[a.stato] ?? 1;
-      const pesoB = STATO_PESO[b.stato] ?? 1;
-      if (pesoA !== pesoB) return pesoA - pesoB;
-      // a parità di stato, i più recenti prima
-      return new Date(b.created_at) - new Date(a.created_at);
-    });
+        feedbackCache = (data ?? []).slice().sort((a, b) => {
+            const pesoA = STATO_PESO[a.stato] ?? 1;
+            const pesoB = STATO_PESO[b.stato] ?? 1;
+            if (pesoA !== pesoB) return pesoA - pesoB;
+            // a parità di stato, i più recenti prima
+            return new Date(b.created_at) - new Date(a.created_at);
+        });
 
-    renderFeedbackTable();
-  } catch (e) {
-    console.error("loadFeedback:", e);
-  }
+        renderFeedbackTable();
+    } catch (e) {
+        console.error("loadFeedback:", e);
+    }
 };
 
 function renderFeedbackTable() {
-  const tbody = document.getElementById("table-feedback");
-  if (!tbody) return;
+    const tbody = document.getElementById("table-feedback");
+    if (!tbody) return;
 
-  tbody.replaceChildren();
+    tbody.replaceChildren();
 
-  if (!feedbackCache.length) {
-    tbody.innerHTML =
-      '<tr class="empty-row"><td colspan="5">Nessun feedback ricevuto</td></tr>';
-    return;
-  }
+    if (!feedbackCache.length) {
+        tbody.innerHTML =
+            '<tr class="empty-row"><td colspan="5">Nessun feedback ricevuto</td></tr>';
+        return;
+    }
 
-  for (const f of feedbackCache) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
+    for (const f of feedbackCache) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
         <td>${f.Utente ? `${escapeHtml(f.Utente.cognome)} ${escapeHtml(f.Utente.nome)}` : "—"}</td>
         <td>${fmtCategoriaBadge(f.categoria)}</td>
         <td class="feedback-content">${escapeHtml(troncaTesto(f.contenuto))}</td>
@@ -1182,149 +1241,149 @@ function renderFeedbackTable() {
         <td>${fmtStatoBadge(f.stato)}</td>
         `;
 
-    // apertura più comoda con click sulla tupla
-    tr.style.cursor = "pointer";
-    tr.addEventListener("click", function (e) {
-      if (e.target.closest("button")) return;
-      window.apriGestisciFeedback(f.id_feedback);
-    });
-    tbody.appendChild(tr);
-  }
-  if (window.lucide?.createIcons) window.lucide.createIcons();
+        // apertura più comoda con click sulla tupla
+        tr.style.cursor = "pointer";
+        tr.addEventListener("click", function (e) {
+            if (e.target.closest("button")) return;
+            window.apriGestisciFeedback(f.id_feedback);
+        });
+        tbody.appendChild(tr);
+    }
+    if (window.lucide?.createIcons) window.lucide.createIcons();
 }
 
 // tronca il testo del feedback per la vista tabellare
 function troncaTesto(testo, max = 80) {
-  if (!testo) return "—";
-  return testo.length > max ? testo.slice(0, max) + "…" : testo;
+    if (!testo) return "—";
+    return testo.length > max ? testo.slice(0, max) + "…" : testo;
 }
 
 // previene injection html dai campi testuali inseriti dagli utenti
 function escapeHtml(str) {
-  if (str == null) return "";
-  return String(str).replace(
-    /[&<>"']/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
-  );
+    if (str == null) return "";
+    return String(str).replace(
+        /[&<>"']/g,
+        (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+    );
 }
 
 // restituisce data e ora formattate (usato nel dettaglio feedback)
 function fmtDateTime(str) {
-  if (!str) return "—";
-  const d = new Date(str);
-  return d.toLocaleString("it-IT", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+    if (!str) return "—";
+    const d = new Date(str);
+    return d.toLocaleString("it-IT", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
 }
 
 // apre il modal di dettaglio con tutte le informazioni del feedback selezionato
 window.apriGestisciFeedback = (id) => {
-  const f = feedbackCache.find((x) => x.id_feedback === id);
-  if (!f) return;
+    const f = feedbackCache.find((x) => x.id_feedback === id);
+    if (!f) return;
 
-  document.getElementById("gf-utente").textContent = f.Utente
-    ? `${f.Utente.cognome} ${f.Utente.nome} — n.${f.Utente.numero_tessera}`
-    : "Utente non disponibile";
-  document.getElementById("gf-categoria").innerHTML = fmtCategoriaBadge(f.categoria);
-  document.getElementById("gf-contenuto").value = f.contenuto ?? "";
-  document.getElementById("gf-subtitle").textContent = `${fmtDateTime(f.created_at)}`;
+    document.getElementById("gf-utente").textContent = f.Utente
+        ? `${f.Utente.cognome} ${f.Utente.nome} — n.${f.Utente.numero_tessera}`
+        : "Utente non disponibile";
+    document.getElementById("gf-categoria").innerHTML = fmtCategoriaBadge(f.categoria);
+    document.getElementById("gf-contenuto").value = f.contenuto ?? "";
+    document.getElementById("gf-subtitle").textContent = `${fmtDateTime(f.created_at)}`;
 
-  const statoSelect = document.getElementById("gf-stato");
-  if (statoSelect) statoSelect.value = f.stato ?? "non_gestito";
+    const statoSelect = document.getElementById("gf-stato");
+    if (statoSelect) statoSelect.value = f.stato ?? "non_gestito";
 
-  showError("gestisci-feedback-error", "");
+    showError("gestisci-feedback-error", "");
 
-  const btnElimina = document.getElementById("btn-elimina-feedback");
-  if (btnElimina) {
-    btnElimina.onclick = () => confermaEliminaFeedback(f.id_feedback);
-  }
+    const btnElimina = document.getElementById("btn-elimina-feedback");
+    if (btnElimina) {
+        btnElimina.onclick = () => confermaEliminaFeedback(f.id_feedback);
+    }
 
-  const btnSalvaStato = document.getElementById("btn-salva-stato-feedback");
-  if (btnSalvaStato) {
-    btnSalvaStato.onclick = () => salvaStatoFeedback(f.id_feedback);
-  }
+    const btnSalvaStato = document.getElementById("btn-salva-stato-feedback");
+    if (btnSalvaStato) {
+        btnSalvaStato.onclick = () => salvaStatoFeedback(f.id_feedback);
+    }
 
-  window.openModal("gestisci-feedback");
+    window.openModal("gestisci-feedback");
 };
 
 // salva il nuovo stato scelto per il feedback
 async function salvaStatoFeedback(id_feedback) {
-  const statoSelect = document.getElementById("gf-stato");
-  const nuovoStato = statoSelect?.value;
-  if (!nuovoStato) return;
+    const statoSelect = document.getElementById("gf-stato");
+    const nuovoStato = statoSelect?.value;
+    if (!nuovoStato) return;
 
-  const btn = document.getElementById("btn-salva-stato-feedback");
-  if (btn) btn.disabled = true;
+    const btn = document.getElementById("btn-salva-stato-feedback");
+    if (btn) btn.disabled = true;
 
-  try {
-    const { error } =
-      typeof window.ldrDb?.updateStatoFeedback === "function"
-        ? await window.ldrDb.updateStatoFeedback(id_feedback, nuovoStato)
-        : await supabase
-            .from("Feedback")
-            .update({ stato: nuovoStato })
-            .eq("id_feedback", id_feedback);
-    if (error) throw error;
+    try {
+        const { error } =
+            typeof window.ldrDb?.updateStatoFeedback === "function"
+                ? await window.ldrDb.updateStatoFeedback(id_feedback, nuovoStato)
+                : await supabase
+                    .from("Feedback")
+                    .update({ stato: nuovoStato })
+                    .eq("id_feedback", id_feedback);
+        if (error) throw error;
 
-    showToast("success", "Stato aggiornato", "check");
-    window.closeModal("gestisci-feedback");
-    await window.loadFeedback();
-  } catch (e) {
-    console.error("salvaStatoFeedback:", e);
-    showToast("error", "Impossibile aggiornare lo stato", "x");
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+        showToast("success", "Stato aggiornato", "check");
+        window.closeModal("gestisci-feedback");
+        await window.loadFeedback();
+    } catch (e) {
+        console.error("salvaStatoFeedback:", e);
+        showToast("error", "Impossibile aggiornare lo stato", "x");
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 // chiede conferma ed elimina il feedback
 async function confermaEliminaFeedback(id_feedback) {
-  const confirmed = await confirmAction({
-    title: "Conferma eliminazione",
-    message: "Confermi di voler eliminare questo feedback? L'operazione non può essere annullata.",
-    confirmText: "Elimina",
-    danger: true,
-  });
-  if (!confirmed) return;
+    const confirmed = await confirmAction({
+        title: "Conferma eliminazione",
+        message: "Confermi di voler eliminare questo feedback? L'operazione non può essere annullata.",
+        confirmText: "Elimina",
+        danger: true,
+    });
+    if (!confirmed) return;
 
-  try {
-    const { error } =
-      typeof window.ldrDb?.deleteFeedback === "function"
-        ? await window.ldrDb.deleteFeedback(id_feedback)
-        : await supabase.from("Feedback").delete().eq("id_feedback", id_feedback);
-    if (error) throw error;
+    try {
+        const { error } =
+            typeof window.ldrDb?.deleteFeedback === "function"
+                ? await window.ldrDb.deleteFeedback(id_feedback)
+                : await supabase.from("Feedback").delete().eq("id_feedback", id_feedback);
+        if (error) throw error;
 
-    window.closeModal("gestisci-feedback");
-    showToast("success", "Feedback eliminato", "check");
-    await window.loadFeedback();
-  } catch (e) {
-    console.error("eliminaFeedback:", e);
-    showToast("error", "Impossibile eliminare il feedback", "x");
-  }
+        window.closeModal("gestisci-feedback");
+        showToast("success", "Feedback eliminato", "check");
+        await window.loadFeedback();
+    } catch (e) {
+        console.error("eliminaFeedback:", e);
+        showToast("error", "Impossibile eliminare il feedback", "x");
+    }
 }
 
 // restituisce il badge colorato in base alla categoria del feedback
 function fmtCategoriaBadge(categoria) {
-  const map = {
-    bug: '<span class="badge badge-red">Bug</span>',
-    suggerimento: '<span class="badge badge-green">Suggerimento</span>',
-    altro: '<span class="badge badge-gray">Altro</span>',
-  };
-  return map[categoria] ?? `<span class="badge badge-gray">${categoria}</span>`;
+    const map = {
+        bug: '<span class="badge badge-red">Bug</span>',
+        suggerimento: '<span class="badge badge-green">Suggerimento</span>',
+        altro: '<span class="badge badge-gray">Altro</span>',
+    };
+    return map[categoria] ?? `<span class="badge badge-gray">${categoria}</span>`;
 }
 
 // restituisce il badge colorato in base allo stato del feedback
 function fmtStatoBadge(stato) {
-  const map = {
-    non_gestito: '<span class="badge badge-red">Non gestito</span>',
-    in_lavorazione: '<span class="badge badge-blue">In lavorazione</span>',
-    gestito: '<span class="badge badge-gray">Gestito</span>',
-  };
-  return map[stato] ?? '<span class="badge badge-red">Non gestito</span>';
+    const map = {
+        non_gestito: '<span class="badge badge-red">Non gestito</span>',
+        in_lavorazione: '<span class="badge badge-blue">In lavorazione</span>',
+        gestito: '<span class="badge badge-gray">Gestito</span>',
+    };
+    return map[stato] ?? '<span class="badge badge-red">Non gestito</span>';
 }
 
 // ─── Impostazioni ───────────────────────────────────────────
@@ -1333,86 +1392,86 @@ async function loadImpostazioni() {
     const limEl = document.getElementById("input-limite-settimanale");
     // console.log("DEBUG limEl trovato:", limEl, "valore da impostare:", limiteSettimanale);
     if (limEl) limEl.value = limiteSettimanale;
-  
+
     const antEl = document.getElementById("input-settimane-anticipo");
     if (antEl) {
-      try {
-        const { data, error } =
-          typeof window.ldrDb?.getSettimaneAnticipo === "function"
-            ? await window.ldrDb.getSettimaneAnticipo()
-            : { data: null, error: null };
-        antEl.value = !error && data != null
-          ? data
-          : (window.calendarRender?.weeksBeforeNextMonthView ?? 1);
-      } catch (e) {
-        console.error("loadImpostazioni (anticipo):", e);
-        antEl.value = window.calendarRender?.weeksBeforeNextMonthView ?? 1;
-      }
+        try {
+            const { data, error } =
+                typeof window.ldrDb?.getSettimaneAnticipo === "function"
+                    ? await window.ldrDb.getSettimaneAnticipo()
+                    : { data: null, error: null };
+            antEl.value = !error && data != null
+                ? data
+                : (window.calendarRender?.weeksBeforeNextMonthView ?? 1);
+        } catch (e) {
+            console.error("loadImpostazioni (anticipo):", e);
+            antEl.value = window.calendarRender?.weeksBeforeNextMonthView ?? 1;
+        }
     }
-  }
+}
 
-  async function syncLimiteSettimanale() {
+async function syncLimiteSettimanale() {
     try {
-      const { data, error } =
-        typeof window.ldrDb?.getLimiteSettimanale === "function"
-          ? await window.ldrDb.getLimiteSettimanale()
-          : { data: null, error: null };
-    //   console.log("DEBUG manage-dashboard syncLimiteSettimanale:", { data, error });
-      if (!error && data != null) limiteSettimanale = data;
-    //   console.log("DEBUG limiteSettimanale dopo sync:", limiteSettimanale);
+        const { data, error } =
+            typeof window.ldrDb?.getLimiteSettimanale === "function"
+                ? await window.ldrDb.getLimiteSettimanale()
+                : { data: null, error: null };
+        //   console.log("DEBUG manage-dashboard syncLimiteSettimanale:", { data, error });
+        if (!error && data != null) limiteSettimanale = data;
+        //   console.log("DEBUG limiteSettimanale dopo sync:", limiteSettimanale);
     } catch (e) {
-      console.error("syncLimiteSettimanale:", e);
+        console.error("syncLimiteSettimanale:", e);
     }
-  }
+}
 
-  window.salvaLimite = async () => {
+window.salvaLimite = async () => {
     const v = parseInt(document.getElementById("input-limite-settimanale").value);
     if (!v || v < 1) return;
-  
+
     try {
-      const { error } =
-        typeof window.ldrDb?.updateLimiteSettimanale === "function"
-          ? await window.ldrDb.updateLimiteSettimanale(v)
-          : await supabase
-              .from("Impostazioni")
-              .update({ valore: String(v) })
-              .eq("nome", "limite_settimanale");
-      if (error) throw error;
-  
-      limiteSettimanale = v;
-      window.ldrBookingConfig?.setMaxWeeklyBookings?.(v); // viene letto correttamente dal db
-      document.getElementById("stat-limite").textContent = v;
-      showToast("success", `Limite aggiornato a ${v} prenotazioni/settimana.`, "check");
+        const { error } =
+            typeof window.ldrDb?.updateLimiteSettimanale === "function"
+                ? await window.ldrDb.updateLimiteSettimanale(v)
+                : await supabase
+                    .from("Impostazioni")
+                    .update({ valore: String(v) })
+                    .eq("nome", "limite_settimanale");
+        if (error) throw error;
+
+        limiteSettimanale = v;
+        window.ldrBookingConfig?.setMaxWeeklyBookings?.(v); // viene letto correttamente dal db
+        document.getElementById("stat-limite").textContent = v;
+        showToast("success", `Limite aggiornato a ${v} prenotazioni/settimana.`, "check");
     } catch (e) {
-      console.error("salvaLimite:", e);
-      showToast("error", "Impossibile salvare l'impostazione.", "x");
+        console.error("salvaLimite:", e);
+        showToast("error", "Impossibile salvare l'impostazione.", "x");
     }
-  };
+};
 
 window.salvaAnticipo = async () => {
     const v = parseInt(document.getElementById("input-settimane-anticipo").value);
     if (isNaN(v) || v < 0) return;
-  
+
     try {
-      const { error } =
-        typeof window.ldrDb?.updateSettimaneAnticipo === "function"
-          ? await window.ldrDb.updateSettimaneAnticipo(v)
-          : await supabase
-              .from("Impostazioni")
-              .update({ valore: String(v) })
-              .eq("nome", "settimane_anticipo");
-      if (error) throw error;
-  
-      if (window.calendarRender) {
-        window.calendarRender.weeksBeforeNextMonthView = v;
-        window.calendarRender.render?.();
-      }
-      showToast("success", `Anticipo aggiornato a ${v} settimane.`, "check");
+        const { error } =
+            typeof window.ldrDb?.updateSettimaneAnticipo === "function"
+                ? await window.ldrDb.updateSettimaneAnticipo(v)
+                : await supabase
+                    .from("Impostazioni")
+                    .update({ valore: String(v) })
+                    .eq("nome", "settimane_anticipo");
+        if (error) throw error;
+
+        if (window.calendarRender) {
+            window.calendarRender.weeksBeforeNextMonthView = v;
+            window.calendarRender.render?.();
+        }
+        showToast("success", `Anticipo aggiornato a ${v} settimane.`, "check");
     } catch (e) {
-      console.error("salvaAnticipo:", e);
-      showToast("error", "Impossibile salvare l'impostazione.", "x");
+        console.error("salvaAnticipo:", e);
+        showToast("error", "Impossibile salvare l'impostazione.", "x");
     }
-  };
+};
 
 // ─── Inizializzazione ───────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
