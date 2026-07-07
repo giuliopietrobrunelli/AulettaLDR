@@ -1,7 +1,7 @@
 import { supabase } from "./supabase-client.js";
 
 // oggetto principale per la gestione dell'autenticazione
-const auth = {
+export const auth = {
   async init() {
     const hash = window.location.hash;
 
@@ -603,6 +603,3 @@ document.addEventListener("DOMContentLoaded", () => auth.init());
 
 // rende il logout globale per il bottone nella home
 window.ldrLogout = () => auth.logout();
-
-// esporta auth per usarlo altrove
-export { auth };

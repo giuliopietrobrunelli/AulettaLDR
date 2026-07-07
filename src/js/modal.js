@@ -2,7 +2,7 @@
 // const MODAL_TRANSITION_MS = 230;
 const MODAL_TRANSITION_MS = 0;
 
-const modal = {
+export const modal = {
   // insiemi per tracciare gli id dei modal piccoli e a schermo intero
   smallIds: new Set(),
   fullIds: new Set(),
@@ -160,5 +160,3 @@ const modal = {
 
 // inizializza tutto quando il dom è pronto
 document.addEventListener("DOMContentLoaded", () => modal.init());
-// rende l'oggetto disponibile globalmente
-window.modal = modal;

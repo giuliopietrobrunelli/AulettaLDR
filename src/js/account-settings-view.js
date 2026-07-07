@@ -6,6 +6,8 @@ import {
   disablePushNotifications,
   getPushSubscriptionStatus,
 } from "./app.js";
+import { modal } from "./modal.js";
+import { profiloUtente, setProfiloUtente } from "./user-state.js"
 
 // massimo 3mb per la foto profilo
 const MAX_AVATAR_SIZE = 3 * 1024 * 1024;
@@ -48,7 +50,7 @@ export function renderAccountSettings() {
   const container = document.getElementById("account-settings");
   if (!container) return;
 
-  const profilo = window.ldrProfilo;
+  const profilo = profiloUtente;
   container.replaceChildren();
 
   // se nessun profilo, mostra un messaggio che invita ad accedere
@@ -115,7 +117,7 @@ export function renderAccountSettings() {
     }
 
     // aggiorna la foto profilo e sincronizza ovunque
-    window.ldrProfilo = data;
+    setProfiloUtente(data);
     img.src = getProfilePicUrl(data);
     syncProfilePictures(data);
     showToast("success", "Immagine profilo aggiornata.", "user-round-check");
@@ -241,11 +243,9 @@ export function renderAccountSettings() {
         "x",
       );
     } else {
-      window.ldrProfilo = data;
+      setProfiloUtente(data);
       syncRecapButtonsState(data.mostra_foto_prenotazioni);
       showToast("success","Preferenze aggiornate");
-      // ridisegna la vista mese per applicare subito la nuova preferenza
-      // window.calendarRender?.render?.();
     }
 
     btnRecapFoto.disabled = false;
@@ -271,7 +271,7 @@ export function initAccountSettings(onNavigate) {
   document.querySelectorAll('[data-goto="opzioni"]').forEach((el) => {
     el.addEventListener("click", (e) => {
       e.preventDefault();
-      window.modal?.closeAll?.();
+      modal.closeAll();
       navigateToView?.("account");
     });
   });

@@ -504,27 +504,27 @@
     <!-- ── Nav principale ────────────────────────────────────────── -->
     <nav>
         <div class="horizontal-container">
-            <button type="button" class="w-text mini" id="btn-nav-utenti" onclick="showSection('utenti')">
+            <button type="button" class="w-text nav-switch active" id="btn-nav-utenti" data-main-view="utenti">
                 <i data-lucide="users" class="lucide"></i>
                 <span>Utenti</span>
             </button>
-            <button type="button" class="w-text mini" id="btn-nav-turni" onclick="showSection('turni')">
+            <button type="button" class="w-text nav-switch" id="btn-nav-turni" data-main-view="turni">
                 <i data-lucide="clock" class="lucide"></i>
                 <span>Turni</span>
             </button>
-            <button type="button" class="w-text mini" id="btn-nav-calendario" onclick="showSection('calendario')">
+            <button type="button" class="w-text nav-switch" id="btn-nav-calendario" data-main-view="prenotazioni">
                 <i data-lucide="calendar-days" class="lucide"></i>
                 <span>Prenotazioni</span>
             </button>
-            <button type="button" class="w-text mini" id="btn-nav-stats" onclick="showSection('stats')">
+            <button type="button" class="w-text nav-switch" id="btn-nav-stats" data-main-view="statistiche">
                 <i data-lucide="bar-chart-2" class="lucide"></i>
                 <span>Statistiche</span>
             </button>
-            <button type="button" class="w-text mini" id="btn-nav-feedback" onclick="showSection('feedback')">
+            <button type="button" class="w-text nav-switch" id="btn-nav-feedback" data-main-view="feedback">
                 <i data-lucide="megaphone" class="lucide"></i>
                 <span>Feedback</span>
             </button>
-            <button type="button" class="w-text mini" id="btn-nav-impostazioni" onclick="showSection('impostazioni')">
+            <button type="button" class="w-text nav-switch" id="btn-nav-impostazioni" data-main-view="impostazioni">
                 <i data-lucide="settings" class="lucide"></i>
                 <span>Impostazioni</span>
             </button>
@@ -539,7 +539,7 @@
 
             <div class="section-header">
                 <span class="section-title">Statistiche</span>
-                <button class="w-text mini" id="btn-refresh-stats" onclick="window.loadStats()">
+                <button class="w-text mini" id="btn-refresh-stats">
                     <i data-lucide="refresh-cw" class="lucide"></i>
                     <span>Aggiorna</span>
                 </button>
@@ -577,10 +577,6 @@
                     <span class="stat-card-sub">prenotazioni/settimana</span>
                 </div>
             </div>
-
-            <!-- Ultime prenotazioni -->
-
-
         </section>
 
         <!-- ════ SEZIONE: UTENTI ════ -->
@@ -590,10 +586,9 @@
                 <span class="section-title">Gestione utenti</span>
                 <div class="horizontal-container">
                     <div class="search-bar">
-                        <input type="text" id="search-utenti" placeholder="Cerca per nome, email, tessera…"
-                            oninput="filterUtenti()">
+                        <input type="text" id="search-utenti" placeholder="Cerca per nome, email, tessera…">
                     </div>
-                    <button class="w-text" onclick="openModal('nuovo-utente')">
+                    <button class="w-text" id="btn-nuovo-utente">
                         <i data-lucide="user-plus" class="lucide"></i>
                         <span>Nuovo utente</span>
                     </button>
@@ -601,8 +596,8 @@
             </div>
 
             <div class="tab-bar">
-                <button class="tab-btn active" onclick="switchTab('registrati', this)">Registrati</button>
-                <button class="tab-btn" onclick="switchTab('non-registrati', this)">Non registrati</button>
+                <button class="tab-btn active" data-tab="registrati" >Registrati</button>
+                <button class="tab-btn" data-tab="non-registrati">Non registrati</button>
             </div>
 
             <!-- Tabella registrati -->
@@ -660,7 +655,7 @@
 
             <div class="section-header">
                 <span class="section-title">Gestione turni</span>
-                <button class="w-text" onclick="openModal('nuovo-turno')">
+                <button class="w-text" id="btn-nuovo-turno">
                     <i data-lucide="plus" class="lucide"></i>
                     <span>Nuovo turno</span>
                 </button>
@@ -686,7 +681,7 @@
 
             <div class="section-header">
                 <span class="section-title" style="font-size:14px">Prenotazione privilegiata</span>
-                <button class="w-text" onclick="window.apriNuovaPrenotazioneAdmin()">
+                <button class="w-text" id="btn-prenota-admin">
                     <i data-lucide="calendar-plus" class="lucide"></i>
                     <span>Prenota per utente</span>
                 </button>
@@ -709,9 +704,9 @@
             </div>
 
             <div class="tab-bar">
-                <button class="tab-btn active" onclick="switchTab('prenotazioni-future', this)">Prenotazioni
+                <button class="tab-btn active" data-tab="prenotazioni-future">Prenotazioni
                     future</button>
-                <button class="tab-btn" onclick="switchTab('prenotazioni-passate', this)">Prenotazioni passate</button>
+                <button class="tab-btn" data-tab="prenotazioni-passate">Prenotazioni passate</button>
             </div>
 
             <!-- Tabella prenotazioni future -->
@@ -770,7 +765,7 @@
 
             <div class="section-header">
                 <span class="section-title">Feedback ricevuti</span>
-                <button class="w-text mini" onclick="window.loadFeedback()">
+                <button class="w-text mini" id="btn-refresh-feedback">
                     <i data-lucide="refresh-cw" class="lucide"></i>
                     <span>Aggiorna</span>
                 </button>
@@ -811,7 +806,7 @@
                     <div class="horizontal-container">
                         <input type="number" id="input-limite-settimanale" min="1" max="100" value=""
                             style="max-width:100px">
-                        <button class="w-text" onclick="salvaLimite()">
+                        <button class="w-text" id="btn-salva-limite">
                             <i data-lucide="save" class="lucide"></i>
                             <span>Salva</span>
                         </button>
@@ -827,7 +822,7 @@
                     <div class="horizontal-container">
                         <input type="number" id="input-settimane-anticipo" min="0" max="8" value="1"
                             style="max-width:100px">
-                        <button class="w-text" onclick="salvaAnticipo()">
+                        <button class="w-text" id="btn-salva-anticipo">
                             <i data-lucide="save" class="lucide"></i>
                             <span>Salva</span>
                         </button>
@@ -909,8 +904,8 @@
                 <span id="nuovo-utente-error" class="form-error" style="display:none"></span>
             </div>
             <div class="full-modal-footer">
-                <button type="button" class="w-text" onclick="closeModal('nuovo-utente')">Annulla</button>
-                <button type="button" class="w-text active" id="btn-salva-nuovo-utente" onclick="salvaNuovoUtente()">
+                <button type="button" class="w-text" data-close-modal="nuovo-utente">Annulla</button>
+                <button type="button" class="w-text active" id="btn-salva-nuovo-utente">
                     <i data-lucide="user-plus" class="lucide"></i>
                     <span>Crea utente</span>
                 </button>
@@ -954,13 +949,13 @@
                 <span id="modifica-utente-error" class="form-error" style="display:none"></span>
             </div>
             <div class="full-modal-footer">
-                <button type="button" class="w-text danger" onclick="eliminaUtente()" id="btn-elimina-utente">
+                <button type="button" class="w-text danger" id="btn-elimina-utente">
                     <i data-lucide="trash-2" class="lucide"></i>
                     <span>Elimina</span>
                 </button>
                 <div class="horizontal-container" style="gap:8px">
-                    <button type="button" class="w-text" onclick="closeModal('modifica-utente')">Annulla</button>
-                    <button type="button" class="w-text active" onclick="salvaModificaUtente()">
+                    <button type="button" class="w-text" data-close-modal="modifica-utente">Annulla</button>
+                    <button type="button" class="w-text active" id="btn-salva-modifiche-utente">
                         <i data-lucide="save" class="lucide"></i>
                         <span>Salva</span>
                     </button>
@@ -986,7 +981,7 @@
                 </div>
                 <div class="form-block">
                     <label for="btn-elimina-turno"><span>Elimina turno</span></label>
-                    <button type="button" class="w-text danger" onclick="eliminaTurno()">
+                    <button type="button" class="w-text danger" id="btn-elimina-turno-modal">
                         <i data-lucide="trash-2"></i> Elimina Turno
                     </button>
                 </div>
@@ -995,8 +990,8 @@
             </div>
             <div class="full-modal-footer">
                 <div class="horizontal-container" style="gap:8px">
-                    <button type="button" class="w-text" onclick="closeModal('modifica-turno')">Annulla</button>
-                    <button type="button" class="w-text active" onclick="salvaModificaTurno()">
+                    <button type="button" class="w-text" data-close-modal="modifica-turno">Annulla</button>
+                    <button type="button" class="w-text active" id="btn-salva-modifica-turno">
                         <i data-lucide="save" class="lucide"></i><span>Salva</span>
                     </button>
                 </div>
@@ -1023,8 +1018,8 @@
             </div>
             <div class="full-modal-footer">
                 <div class="horizontal-container" style="gap:8px">
-                    <button type="button" class="w-text" onclick="closeModal('nuovo-turno')">Annulla</button>
-                    <button type="button" class="w-text active" onclick="salvaNuovoTurno()">
+                    <button type="button" class="w-text" data-close-modal="nuovo-turno">Annulla</button>
+                    <button type="button" class="w-text active" id="btn-salva-nuovo-turno-modal">
                         <i data-lucide="save" class="lucide"></i><span>Salva</span>
                     </button>
                 </div>
@@ -1074,9 +1069,8 @@
                 <span id="prenota-admin-error" class="form-error" style="display:none"></span>
             </div>
             <div class="full-modal-footer">
-                <button type="button" class="w-text" onclick="closeModal('prenota-admin')">Annulla</button>
-                <button type="button" class="w-text active" id="btn-conferma-prenota-admin"
-                    onclick="confermaPrenotaAdmin()" disabled>
+                <button type="button" class="w-text" data-close-modal="prenota-admin">Annulla</button>
+                <button type="button" class="w-text active" id="btn-conferma-prenota-admin" disabled>
                     <i data-lucide="calendar-plus" class="lucide"></i>
                     <span>Prenota</span>
                 </button>
@@ -1094,7 +1088,7 @@
                 <span id="conferma-elimina-text" style="font-size:13px"></span>
             </div>
             <div class="full-modal-footer">
-                <button class="w-text" onclick="closeModal('conferma-elimina')">Annulla</button>
+                <button class="w-text" data-close-modal="conferma-elimina">Annulla</button>
                 <button class="w-text danger" id="btn-conferma-elimina-ok">
                     <i data-lucide="trash-2" class="lucide"></i><span>Elimina</span>
                 </button>
@@ -1113,7 +1107,7 @@
             </div>
             <div class="full-modal-content" id="booking-summary-list"></div>
             <div class="full-modal-footer">
-                <button type="button" class="w-text" onclick="closeModal('booking-success')">Chiudi</button>
+                <button type="button" class="w-text" data-close-modal="booking-success">Chiudi</button>
             </div>
         </div>
     </div>
@@ -1128,7 +1122,7 @@
                 </div>
             </div>
             <div class="full-modal-footer">
-                <button type="button" class="w-text" onclick="closeModal('booking-denied')">Chiudi</button>
+                <button type="button" class="w-text" data-close-modal="booking-denied">Chiudi</button>
             </div>
         </div>
     </div>
@@ -1236,7 +1230,7 @@
                     <span>Elimina</span>
                 </button>
                 <div class="horizontal-container" style="gap:8px">
-                    <button type="button" class="w-text" onclick="closeModal('gestisci-feedback')">Chiudi</button>
+                    <button type="button" class="w-text" data-close-modal="gestisci-feedback">Chiudi</button>
                     <button type="button" class="w-text active" id="btn-salva-stato-feedback">
                         <i data-lucide="save" class="lucide"></i>
                         <span>Salva stato</span>

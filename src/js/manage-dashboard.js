@@ -1,56 +1,38 @@
 import {
     getAllUtenti,
     getAllUtentiAdmin,
-    getAllUtentiRegistrati,
     getAllTurni,
-    getPrenotazioniUtente,
-    getPrenotazioniByDateRange,
-    createPrenotazione,
     getProfiloUtente,
     isAmministratore,
-    setTurnoAttivo,
     annullaPrenotazioneAdmin,
     getAllFeedback,
     deleteFeedback,
+    updateStatoFeedback,
     getSettimaneAnticipo,
     updateSettimaneAnticipo,
     updateLimiteSettimanale,
     getLimiteSettimanale,
+    getPrenotazioniByDateRange,
 } from './db.js';
 import { supabase } from "./supabase-client.js";
 import { setMainView } from "./main-view.js";
 import { showToast } from './toast.js';
 import { confirmAction } from "./confirm.js";
-
+import { modal } from './modal.js';
+import { calendarRender } from './calendar-render.js';
+import { setMaxWeeklyBookings } from './bookings-view.js';
 import {
     parseDbDate,
     formatDayTitle,
     formatTurnLabel,
-    loadUtenti,
 } from './bookings-view.js';
+import { profiloUtente } from './user-state.js';
 
-// ─── 1. ESPOSIZIONE DI SICUREZZA ──────────────────────────────
-window.ldrDb = {
-    getAllUtenti,
-    getAllUtentiRegistrati,
-    getAllTurni,
-    getPrenotazioniByDateRange,
-    createPrenotazione,
-    getAllFeedback,
-    deleteFeedback,
-    getSettimaneAnticipo,
-    updateSettimaneAnticipo,
-    updateLimiteSettimanale,
-    getLimiteSettimanale,
-};
-
-// ─── Controllo accesso amministratore ───────────────────────────────────────────
+// ─── Controllo accesso amministratore ────────────────────────────────────
 // blocca l'accesso diretto via url a chi non è amministratore
 async function guardAdminAccess() {
-
     const { data: profilo, error: profiloError } = await getProfiloUtente();
 
-    // se il profilo non è disponibile, lascio che auth.js gestisca il redirect al login
     if (profiloError || !profilo?.id_utente) {
         window.location.href = '/login.html';
         return false;
@@ -59,15 +41,14 @@ async function guardAdminAccess() {
     const { data: isAdmin, error } = await isAmministratore(profilo.id_utente);
 
     if (error || !isAdmin) {
-        window.location.href = '/index.html'
+        window.location.href = '/index.html';
         return false;
     }
 
     return true;
-
 }
 
-// ─── Stato locale ───────────────────────────────────────────
+// ─── Stato locale ─────────────────────────────────────────────────────────
 let allUtenti = [];
 let allPrenotazioni = [];
 let prenotazioniFuture = [];
@@ -76,20 +57,6 @@ let turniCache = [];
 let limiteSettimanale = null;
 let pendingDeleteFn = null;
 let turnoInModificaId = null; // id del turno attualmente aperto nel modal "Modifica turno"
-
-// ─── Helpers UI ─────────────────────────────────────────────
-window.openModal = (id) => {
-    if (window.modal?.open) { window.modal.open(id); return; }
-    document.getElementById(`modal-${id}`)?.classList.add('showing');
-};
-
-window.closeModal = (id) => {
-    if (window.modal?.close) {
-        window.modal.close(id);
-        return;
-    }
-    document.getElementById(`modal-${id}`)?.classList.remove("showing");
-};
 
 function showError(elId, msg) {
     const el = document.getElementById(elId);
@@ -108,11 +75,21 @@ function fmtTime(t) {
     return t?.slice(0, 5) ?? "—";
 }
 
-// ─── Gestione Viste Estesa con main-view.js ──────────────────
-window.showSection = (id) => {
-    if (id === 'calendario') setMainView('calendar');
-    if (id === 'prenotazioni') setMainView('bookings');
-    if (id === 'account') setMainView('account');
+// previene injection html dai campi testuali inseriti dagli utenti
+function escapeHtml(str) {
+    if (str == null) return "";
+    return String(str).replace(
+        /[&<>"']/g,
+        (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+    );
+}
+
+// ─── Gestione Viste (sezioni dashboard) ──────────────────────────────────
+
+
+
+
+function showSection(id) {
 
     document.querySelectorAll('.dash-section').forEach(s => s.classList.remove('active'));
     document.getElementById(`section-${id}`)?.classList.add('active');
@@ -120,22 +97,18 @@ window.showSection = (id) => {
     document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
     document.getElementById(`btn-nav-${id}`)?.classList.add('active');
 
-    if (id === 'stats') window.loadStats();
-    if (id === 'utenti') window.loadUtenti();
-    if (id === 'turni') window.loadTurni();
-    if (id === 'calendario') window.calendarRender?.render?.();
-    if (id === 'feedback') window.loadFeedback();
+    if (id === 'stats') loadStats();
+    if (id === 'utenti') loadUtentiAdmin();
+    if (id === 'turni') loadTurni();
+    if (id === 'calendario') calendarRender?.render?.();
+    if (id === 'feedback') loadFeedback();
     if (id === 'impostazioni') loadImpostazioni();
-};
+}
 
-let utentiCache = null;
-
-// apre il modal per modificare una prenotazione
+// apre il modal per modificare una prenotazione (usata anche dalla tabella prenotazioni)
 export async function openModificaPrenotazioneAdmin(prenotazione) {
-    const modal = document.getElementById("modal-modifica-prenotazione");
-    if (!modal) {
-        return;
-    }
+    const modalEl = document.getElementById("modal-modifica-prenotazione");
+    if (!modalEl) return;
 
     const inputData = document.getElementById("modifica-turno-data");
     const inputTurno = document.getElementById("modifica-turno-orario");
@@ -143,7 +116,6 @@ export async function openModificaPrenotazioneAdmin(prenotazione) {
     const btnCedi = document.getElementById("btn-cedi-turno");
     const btnRinuncia = document.getElementById("btn-rinuncia-turno");
 
-    // resetto i bottoni ad ogni apertura modal
     if (btnCedi) {
         btnCedi.disabled = true;
         btnCedi.onclick = null;
@@ -153,13 +125,11 @@ export async function openModificaPrenotazioneAdmin(prenotazione) {
         btnRinuncia.onclick = null;
     }
 
-    // aggiorno la data visualizzata
     if (inputData) {
         const date = parseDbDate(prenotazione.data_prenotazione);
         inputData.value = formatDayTitle(date);
     }
 
-    // aggiorno il turno visualizzato
     if (inputTurno) {
         const turn = prenotazione.Turno;
         inputTurno.value = turn
@@ -188,14 +158,13 @@ export async function openModificaPrenotazioneAdmin(prenotazione) {
         btnSalvaStato.onclick = () =>
             handleSalvaStatoPrenotazioneAdmin(prenotazione.id_prenotazione, selectStato);
     }
-    // popolo la select degli utenti a cui cedere il turno
+
     if (selectCedi) {
         selectCedi.innerHTML = '<option value="">Seleziona utente</option>';
         const { data: utenti, error } = await getAllUtentiAdmin();
         if (error) {
-            console.error("impossibile caricare gli utetni: ", error);
-        }
-        else {
+            console.error("impossibile caricare gli utenti: ", error);
+        } else {
             (utenti ?? []).forEach((u) => {
                 const opt = document.createElement("option");
                 opt.value = u.id_utente;
@@ -204,7 +173,6 @@ export async function openModificaPrenotazioneAdmin(prenotazione) {
             });
         }
 
-        // reset della select e del suo handler
         selectCedi.value = "";
         selectCedi.onchange = () => {
             if (btnCedi) {
@@ -214,7 +182,6 @@ export async function openModificaPrenotazioneAdmin(prenotazione) {
         };
     }
 
-    // assegno handler ai bottoni alla fine per evitare errori
     if (btnCedi) {
         btnCedi.onclick = () =>
             handleCediTurnoAdmin(prenotazione.id_prenotazione, selectCedi);
@@ -225,7 +192,7 @@ export async function openModificaPrenotazioneAdmin(prenotazione) {
             handleRinunciaTurnoAdmin(prenotazione.id_prenotazione);
     }
 
-    window.modal?.open("modifica-prenotazione");
+    open("modifica-prenotazione");
 }
 
 // gestisce la cessione del turno ad altro utente
@@ -243,9 +210,7 @@ async function handleCediTurnoAdmin(id_prenotazione, selectCedi) {
     if (!confirmed) return;
 
     const btnCedi = document.getElementById("btn-cedi-turno");
-    if (btnCedi) {
-        btnCedi.disabled = true;
-    }
+    if (btnCedi) btnCedi.disabled = true;
 
     try {
         const { error } = await supabase
@@ -254,11 +219,11 @@ async function handleCediTurnoAdmin(id_prenotazione, selectCedi) {
             .eq("id_prenotazione", id_prenotazione);
 
         if (error) throw error;
-        window.modal?.closeAll();
+        modal?.closeAll();
         showToast("success", "Turno riassegnato", "check");
-        await window.loadStats();
-        window.calendarRender?.invalidateBookingsCache?.();
-        window.calendarRender?.render?.();
+        await loadStats();
+        calendarRender?.invalidateBookingsCache?.();
+        calendarRender?.render?.();
     } catch (e) {
         console.error("Errore riassegnazione turno: ", e);
         showToast("error", "Impossibile riassegnare il turno", "x");
@@ -266,7 +231,6 @@ async function handleCediTurnoAdmin(id_prenotazione, selectCedi) {
     }
 
     if (window.lucide?.createIcons) window.lucide.createIcons();
-
 }
 
 // aggiorna lo stato di una prenotazione (solo admin)
@@ -278,11 +242,10 @@ async function handleSalvaStatoPrenotazioneAdmin(id_prenotazione, selectStato) {
     if (btn) btn.disabled = true;
 
     try {
-        const updateFields = { stato: nuovoStato };
-        // se lo stato diventa "confermata" imposto la data di conferma ad ora,
-        // altrimenti la azzero per restare coerenti con il resto dell'app
-        updateFields.data_conferma =
-            nuovoStato === "confermata" ? new Date().toISOString() : null;
+        const updateFields = {
+            stato: nuovoStato,
+            data_conferma: nuovoStato === "confermata" ? new Date().toISOString() : null,
+        };
 
         const { error } = await supabase
             .from("Prenotazione")
@@ -291,12 +254,12 @@ async function handleSalvaStatoPrenotazioneAdmin(id_prenotazione, selectStato) {
 
         if (error) throw error;
 
-        window.modal?.closeAll();
+        modal?.closeAll();
         showToast("success", "Stato prenotazione aggiornato", "check");
 
-        await window.loadStats();
-        window.calendarRender?.invalidateBookingsCache?.();
-        window.calendarRender?.render?.();
+        await loadStats();
+        calendarRender?.invalidateBookingsCache?.();
+        calendarRender?.render?.();
     } catch (e) {
         console.error("Errore aggiornamento stato prenotazione:", e);
         showToast("error", "Impossibile aggiornare lo stato della prenotazione", "x");
@@ -307,7 +270,6 @@ async function handleSalvaStatoPrenotazioneAdmin(id_prenotazione, selectStato) {
     if (window.lucide?.createIcons) window.lucide.createIcons();
 }
 
-// gestisce la rinuncia a una prenotazione
 // gestisce la rinuncia/eliminazione di una prenotazione (lato admin)
 async function handleRinunciaTurnoAdmin(id_prenotazione) {
     const confirmed = await confirmAction({
@@ -324,15 +286,12 @@ async function handleRinunciaTurnoAdmin(id_prenotazione) {
         const { error } = await annullaPrenotazioneAdmin(id_prenotazione);
         if (error) throw error;
 
-        window.modal?.closeAll();
+        modal?.closeAll();
         showToast("success", "Prenotazione eliminata", "check");
 
-        // ricarica le tabelle prenotazioni future/passate + statistiche
-        await window.loadStats();
-
-        // tiene allineata anche la vista calendario
-        window.calendarRender?.invalidateBookingsCache?.();
-        window.calendarRender?.render?.();
+        await loadStats();
+        calendarRender?.invalidateBookingsCache?.();
+        calendarRender?.render?.();
     } catch (e) {
         console.error("Errore eliminazione prenotazione:", e);
         showToast("error", "Impossibile eliminare la prenotazione", "x");
@@ -342,7 +301,7 @@ async function handleRinunciaTurnoAdmin(id_prenotazione) {
     if (window.lucide?.createIcons) window.lucide.createIcons();
 }
 
-// ─── Rendering tabelle prenotazioni (future / passate) ───────
+// ─── Rendering tabelle prenotazioni (future / passate) ───────────────────
 function renderTabellaPrenotazioni(tbodyId, lista) {
     const tbody = document.getElementById(tbodyId);
     if (!tbody) return;
@@ -354,7 +313,7 @@ function renderTabellaPrenotazioni(tbodyId, lista) {
     for (const p of lista) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${p.Utente?.cognome ?? ''} ${p.Utente?.nome ?? ''}</td>
+            <td>${escapeHtml(p.Utente?.cognome ?? '')} ${escapeHtml(p.Utente?.nome ?? '')}</td>
             <td>${fmtDate(p.data_prenotazione)}</td>
             <td>${p.Turno?.indice ?? "?"}°</td>
             <td>
@@ -372,7 +331,6 @@ function renderTabellaPrenotazioni(tbodyId, lista) {
                     </button>
                 </div>
             </td>
-            
         `;
         tr.querySelector('.btn-modifica-prenotazione')
             ?.addEventListener('click', () => openModificaPrenotazioneAdmin(p));
@@ -380,28 +338,19 @@ function renderTabellaPrenotazioni(tbodyId, lista) {
     }
 }
 
-// ─── Statistiche (Corretto controllo di sicurezza) ──────────
-window.loadStats = async () => {
+// ─── Statistiche ──────────────────────────────────────────────────────────
+async function loadStats() {
     try {
         const ora = new Date();
         const meseStart = new Date(ora.getFullYear(), ora.getMonth(), 1).toISOString().split('T')[0];
         const meseEnd = new Date(ora.getFullYear(), ora.getMonth() + 1, 0).toISOString().split('T')[0];
         const oggi = ora.toISOString().split('T')[0];
 
-        // Controllo granulare: usiamo la funzione db.js solo se effettivamente mappata e valida
-        const queryUtenti = (typeof window.ldrDb?.getAllUtenti === 'function')
-            ? window.ldrDb.getAllUtenti()
-            : supabase.from('Utente').select('*');
-
-        const queryMese = (typeof window.ldrDb?.getPrenotazioniByDateRange === 'function')
-            ? window.ldrDb.getPrenotazioniByDateRange(meseStart, meseEnd)
-            : supabase.from('Prenotazione').select('*').gte('data_prenotazione', meseStart).lte('data_prenotazione', meseEnd);
-
-        const queryOggi = (typeof window.ldrDb?.getPrenotazioniByDateRange === 'function')
-            ? window.ldrDb.getPrenotazioniByDateRange(oggi, oggi)
-            : supabase.from('Prenotazione').select('*').eq('data_prenotazione', oggi);
-
-        const [resUtenti, resMese, resOggi] = await Promise.all([queryUtenti, queryMese, queryOggi]);
+        const [resUtenti, resMese, resOggi] = await Promise.all([
+            getAllUtenti(),
+            getPrenotazioniByDateRange(meseStart, meseEnd),
+            getPrenotazioniByDateRange(oggi, oggi),
+        ]);
 
         const tutti = resUtenti?.data ?? [];
         const reg = tutti.filter(u => u.registrato);
@@ -421,7 +370,6 @@ window.loadStats = async () => {
         const labelEl = document.getElementById('stat-prenot-mese-label');
         if (labelEl) labelEl.textContent = label;
 
-        // Caricamento prenotazioni future
         const dataOggi = new Date().toISOString().split('T')[0];
         const nowMinuti = ora.getHours() * 60 + ora.getMinutes();
 
@@ -441,8 +389,6 @@ window.loadStats = async () => {
 
         if (errPassate) throw errPassate;
 
-        // Le prenotazioni di oggi il cui turno è già terminato vanno considerate
-        // "passate" anche se la data è quella odierna: le sposto dall'elenco future.
         const futureEffettive = [];
         const oggiConclusePassateAlTurno = [];
         for (const p of (future ?? [])) {
@@ -455,9 +401,6 @@ window.loadStats = async () => {
         }
         const passateEffettive = [...(passate ?? []), ...oggiConclusePassateAlTurno];
 
-        // Ordino lato client per garantire l'ordinamento richiesto anche se il DB
-        // non supporta/applica l'order sulla tabella collegata (Turno):
-        // data crescente/decrescente, e a parità di data indice di turno crescente.
         const perIndiceTurnoCrescente = (a, b) => (a.Turno?.indice ?? 0) - (b.Turno?.indice ?? 0);
 
         const futureOrdinate = [...futureEffettive].sort((a, b) =>
@@ -467,7 +410,6 @@ window.loadStats = async () => {
             b.data_prenotazione.localeCompare(a.data_prenotazione) || perIndiceTurnoCrescente(a, b)
         );
 
-        // Aggiorno lo stato locale e le tabelle una sola volta, tramite l'helper condiviso
         prenotazioniFuture = futureOrdinate;
         prenotazioniPassate = passateOrdinate;
         allPrenotazioni = [...prenotazioniFuture, ...prenotazioniPassate];
@@ -479,36 +421,32 @@ window.loadStats = async () => {
     }
 
     if (window.lucide?.createIcons) window.lucide.createIcons();
+}
 
-};
-
-// ─── Utenti ─────────────────────────────────────────────────
-window.loadUtenti = async () => {
+// ─── Utenti ───────────────────────────────────────────────────────────────
+async function loadUtentiAdmin() {
     try {
-        const { data } =
-            typeof window.ldrDb?.getAllUtenti === "function"
-                ? await window.ldrDb.getAllUtenti()
-                : await supabase.from("Utente").select("*").order("cognome");
+        const { data } = await getAllUtentiAdmin();
         allUtenti = data ?? [];
-        window.renderUtenti();
+        renderUtenti();
     } catch (e) {
         console.error("loadUtenti:", e);
     }
-};
+}
 
-window.renderUtenti = (filter = '') => {
+function renderUtenti(filter = '') {
     const q = filter.toLowerCase();
     const filtered = allUtenti.filter(u =>
         !q || `${u.nome} ${u.cognome} ${u.email} ${u.numero_tessera}`.toLowerCase().includes(q)
     );
     const reg = filtered.filter(u => u.registrato);
     const nonReg = filtered.filter(u => !u.registrato);
-    fillTable('table-registrati', reg, true);
-    fillTable('table-non-registrati', nonReg, false);
-};
+    fillTable('table-registrati', reg);
+    fillTable('table-non-registrati', nonReg);
+}
 
-// ─── Prenotazioni (ricerca su future + passate) ──────────────
-window.renderPrenotazioni = (filter = '') => {
+// ─── Prenotazioni (ricerca su future + passate) ───────────────────────────
+function renderPrenotazioni(filter = '') {
     const q = filter.toLowerCase();
     const match = (p) => {
         if (!q) return true;
@@ -517,9 +455,9 @@ window.renderPrenotazioni = (filter = '') => {
     };
     renderTabellaPrenotazioni('table-prenotazioni-future', prenotazioniFuture.filter(match));
     renderTabellaPrenotazioni('table-prenotazioni-passate', prenotazioniPassate.filter(match));
-};
+}
 
-function fillTable(tbodyId, utenti, isReg) {
+function fillTable(tbodyId, utenti) {
     const tbody = document.getElementById(tbodyId);
     if (!tbody) return;
     tbody.replaceChildren();
@@ -530,34 +468,28 @@ function fillTable(tbodyId, utenti, isReg) {
     for (const u of utenti) {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-            <td>${u.numero_tessera}</td>
-            <td class="semibold">${u.cognome} ${u.nome}</td>
-            <td>${u.email}</td>
-            <td>${u.telefono ?? "—"}</td>
-            <td>${u.facolta_universitaria ?? "—"}</td>
+            <td>${escapeHtml(u.numero_tessera)}</td>
+            <td class="semibold">${escapeHtml(u.cognome)} ${escapeHtml(u.nome)}</td>
+            <td>${escapeHtml(u.email)}</td>
+            <td>${escapeHtml(u.telefono ?? "—")}</td>
+            <td>${escapeHtml(u.facolta_universitaria ?? "—")}</td>
             <td>${u.cauzione ? '<span class="badge badge-green">Sì</span>' : '<span class="badge badge-gray">No</span>'}</td>
             <td>
                 <div class="table-actions">
-                    <button class="btn-icon" title="Modifica" onclick="apriModificaUtente('${u.id_utente}')">
+                    <button class="btn-icon btn-modifica-utente" title="Modifica">
                         <i data-lucide="pencil" class="lucide"></i>
                     </button>
                 </div>
             </td>
         `;
+        tr.querySelector('.btn-modifica-utente')
+            ?.addEventListener('click', () => apriModificaUtente(u.id_utente));
         tbody.appendChild(tr);
     }
     if (window.lucide?.createIcons) window.lucide.createIcons();
 }
 
-window.filterUtenti = () => {
-    window.renderUtenti(document.getElementById("search-utenti").value);
-};
-
-window.filterPrenotazioni = () => {
-    window.renderPrenotazioni(document.getElementById("search-prenotazioni").value);
-};
-
-// ─── Gestione tab (generalizzata per gruppo) ─────────────────
+// ─── Gestione tab (generalizzata per gruppo) ──────────────────────────────
 const TAB_GROUPS = {
     'registrati': { group: ['registrati', 'non-registrati'], panel: 'tab-registrati' },
     'non-registrati': { group: ['registrati', 'non-registrati'], panel: 'tab-non-registrati' },
@@ -572,33 +504,24 @@ const TAB_PANEL_IDS = {
     'prenotazioni-passate': 'panel-prenotazioni-passate',
 };
 
-window.switchTab = (tab, btnEl) => {
+function switchTab(tab, btnEl) {
     const info = TAB_GROUPS[tab];
     if (!info) return;
 
-    // Aggiorna i pannelli del gruppo corretto (utenti oppure prenotazioni)
     info.group.forEach((t) => {
         const panelId = TAB_PANEL_IDS[t];
         document.getElementById(panelId)?.classList.toggle('active', t === tab);
     });
 
-    // Aggiorna solo i bottoni della stessa .tab-bar del bottone cliccato
-    // (fallback: se non passato, aggiorna in base al testo/onclick corrispondente)
     const bar = btnEl?.closest('.tab-bar');
     if (bar) {
         bar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         btnEl.classList.add('active');
-    } else {
-        // Fallback retrocompatibile se switchTab viene chiamato senza l'elemento bottone
-        document.querySelectorAll('.tab-btn').forEach((b) => {
-            const onclickAttr = b.getAttribute('onclick') || '';
-            b.classList.toggle('active', onclickAttr.includes(`'${tab}'`));
-        });
     }
-};
+}
 
-// ─── Nuovo utente ───────────────────────────────────────────
-window.salvaNuovoUtente = async () => {
+// ─── Nuovo utente ──────────────────────────────────────────────────────────
+async function salvaNuovoUtente() {
     showError('nuovo-utente-error', '');
     const nome = document.getElementById('nu-nome').value.trim();
     const cognome = document.getElementById('nu-cognome').value.trim();
@@ -625,7 +548,8 @@ window.salvaNuovoUtente = async () => {
             cauzione, trattamento_dati: tratt, registrato: false,
         });
         if (error) throw error;
-        window.closeModal('nuovo-utente');
+        // modal.closeEl(document.getElementById('nuovo-utente'));
+        modal.closeAll();
         document.getElementById('nu-nome').value = '';
         document.getElementById('nu-cognome').value = '';
         document.getElementById('nu-email').value = '';
@@ -634,16 +558,16 @@ window.salvaNuovoUtente = async () => {
         document.getElementById('nu-facolta').value = '';
         document.getElementById('nu-cauzione').checked = false;
         document.getElementById('nu-trattamento').checked = false;
-        await window.loadUtenti();
+        await loadUtentiAdmin();
     } catch (e) {
         showError('nuovo-utente-error', e.message ?? 'Errore durante la creazione.');
     } finally {
         if (btn) btn.disabled = false;
     }
-};
+}
 
-// ─── Modifica utente ────────────────────────────────────────
-window.apriModificaUtente = (id) => {
+// ─── Modifica utente ───────────────────────────────────────────────────────
+function apriModificaUtente(id) {
     const u = allUtenti.find(x => x.id_utente === id);
     if (!u) return;
     document.getElementById('mu-id').value = u.id_utente;
@@ -654,10 +578,10 @@ window.apriModificaUtente = (id) => {
     document.getElementById('mu-registrato').checked = !!u.registrato;
     document.getElementById('modifica-utente-subtitle').textContent = `${u.cognome} ${u.nome} — tessera n.${u.numero_tessera}`;
     showError('modifica-utente-error', '');
-    window.openModal('modifica-utente');
-};
+    modal.open('modifica-utente');
+}
 
-window.salvaModificaUtente = async () => {
+async function salvaModificaUtente() {
     showError('modifica-utente-error', '');
     const id = document.getElementById('mu-id').value;
     const email = document.getElementById('mu-email').value.trim();
@@ -675,37 +599,29 @@ window.salvaModificaUtente = async () => {
             facolta_universitaria: facolta || null,
         }).eq('id_utente', id);
         if (error) throw error;
-        window.closeModal('modifica-utente');
-        await window.loadUtenti();
+        modal.closeEl(modal.getEl('modifica-utente'));
+        await loadUtentiAdmin();
     } catch (e) {
         showError('modifica-utente-error', e.message ?? 'Errore durante il salvataggio.');
     }
-};
+}
 
-window.eliminaUtente = () => {
+function eliminaUtente() {
     const id = document.getElementById('mu-id').value;
     const info = document.getElementById('modifica-utente-subtitle').textContent;
     document.getElementById('conferma-elimina-text').textContent =
         `Sei sicuro di voler eliminare l'utente "${info}"? L'operazione non può essere annullata.`;
     pendingDeleteFn = async () => {
         await supabase.from('Utente').delete().eq('id_utente', id);
-        window.closeModal('modifica-utente');
-        window.closeModal('conferma-elimina');
-        await window.loadUtenti();
+        modal.closeEl(modal.getEl('modifica-utente'));
+        modal.closeEl(modal.getEl('conferma-elimina'));
+        await loadUtentiAdmin();
     };
-    window.openModal('conferma-elimina');
-};
-
-const btnEliminaOk = document.getElementById("btn-conferma-elimina-ok");
-if (btnEliminaOk) {
-    btnEliminaOk.onclick = () => {
-        pendingDeleteFn?.();
-        pendingDeleteFn = null;
-    };
+    modal.open('conferma-elimina');
 }
 
-// ─── Turni ──────────────────────────────────────────────────
-window.loadTurni = async () => {
+// ─── Turni ─────────────────────────────────────────────────────────────────
+async function loadTurni() {
     try {
         turniCache = await getAllTurni(false);
     } catch (e) {
@@ -713,11 +629,10 @@ window.loadTurni = async () => {
         turniCache = [];
     }
     renderTurni();
-    window.populatePaTurni();
-};
+    populatePaTurni();
+}
 
-window.cambiaStatoTurnoAdmin = async (id_turno, rendiAttivo) => {
-    //se si sta riattivando un turno, controlla che non si sovrapponga a un turno già attivo prima di procedere
+async function cambiaStatoTurnoAdmin(id_turno, rendiAttivo) {
     if (rendiAttivo) {
         const t = turniCache.find(x => x.id_turno === id_turno);
         if (t) {
@@ -749,18 +664,13 @@ window.cambiaStatoTurnoAdmin = async (id_turno, rendiAttivo) => {
 
         const msg = "Turno " + (rendiAttivo ? 'riattivato' : 'disattivato') + " con successo!";
         showToast('success', msg);
-        //alert(`Turno ${rendiAttivo ? 'riattivato' : 'disattivato'} con successo!`);
 
-        // Ricarica la tabella dei turni nella dashboard (indici già ricalcolati dal DB)
-        await window.loadTurni();
-
-        // Se hai una funzione per ripopolare le select dei moduli admin, eseguila qui
-        if (window.populatePaUtenti) window.populatePaUtenti();
-
+        await loadTurni();
+        populatePaUtenti();
     } catch (err) {
-        alert("Errore durante l'operazione: " + (err.message ?? err));
+        showToast('error', "Errore durante l'operazione: " + (err.message ?? err));
     }
-};
+}
 
 function renderTurni() {
     const list = document.getElementById('turni-list');
@@ -777,42 +687,43 @@ function renderTurni() {
         const badgeStato = isAttivo
             ? '<span class="badge badge-green">Attivo</span>'
             : '<span class="badge badge-gray">Inattivo</span>';
-        const bottoneToggle = isAttivo
-            ? `<button class="btn-icon" title="Disattiva" onclick="window.cambiaStatoTurnoAdmin('${t.id_turno}', false)"><i data-lucide="power-off" class="lucide"></i></button>`
-            : `<button class="btn-icon" title="Riattiva" onclick="window.cambiaStatoTurnoAdmin('${t.id_turno}', true)"><i data-lucide="power" class="lucide"></i></button>`;
         row.innerHTML = `
             <span class="turno-index">${t.indice ?? '-'}</span>
             <span class="turno-label">${(t.indice === null) ? 'Turno disattivato' : t.indice + '° Turno'}</span>
             <span class="turno-time">${fmtTime(t.orario_inizio)} – ${fmtTime(t.orario_fine)}</span>
             ${badgeStato}
             <div class="table-actions">
-                <button class="btn-icon" title="Modifica" onclick="apriModificaTurno('${t.id_turno}')">
+                <button class="btn-icon btn-modifica-turno" title="Modifica">
                     <i data-lucide="pencil" class="lucide"></i>
                 </button>
-                ${bottoneToggle}
+                <button class="btn-icon btn-toggle-turno" title="${isAttivo ? 'Disattiva' : 'Riattiva'}">
+                    <i data-lucide="${isAttivo ? 'power-off' : 'power'}" class="lucide"></i>
+                </button>
             </div>
         `;
+        row.querySelector('.btn-modifica-turno')
+            ?.addEventListener('click', () => apriModificaTurno(t.id_turno));
+        row.querySelector('.btn-toggle-turno')
+            ?.addEventListener('click', () => cambiaStatoTurnoAdmin(t.id_turno, !isAttivo));
         list.appendChild(row);
     }
     if (window.lucide?.createIcons) window.lucide.createIcons();
 }
 
-window.openNuovoTurno = () => {
+function openNuovoTurno() {
     document.getElementById('nt-inizio').value = '';
     document.getElementById('nt-fine').value = '';
     document.getElementById('modal-nuovo-turno-title').textContent = 'Nuovo turno';
     const subtitleEl = document.getElementById('modal-nuovo-turno-subtitle');
     if (subtitleEl) subtitleEl.textContent = 'Aggiungi una nuova fascia oraria';
     showError('nuovo-turno-error', '');
-    window.openModal('nuovo-turno');
-};
+    modal.open('nuovo-turno');
+}
 
-window.apriModificaTurno = (id) => {
+function apriModificaTurno(id) {
     const t = turniCache.find(x => x.id_turno === id);
     if (!t) return;
     turnoInModificaId = t.id_turno;
-    // l'indice non è più modificabile manualmente: viene ricalcolato dal DB.
-    // Se in pagina è rimasto un campo mt-indice, lo mostro solo a scopo informativo (readonly).
     const mtIndiceEl = document.getElementById('mt-indice');
     if (mtIndiceEl) mtIndiceEl.value = t.indice ?? '';
     document.getElementById('mt-inizio').value = t.orario_inizio?.slice(0, 5) ?? '';
@@ -822,19 +733,15 @@ window.apriModificaTurno = (id) => {
     if (subtitleEl2) subtitleEl2.textContent = `${fmtTime(t.orario_inizio)} – ${fmtTime(t.orario_fine)}`;
 
     showError('modifica-turno-error', '');
-    window.openModal('modifica-turno');
-};
+    modal.open('modifica-turno');
+}
 
-//funzione per convertire turno in minuti dalla mezzanotte
 function turnoToMinutes(t) {
     if (!t) return 0;
     const [h, m] = t.split(':').map(Number);
     return h * 60 + m;
 }
 
-//verifica se un turno (per una prenotazione di OGGI) è già terminato rispetto all'ora corrente.
-//stessa convenzione usata altrove: se manca l'orario di fine, è "00:00" o è <= all'inizio,
-//il turno si considera valido fino a fine giornata (mezzanotte), quindi mai "concluso" prima della mezzanotte.
 function turnoGiaConcluso(turno, nowMinuti) {
     if (!turno) return false;
     const inizioMin = turnoToMinutes(turno.orario_inizio);
@@ -843,35 +750,25 @@ function turnoGiaConcluso(turno, nowMinuti) {
     return nowMinuti >= fineEffettiva;
 }
 
-//calcola l'intervallo [inizio, fine) in minuti di un turno, se manca orario di fine, è 00:00 o è <= all'inizio,
-//il turno si considera valido fino a fine giornata (mezzanotte)
 function getIntervalloTurno(inizio, fine) {
     const start = turnoToMinutes(inizio);
     const fineMin = turnoToMinutes(fine);
     const end = (!fine || fineMin === 0 || fineMin <= start) ? 24 * 60 : fineMin;
-
     return { start, end };
 }
 
-//controlla se due intervalli [start, end) si sovrappongono
 function intervalliSiSovrappongono(a, b) {
     return a.start < b.end && b.start < a.end;
 }
 
-//verifica che il turno non si sovrapponga a nessun turno ATTIVO esistente (escluso se stesso)
 function trovaTurnoSovrapposto(inizio, fine, idEscluso) {
     const nuovo = getIntervalloTurno(inizio, fine);
     for (const t of turniCache) {
-
         if (t.id_turno === idEscluso) continue;
-
         if (t.attivo === false) continue;
-
         const esistente = getIntervalloTurno(t.orario_inizio, t.orario_fine);
-
         if (intervalliSiSovrappongono(nuovo, esistente)) return t;
     }
-
     return null;
 }
 
@@ -881,14 +778,12 @@ function trovaNuovoTurnoUguale(inizio, fine) {
     for (const t of turniCache) {
         const tInizio = turnoToMinutes(t.orario_inizio);
         const tFine = turnoToMinutes(t.orario_fine);
-
         if ((tInizio === nuovoInizio) && (tFine === nuovoFine)) return t;
     }
-
     return null;
 }
 
-window.salvaModificaTurno = async () => {
+async function salvaModificaTurno() {
     showError('modifica-turno-error', '');
     const id = turnoInModificaId;
     const inizio = document.getElementById('mt-inizio').value;
@@ -898,9 +793,7 @@ window.salvaModificaTurno = async () => {
     if (!inizio || !fine) { showError('modifica-turno-error', 'Orario inizio e fine obbligatori.'); return; }
 
     if (turnoToMinutes(fine) !== 0 && turnoToMinutes(fine) <= turnoToMinutes(inizio)) {
-        const msg = 'L\'orario di fine deve essere successivo a quello di inizio';
-        showToast("error", msg);
-
+        showToast("error", 'L\'orario di fine deve essere successivo a quello di inizio');
         return;
     }
 
@@ -911,20 +804,18 @@ window.salvaModificaTurno = async () => {
         return;
     }
 
-    // l'indice viene ricalcolato automaticamente dal DB (trigger) in base
-    // all'ordine di orario_inizio tra i turni attivi: non va più inviato dal client
     try {
         const { error } = await supabase.from('Turno').update({ orario_inizio: inizio, orario_fine: fine }).eq('id_turno', id);
         if (error) throw error;
         turnoInModificaId = null;
-        window.closeModal('modifica-turno');
-        await window.loadTurni();
+        modal.closeEl(modal.getEl('modifica-turno'));
+        await loadTurni();
     } catch (e) {
         showError('modifica-turno-error', e.message ?? 'Errore.');
     }
-};
+}
 
-window.salvaNuovoTurno = async () => {
+async function salvaNuovoTurno() {
     showError('nuovo-turno-error', '');
     const inizio = document.getElementById('nt-inizio').value;
     const fine = document.getElementById('nt-fine').value;
@@ -932,15 +823,12 @@ window.salvaNuovoTurno = async () => {
     if (!inizio || !fine) { showError('nuovo-turno-error', 'Orario inizio e fine obbligatori.'); return; }
 
     if (turnoToMinutes(fine) !== 0 && turnoToMinutes(fine) <= turnoToMinutes(inizio)) {
-        const msg = 'L\'orario di fine deve essere successivo a quello di inizio';
-        showToast("error", msg);
-
+        showToast("error", 'L\'orario di fine deve essere successivo a quello di inizio');
         return;
     }
 
     const conflittoDuplicato = trovaNuovoTurnoUguale(inizio, fine);
     if (conflittoDuplicato) {
-        //const statoTurno = conflittoDuplicato.attivo !== false ? 'attivo' : 'disattivato';
         const msg = `Esiste già un turno con la stessa fascia oraria (${fmtTime(conflittoDuplicato.orario_inizio)} - ${fmtTime(conflittoDuplicato.orario_fine)}). Non è possibile creare duplicati.`;
         showToast("error", msg);
         return;
@@ -953,19 +841,17 @@ window.salvaNuovoTurno = async () => {
         return;
     }
 
-    // l'indice viene assegnato automaticamente dal DB (trigger) in base
-    // all'ordine di orario_inizio tra i turni attivi: non va più inviato dal client
     try {
         const { error } = await supabase.from('Turno').insert({ orario_inizio: inizio, orario_fine: fine });
         if (error) throw error;
-        window.closeModal('nuovo-turno');
-        await window.loadTurni();
+        modal.closeEl(modal.getEl('nuovo-turno'));
+        await loadTurni();
     } catch (e) {
         showError('nuovo-turno-error', e.message ?? 'Errore.');
     }
-};
+}
 
-window.eliminaTurno = async () => {
+async function eliminaTurno() {
     const conferma = await confirmAction({
         title: `Eliminazione turno`,
         message: "ATTENZIONE: Eliminando definitivamente questo turno cancellerai anche TUTTE le prenotazioni passate e future collegate ad esso. Vuoi procedere?",
@@ -980,149 +866,83 @@ window.eliminaTurno = async () => {
     }
 
     try {
-        const { error } = await supabase
-            .from('Turno')
-            .delete()
-            .eq('id_turno', id_turno);
-
+        const { error } = await supabase.from('Turno').delete().eq('id_turno', id_turno);
         if (error) throw error;
 
-        window.closeModal('modifica-turno');
+        modal.closeEl(modal.getEl('modifica-turno'));
+        await loadTurni();
+        await loadStats();
+        calendarRender?.invalidateBookingsCache?.();
+        calendarRender?.render?.();
 
-        await window.loadTurni();
-        // L'eliminazione del turno cancella (in cascata) anche le sue prenotazioni:
-        // ricarico le statistiche per aggiornare le tabelle prenotazioni future/passate,
-        // e invalido la cache del calendario così anche quella vista resta coerente.
-        await window.loadStats();
-        window.calendarRender?.invalidateBookingsCache?.();
-        window.calendarRender?.render?.();
-
-        const msg = "Turno e prenotazioni collegate eliminati definitivamente."
-        showToast("success", msg);
-
+        showToast("success", "Turno e prenotazioni collegate eliminati definitivamente.");
     } catch (err) {
         console.error("Errore durante l'eliminazione del turno:", err);
         showToast("error", "Impossibile eliminare il turno: " + (err.message ?? err));
     }
-};
+}
 
-// ─── Prenotazione privilegiata ───────────────────────────────
-window.apriNuovaPrenotazioneAdmin = () => {
-    // 1. Svuota e resetta tutti i campi di input del form
+// ─── Prenotazione privilegiata ─────────────────────────────────────────────
+function apriNuovaPrenotazioneAdmin() {
     const utenteEl = document.getElementById('pa-utente');
     const dataEl = document.getElementById('pa-data');
     const turnoEl = document.getElementById('pa-turno');
     const statoEl = document.getElementById('pa-stato');
     const forzaEl = document.getElementById('pa-forza');
 
-    if (utenteEl) utenteEl.value = ''; // Torna a "Seleziona utente..."
-    if (dataEl) dataEl.value = '';   // Svuota la data
+    if (utenteEl) utenteEl.value = '';
+    if (dataEl) dataEl.value = '';
     if (turnoEl) {
-        turnoEl.value = '';            // Svuota il turno
-        turnoEl.replaceChildren();     // Pulisce le opzioni vecchie
+        turnoEl.value = '';
+        turnoEl.replaceChildren();
         turnoEl.appendChild(Object.assign(document.createElement('option'), {
-            value: '',
-            textContent: 'Seleziona prima una data',
-            disabled: true,
-            selected: true
+            value: '', textContent: 'Seleziona prima una data', disabled: true, selected: true,
         }));
     }
-    if (statoEl) statoEl.value = ''; // Ripristina lo stato di default
-    if (forzaEl) forzaEl.checked = false;      // Disattiva la checkbox "Forza"
+    if (statoEl) statoEl.value = '';
+    if (forzaEl) forzaEl.checked = false;
 
-    // 2. Nascondi eventuali messaggi di errore rimasti appesi
     showError("prenota-admin-error", "");
 
-    // 3. Disabilita nuovamente il bottone di conferma (perché il form ora è vuoto)
     const btn = document.getElementById("btn-conferma-prenota-admin");
     if (btn) btn.disabled = true;
 
-    // 4. Infine, apri il modal in sicurezza
-    window.openModal("prenota-admin");
-};
+    modal.open("prenota-admin");
+}
 
-window.populatePaUtenti = () => {
+function populatePaUtenti() {
     const sel = document.getElementById("pa-utente");
     if (!sel) return;
     sel.replaceChildren();
-    sel.appendChild(
-        Object.assign(document.createElement("option"), {
-            value: "",
-            textContent: "Seleziona utente…",
-            disabled: true,
-            selected: true,
-        }),
-    );
+    sel.appendChild(Object.assign(document.createElement("option"), {
+        value: "", textContent: "Seleziona utente…", disabled: true, selected: true,
+    }));
     for (const u of allUtenti) {
-        sel.appendChild(
-            Object.assign(document.createElement("option"), {
-                value: u.id_utente,
-                textContent: `${u.cognome} ${u.nome} — n.${u.numero_tessera}`,
-            }),
-        );
+        sel.appendChild(Object.assign(document.createElement("option"), {
+            value: u.id_utente, textContent: `${u.cognome} ${u.nome} — n.${u.numero_tessera}`,
+        }));
     }
-};
+}
 
-window.populatePaTurni = () => {
+function populatePaTurni() {
     const sel = document.getElementById("pa-turno");
     if (!sel) return;
     sel.replaceChildren();
-    sel.appendChild(
-        Object.assign(document.createElement("option"), {
-            value: "",
-            textContent: "Seleziona prima una data",
-            disabled: true,
-            selected: true,
-        }),
-    );
-};
+    sel.appendChild(Object.assign(document.createElement("option"), {
+        value: "", textContent: "Seleziona prima una data", disabled: true, selected: true,
+    }));
+}
 
-['pa-data', 'pa-forza'].forEach(id => {
-    document.getElementById(id)?.addEventListener('change', async () => {
-        const data = document.getElementById('pa-data').value;
-        if (!data) return;
-        const sel = document.getElementById('pa-turno');
-        if (!sel) return;
-        sel.disabled = true;
-        sel.innerHTML = '<option disabled selected>Caricamento…</option>';
-
-        const { data: prenOcc } = await supabase.from('Prenotazione').select('id_turno').eq('data_prenotazione', data);
-        const occIds = new Set((prenOcc ?? []).map(p => p.id_turno));
-
-        sel.replaceChildren();
-        sel.appendChild(Object.assign(document.createElement('option'), { value: '', textContent: 'Seleziona turno', disabled: true, selected: true }));
-        for (const t of turniCache) {
-            const occ = occIds.has(t.id_turno);
-            const opt = Object.assign(document.createElement('option'), {
-                value: t.id_turno,
-                textContent: `${t.indice}° — ${fmtTime(t.orario_inizio)} - ${fmtTime(t.orario_fine)}${occ ? ' (Occupato)' : ''}`,
-            });
-            if (occ && !document.getElementById('pa-forza').checked) {
-                opt.disabled = true;
-            }
-            sel.appendChild(opt);
-        }
-        sel.disabled = false;
-        window.validatePrenotaAdmin();
-    });
-});
-
-["pa-utente", "pa-turno", "pa-data"].forEach((id) => {
-    document
-        .getElementById(id)
-        ?.addEventListener("change", () => window.validatePrenotaAdmin());
-});
-
-window.validatePrenotaAdmin = () => {
+function validatePrenotaAdmin() {
     const ok =
         document.getElementById("pa-utente")?.value &&
         document.getElementById("pa-data")?.value &&
         document.getElementById("pa-turno")?.value;
     const btn = document.getElementById("btn-conferma-prenota-admin");
     if (btn) btn.disabled = !ok;
-};
+}
 
-window.confermaPrenotaAdmin = async () => {
+async function confermaPrenotaAdmin() {
     showError('prenota-admin-error', '');
     const id_utente = document.getElementById('pa-utente').value;
     const data_prenotazione = document.getElementById('pa-data').value;
@@ -1136,8 +956,7 @@ window.confermaPrenotaAdmin = async () => {
                 id_utente, id_turno, data_prenotazione, stato,
             });
             if (error) throw error;
-        }
-        else {
+        } else {
             const { data, error } = await supabase
                 .from('Prenotazione')
                 .select('id_prenotazione')
@@ -1154,7 +973,6 @@ window.confermaPrenotaAdmin = async () => {
                     .eq('id_prenotazione', data.id_prenotazione)
                     .eq('id_turno', id_turno)
                     .eq('data_prenotazione', data_prenotazione);
-
                 if (errorDelete) throw errorDelete;
 
                 const { error: errorInsert } = await supabase.from('Prenotazione').insert({
@@ -1167,49 +985,37 @@ window.confermaPrenotaAdmin = async () => {
                 });
                 if (errorInsert) throw errorInsert;
             }
-
         }
 
-        window.closeModal('prenota-admin');
-        window.calendarRender?.invalidateBookingsCache?.();
-        window.calendarRender?.render?.();
-        await window.loadStats();
+        modal.closeEl(modal.getEl('prenota-admin'));
+        calendarRender?.invalidateBookingsCache?.();
+        calendarRender?.render?.();
+        await loadStats();
     } catch (e) {
         showError('prenota-admin-error', e.message ?? 'Errore.');
     } finally {
         if (btn) btn.disabled = false;
     }
-};
+}
 
-// ─── Feedback ───────────────────────────────────────────────
+// ─── Feedback ───────────────────────────────────────────────────────────────
 let feedbackCache = [];
 
-// peso di ordinamento: non gestiti prima, gestiti in fondo
 const STATO_PESO = {
     non_gestito: 0,
     in_lavorazione: 1,
     gestito: 2,
 };
 
-window.loadFeedback = async () => {
+async function loadFeedback() {
     try {
-        const { data, error } =
-            typeof window.ldrDb?.getAllFeedback === "function"
-                ? await window.ldrDb.getAllFeedback()
-                : await supabase
-                    .from("Feedback")
-                    .select(
-                        "id_feedback, categoria, contenuto, created_at, stato, Utente:id_utente (nome, cognome, numero_tessera)",
-                    )
-                    .order("created_at", { ascending: false });
-
+        const { data, error } = await getAllFeedback();
         if (error) throw error;
 
         feedbackCache = (data ?? []).slice().sort((a, b) => {
             const pesoA = STATO_PESO[a.stato] ?? 1;
             const pesoB = STATO_PESO[b.stato] ?? 1;
             if (pesoA !== pesoB) return pesoA - pesoB;
-            // a parità di stato, i più recenti prima
             return new Date(b.created_at) - new Date(a.created_at);
         });
 
@@ -1217,7 +1023,7 @@ window.loadFeedback = async () => {
     } catch (e) {
         console.error("loadFeedback:", e);
     }
-};
+}
 
 function renderFeedbackTable() {
     const tbody = document.getElementById("table-feedback");
@@ -1226,8 +1032,7 @@ function renderFeedbackTable() {
     tbody.replaceChildren();
 
     if (!feedbackCache.length) {
-        tbody.innerHTML =
-            '<tr class="empty-row"><td colspan="5">Nessun feedback ricevuto</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Nessun feedback ricevuto</td></tr>';
         return;
     }
 
@@ -1241,47 +1046,30 @@ function renderFeedbackTable() {
         <td>${fmtStatoBadge(f.stato)}</td>
         `;
 
-        // apertura più comoda con click sulla tupla
         tr.style.cursor = "pointer";
-        tr.addEventListener("click", function (e) {
+        tr.addEventListener("click", (e) => {
             if (e.target.closest("button")) return;
-            window.apriGestisciFeedback(f.id_feedback);
+            apriGestisciFeedback(f.id_feedback);
         });
         tbody.appendChild(tr);
     }
     if (window.lucide?.createIcons) window.lucide.createIcons();
 }
 
-// tronca il testo del feedback per la vista tabellare
 function troncaTesto(testo, max = 80) {
     if (!testo) return "—";
     return testo.length > max ? testo.slice(0, max) + "…" : testo;
 }
 
-// previene injection html dai campi testuali inseriti dagli utenti
-function escapeHtml(str) {
-    if (str == null) return "";
-    return String(str).replace(
-        /[&<>"']/g,
-        (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
-    );
-}
-
-// restituisce data e ora formattate (usato nel dettaglio feedback)
 function fmtDateTime(str) {
     if (!str) return "—";
     const d = new Date(str);
     return d.toLocaleString("it-IT", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
+        day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
     });
 }
 
-// apre il modal di dettaglio con tutte le informazioni del feedback selezionato
-window.apriGestisciFeedback = (id) => {
+function apriGestisciFeedback(id) {
     const f = feedbackCache.find((x) => x.id_feedback === id);
     if (!f) return;
 
@@ -1298,19 +1086,14 @@ window.apriGestisciFeedback = (id) => {
     showError("gestisci-feedback-error", "");
 
     const btnElimina = document.getElementById("btn-elimina-feedback");
-    if (btnElimina) {
-        btnElimina.onclick = () => confermaEliminaFeedback(f.id_feedback);
-    }
+    if (btnElimina) btnElimina.onclick = () => confermaEliminaFeedback(f.id_feedback);
 
     const btnSalvaStato = document.getElementById("btn-salva-stato-feedback");
-    if (btnSalvaStato) {
-        btnSalvaStato.onclick = () => salvaStatoFeedback(f.id_feedback);
-    }
+    if (btnSalvaStato) btnSalvaStato.onclick = () => salvaStatoFeedback(f.id_feedback);
 
-    window.openModal("gestisci-feedback");
-};
+    modal.open("gestisci-feedback");
+}
 
-// salva il nuovo stato scelto per il feedback
 async function salvaStatoFeedback(id_feedback) {
     const statoSelect = document.getElementById("gf-stato");
     const nuovoStato = statoSelect?.value;
@@ -1320,18 +1103,12 @@ async function salvaStatoFeedback(id_feedback) {
     if (btn) btn.disabled = true;
 
     try {
-        const { error } =
-            typeof window.ldrDb?.updateStatoFeedback === "function"
-                ? await window.ldrDb.updateStatoFeedback(id_feedback, nuovoStato)
-                : await supabase
-                    .from("Feedback")
-                    .update({ stato: nuovoStato })
-                    .eq("id_feedback", id_feedback);
+        const { error } = await updateStatoFeedback(id_feedback, nuovoStato);
         if (error) throw error;
 
         showToast("success", "Stato aggiornato", "check");
-        window.closeModal("gestisci-feedback");
-        await window.loadFeedback();
+        modal.closeEl(modal.getEl("gestisci-feedback"));
+        await loadFeedback();
     } catch (e) {
         console.error("salvaStatoFeedback:", e);
         showToast("error", "Impossibile aggiornare lo stato", "x");
@@ -1340,7 +1117,6 @@ async function salvaStatoFeedback(id_feedback) {
     }
 }
 
-// chiede conferma ed elimina il feedback
 async function confermaEliminaFeedback(id_feedback) {
     const confirmed = await confirmAction({
         title: "Conferma eliminazione",
@@ -1351,32 +1127,27 @@ async function confermaEliminaFeedback(id_feedback) {
     if (!confirmed) return;
 
     try {
-        const { error } =
-            typeof window.ldrDb?.deleteFeedback === "function"
-                ? await window.ldrDb.deleteFeedback(id_feedback)
-                : await supabase.from("Feedback").delete().eq("id_feedback", id_feedback);
+        const { error } = await deleteFeedback(id_feedback);
         if (error) throw error;
 
-        window.closeModal("gestisci-feedback");
+        modal.closeEl(modal.getEl("gestisci-feedback"));
         showToast("success", "Feedback eliminato", "check");
-        await window.loadFeedback();
+        await loadFeedback();
     } catch (e) {
         console.error("eliminaFeedback:", e);
         showToast("error", "Impossibile eliminare il feedback", "x");
     }
 }
 
-// restituisce il badge colorato in base alla categoria del feedback
 function fmtCategoriaBadge(categoria) {
     const map = {
         bug: '<span class="badge badge-red">Bug</span>',
         suggerimento: '<span class="badge badge-green">Suggerimento</span>',
         altro: '<span class="badge badge-gray">Altro</span>',
     };
-    return map[categoria] ?? `<span class="badge badge-gray">${categoria}</span>`;
+    return map[categoria] ?? `<span class="badge badge-gray">${escapeHtml(categoria)}</span>`;
 }
 
-// restituisce il badge colorato in base allo stato del feedback
 function fmtStatoBadge(stato) {
     const map = {
         non_gestito: '<span class="badge badge-red">Non gestito</span>',
@@ -1386,127 +1157,182 @@ function fmtStatoBadge(stato) {
     return map[stato] ?? '<span class="badge badge-red">Non gestito</span>';
 }
 
-// ─── Impostazioni ───────────────────────────────────────────
+// ─── Impostazioni ───────────────────────────────────────────────────────────
 async function loadImpostazioni() {
     await syncLimiteSettimanale();
     const limEl = document.getElementById("input-limite-settimanale");
-    // console.log("DEBUG limEl trovato:", limEl, "valore da impostare:", limiteSettimanale);
     if (limEl) limEl.value = limiteSettimanale;
 
     const antEl = document.getElementById("input-settimane-anticipo");
     if (antEl) {
         try {
-            const { data, error } =
-                typeof window.ldrDb?.getSettimaneAnticipo === "function"
-                    ? await window.ldrDb.getSettimaneAnticipo()
-                    : { data: null, error: null };
+            const { data, error } = await getSettimaneAnticipo();
             antEl.value = !error && data != null
                 ? data
-                : (window.calendarRender?.weeksBeforeNextMonthView ?? 1);
+                : (calendarRender?.weeksBeforeNextMonthView ?? 1);
         } catch (e) {
             console.error("loadImpostazioni (anticipo):", e);
-            antEl.value = window.calendarRender?.weeksBeforeNextMonthView ?? 1;
+            antEl.value = calendarRender?.weeksBeforeNextMonthView ?? 1;
         }
     }
 }
 
 async function syncLimiteSettimanale() {
     try {
-        const { data, error } =
-            typeof window.ldrDb?.getLimiteSettimanale === "function"
-                ? await window.ldrDb.getLimiteSettimanale()
-                : { data: null, error: null };
-        //   console.log("DEBUG manage-dashboard syncLimiteSettimanale:", { data, error });
+        const { data, error } = await getLimiteSettimanale();
         if (!error && data != null) limiteSettimanale = data;
-        //   console.log("DEBUG limiteSettimanale dopo sync:", limiteSettimanale);
     } catch (e) {
         console.error("syncLimiteSettimanale:", e);
     }
 }
 
-window.salvaLimite = async () => {
+async function salvaLimite() {
     const v = parseInt(document.getElementById("input-limite-settimanale").value);
     if (!v || v < 1) return;
 
     try {
-        const { error } =
-            typeof window.ldrDb?.updateLimiteSettimanale === "function"
-                ? await window.ldrDb.updateLimiteSettimanale(v)
-                : await supabase
-                    .from("Impostazioni")
-                    .update({ valore: String(v) })
-                    .eq("nome", "limite_settimanale");
+        const { error } = await updateLimiteSettimanale(v);
         if (error) throw error;
 
         limiteSettimanale = v;
-        window.ldrBookingConfig?.setMaxWeeklyBookings?.(v); // viene letto correttamente dal db
+        setMaxWeeklyBookings?.(v);
         document.getElementById("stat-limite").textContent = v;
         showToast("success", `Limite aggiornato a ${v} prenotazioni/settimana.`, "check");
     } catch (e) {
         console.error("salvaLimite:", e);
         showToast("error", "Impossibile salvare l'impostazione.", "x");
     }
-};
+}
 
-window.salvaAnticipo = async () => {
+async function salvaAnticipo() {
     const v = parseInt(document.getElementById("input-settimane-anticipo").value);
     if (isNaN(v) || v < 0) return;
 
     try {
-        const { error } =
-            typeof window.ldrDb?.updateSettimaneAnticipo === "function"
-                ? await window.ldrDb.updateSettimaneAnticipo(v)
-                : await supabase
-                    .from("Impostazioni")
-                    .update({ valore: String(v) })
-                    .eq("nome", "settimane_anticipo");
+        const { error } = await updateSettimaneAnticipo(v);
         if (error) throw error;
 
-        if (window.calendarRender) {
-            window.calendarRender.weeksBeforeNextMonthView = v;
-            window.calendarRender.render?.();
+        if (calendarRender) {
+            calendarRender.weeksBeforeNextMonthView = v;
+            calendarRender.render?.();
         }
         showToast("success", `Anticipo aggiornato a ${v} settimane.`, "check");
     } catch (e) {
         console.error("salvaAnticipo:", e);
         showToast("error", "Impossibile salvare l'impostazione.", "x");
     }
-};
+}
 
-// ─── Inizializzazione ───────────────────────────────────────
+// ─── Collegamento eventi (sostituisce gli onclick/oninput inline) ─────────
+function initEventListeners() {
+    // Nav principale (i bottoni hanno già id btn-nav-<sezione> nell'HTML)
+    ['utenti', 'turni', 'calendario', 'stats', 'feedback', 'impostazioni'].forEach((id) => {
+        document.getElementById(`btn-nav-${id}`)?.addEventListener('click', () => showSection(id));
+    });
+
+    document.getElementById('btn-refresh-stats')?.addEventListener('click', () => loadStats());
+    document.getElementById('search-utenti')?.addEventListener('input', (e) => renderUtenti(e.target.value));
+    document.getElementById('btn-nuovo-utente')?.addEventListener('click', () => modal.open('nuovo-utente'));
+
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            if (tab) switchTab(tab, btn);
+        });
+    });
+
+    document.getElementById('btn-prenota-admin')?.addEventListener('click', () => apriNuovaPrenotazioneAdmin());
+    document.getElementById('search-prenotazioni')?.addEventListener('input', (e) => renderPrenotazioni(e.target.value));
+    document.getElementById('btn-refresh-feedback')?.addEventListener('click', () => loadFeedback());
+
+    document.getElementById('btn-salva-limite')?.addEventListener('click', () => salvaLimite());
+    document.getElementById('btn-salva-anticipo')?.addEventListener('click', () => salvaAnticipo());
+
+    // Bottoni "Annulla/Chiudi" generici: <button data-close-modal="nuovo-utente">
+    document.querySelectorAll('[data-close-modal]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const el = modal.getEl(btn.dataset.closeModal);
+            if (el) modal.closeEl(el);
+        });
+    });
+
+    document.getElementById('btn-salva-nuovo-utente')?.addEventListener('click', () => salvaNuovoUtente());
+    document.getElementById('btn-elimina-utente')?.addEventListener('click', () => eliminaUtente());
+    document.getElementById('btn-salva-modifica-utente')?.addEventListener('click', () => salvaModificaUtente());
+
+    document.getElementById('btn-nuovo-turno')?.addEventListener('click', () => openNuovoTurno());
+    document.getElementById('btn-salva-modifica-turno')?.addEventListener('click', () => salvaModificaTurno());
+    document.getElementById('btn-elimina-turno-modal')?.addEventListener('click', () => eliminaTurno());
+    document.getElementById('btn-salva-nuovo-turno-modal')?.addEventListener('click', () => salvaNuovoTurno());
+
+    document.getElementById('btn-conferma-prenota-admin')?.addEventListener('click', () => confermaPrenotaAdmin());
+
+    const btnEliminaOk = document.getElementById("btn-conferma-elimina-ok");
+    if (btnEliminaOk) {
+        btnEliminaOk.onclick = () => {
+            pendingDeleteFn?.();
+            pendingDeleteFn = null;
+        };
+    }
+
+    ['pa-data', 'pa-forza'].forEach((id) => {
+        document.getElementById(id)?.addEventListener('change', async () => {
+            const data = document.getElementById('pa-data').value;
+            if (!data) return;
+            const sel = document.getElementById('pa-turno');
+            if (!sel) return;
+            sel.disabled = true;
+            sel.innerHTML = '<option disabled selected>Caricamento…</option>';
+
+            const { data: prenOcc } = await supabase.from('Prenotazione').select('id_turno').eq('data_prenotazione', data);
+            const occIds = new Set((prenOcc ?? []).map(p => p.id_turno));
+
+            sel.replaceChildren();
+            sel.appendChild(Object.assign(document.createElement('option'), { value: '', textContent: 'Seleziona turno', disabled: true, selected: true }));
+            for (const t of turniCache) {
+                const occ = occIds.has(t.id_turno);
+                const opt = Object.assign(document.createElement('option'), {
+                    value: t.id_turno,
+                    textContent: `${t.indice}° — ${fmtTime(t.orario_inizio)} - ${fmtTime(t.orario_fine)}${occ ? ' (Occupato)' : ''}`,
+                });
+                if (occ && !document.getElementById('pa-forza').checked) opt.disabled = true;
+                sel.appendChild(opt);
+            }
+            sel.disabled = false;
+            validatePrenotaAdmin();
+        });
+    });
+
+    ["pa-utente", "pa-turno", "pa-data"].forEach((id) => {
+        document.getElementById(id)?.addEventListener("change", () => validatePrenotaAdmin());
+    });
+}
+
+// ─── Inizializzazione ────────────────────────────────────────────────────
+initEventListeners();
+
 document.addEventListener("DOMContentLoaded", async () => {
     const isAllowed = await guardAdminAccess();
     if (!isAllowed) return;
 
     document.body.classList.add("admin-access-checked");
-
     document.getElementById('btn-nav-utenti')?.classList.add('active');
 
     await syncLimiteSettimanale();
-    await window.loadStats();
-    await window.loadUtenti();
-    await window.loadTurni();
+    await loadStats();
+    await loadUtentiAdmin();
+    await loadTurni();
 
-    window.populatePaUtenti();
+    populatePaUtenti();
 
-    if (window.calendarRender) {
-        window.calendarRender.getNavigableMonthOffsets = function () {
-            return { min: -12, max: 12 };
-        };
-        window.calendarRender.canViewNextMonth = () => true;
+    if (calendarRender) {
+        calendarRender.getNavigableMonthOffsets = () => ({ min: -12, max: 12 });
+        calendarRender.canViewNextMonth = () => true;
     }
 
-    const user = window.ldrProfilo;
+    const user = profiloUtente;
     if (user) {
         const infoEl = document.getElementById("dash-admin-info");
-        if (infoEl)
-            infoEl.textContent = `Connesso come ${user.nome} ${user.cognome}`;
+        if (infoEl) infoEl.textContent = `Connesso come ${user.nome} ${user.cognome}`;
     }
 });
-
-document
-    .querySelector("[onclick=\"openModal('nuovo-turno')\"]")
-    ?.addEventListener("click", (e) => {
-        e.preventDefault();
-        window.openNuovoTurno?.();
-    });

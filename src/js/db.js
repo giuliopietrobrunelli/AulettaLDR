@@ -61,7 +61,7 @@ export async function getAllUtenti() {
 export async function getAllUtentiAdmin() {
   return await supabase
     .from("Utente")
-    .select("id_utente, nome, cognome, numero_tessera")
+    .select("id_utente, nome, cognome, numero_tessera, email, telefono, facolta_universitaria, cauzione, registrato")
     .order("cognome");
 }
 
