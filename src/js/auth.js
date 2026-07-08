@@ -156,6 +156,7 @@ export const auth = {
           .eq("numero_tessera", numeroTessera)
           .single();
 
+        // la tessera inserita non è attiva o non è registrata
         if (dbError || !utente) {
           this.showError(
             form,
@@ -165,6 +166,8 @@ export const auth = {
           return;
         }
 
+        // la tessera corrisponde ad un utente associato
+        // ma che non ha creato l'account
         if (!utente.registrato) {
           this.showError(
             form,
@@ -173,6 +176,8 @@ export const auth = {
           this.setLoading(btnSubmit, false);
           return;
         }
+
+        // all'ora l'utente ha inserito una mail, forse sbagliata
         email = utente.email;
       }
 
@@ -182,8 +187,9 @@ export const auth = {
         password,
       });
 
+      // segnala nel form che o la mail o la password sono errati
       if (error) {
-        this.showError(form, "email o password errati.");
+        this.showError(form, "credenziali errate.");
         this.setLoading(btnSubmit, false);
         return;
       }

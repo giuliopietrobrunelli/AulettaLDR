@@ -630,7 +630,7 @@ async function salvaModificaUtente() {
 
     const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(email)) {
-        showToast('error', "Inserisci un email valida.");
+        showToast('error', "Inserisci un indirizzo mail valido");
         return;
     }
     if (!email) { showError('modifica-utente-error', 'L\'email è obbligatoria.'); return; }

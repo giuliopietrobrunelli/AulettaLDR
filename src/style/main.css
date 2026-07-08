@@ -740,6 +740,7 @@ main {
 .day-turn[data-status="loading"] {
   opacity: 0.6 !important;
 }
+.day-turn[data-status="past"],
 .day-turn[data-status="occupied"] {
   opacity: 0.3 !important;
 }
