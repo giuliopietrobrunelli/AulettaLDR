@@ -1,6 +1,7 @@
 import {
     getAllUtenti,
     getAllUtentiAdmin,
+    getAllUtentiCediTurno,
     getAllTurni,
     getProfiloUtente,
     isAmministratore,
@@ -161,7 +162,7 @@ export async function openModificaPrenotazioneAdmin(prenotazione) {
 
     if (selectCedi) {
         selectCedi.innerHTML = '<option value="">Seleziona utente</option>';
-        const { data: utenti, error } = await getAllUtentiAdmin();
+        const { data: utenti, error } = await getAllUtentiCediTurno(prenotazione.id_utente);
         if (error) {
             console.error("impossibile caricare gli utenti: ", error);
         } else {
@@ -466,7 +467,14 @@ function fillTable(tbodyId, utenti) {
         tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Nessun utente trovato</td></tr>`;
         return;
     }
+
+    let utentiOrdinati = null;
+
     for (const u of utenti) {
+        utentiOrdinati = u.registrato ? utenti : [...utenti].sort((a, b) => Number(b.numero_tessera) - Number(a.numero_tessera));
+    }
+
+    for (const u of utentiOrdinati) {
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${escapeHtml(u.numero_tessera)}</td>
@@ -534,7 +542,29 @@ async function salvaNuovoUtente() {
     const tratt = document.getElementById('nu-trattamento').checked;
 
     if (!nome || !cognome || !email || !tessera) {
-        showError('nuovo-utente-error', 'Compila tutti i campi obbligatori (*).');
+        const msg = 'Compila tutti i campi obbligatori (*).';
+        showToast('error', msg);
+        return;
+    }
+
+    const nomeRegex = /^[a-zA-ZàèéìòùÀÈÉÌÒÙáéíóúÁÉÍÓÚ\s'-]+$/;
+    if (!nomeRegex.test(nome)) { showToast('error', 'Il nome non può contenere numeri o caratteri speciali.'); return; }
+    if (!nomeRegex.test(cognome)) { showToast('error', 'Il cognome non può contenere numeri o caratteri speciali.'); return; }
+    const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+        showToast('error', "Inserisci un email valida.");
+        return;
+    }
+
+    const tesseraDuplicata = allUtenti.find(u => u.numero_tessera === tessera);
+    if (tesseraDuplicata) {
+        showToast('error', `Il numero tessera ${tessera} è già assegnato a ${tesseraDuplicata.cognome} ${tesseraDuplicata.nome}. `);
+        return;
+    }
+
+    const emailDuplicata = allUtenti.find(u => u.email === email);
+    if (emailDuplicata){
+        showToast('error', 'Email già assegnata a un altro utente');
         return;
     }
 
@@ -548,7 +578,10 @@ async function salvaNuovoUtente() {
             facolta_universitaria: facolta,
             cauzione, trattamento_dati: tratt, registrato: false,
         });
-        if (error) throw error;
+        if (error) {
+            showError("error", "errore nel salvataggio del nuovo utente");
+            return;
+        };
         // modal.closeEl(document.getElementById('nuovo-utente'));
         modal.closeAll();
         document.getElementById('nu-nome').value = '';
@@ -572,7 +605,10 @@ function apriModificaUtente(id) {
     const u = allUtenti.find(x => x.id_utente === id);
     if (!u) return;
     document.getElementById('mu-id').value = u.id_utente;
+    document.getElementById('mu-nome').value = u.nome;
+    document.getElementById('mu-cognome').value = u.cognome;
     document.getElementById('mu-email').value = u.email ?? '';
+    document.getElementById('mu-tessera').value = u.numero_tessera;
     document.getElementById('mu-telefono').value = u.telefono ?? '';
     document.getElementById('mu-facolta').value = u.facolta_universitaria ?? '';
     document.getElementById('mu-cauzione').checked = !!u.cauzione;
@@ -586,12 +622,30 @@ async function salvaModificaUtente() {
     showError('modifica-utente-error', '');
     const id = document.getElementById('mu-id').value;
     const email = document.getElementById('mu-email').value.trim();
+    const tessera = parseInt(document.getElementById('mu-tessera').value);
     const telefono = document.getElementById('mu-telefono').value.trim();
     const facolta = document.getElementById('mu-facolta').value.trim();
     const cauzione = document.getElementById('mu-cauzione').checked;
     const registrato = document.getElementById('mu-registrato').checked;
 
+    const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+        showToast('error', "Inserisci un email valida.");
+        return;
+    }
     if (!email) { showError('modifica-utente-error', 'L\'email è obbligatoria.'); return; }
+
+    const tesseraDuplicata = allUtenti.find(u => u.numero_tessera === tessera && u.id_utente !== id);
+    if (tesseraDuplicata) {
+        showToast('error', `Il numero tessera ${tessera} è già assegnato a ${tesseraDuplicata.cognome} ${tesseraDuplicata.nome}. `);
+        return;
+    }
+
+    const emailDuplicata = allUtenti.find(u => u.email === email && u.id_utente !== id);
+    if (emailDuplicata){
+        showToast('error', 'Email già assegnata a un altro utente');
+        return;
+    }
 
     try {
         const { error } = await supabase.from('Utente').update({
@@ -716,10 +770,20 @@ function openNuovoTurno() {
     document.getElementById('nt-inizio').value = '';
     document.getElementById('nt-fine').value = '';
     document.getElementById('modal-nuovo-turno-title').textContent = 'Nuovo turno';
-    const subtitleEl = document.getElementById('modal-nuovo-turno-subtitle');
-    if (subtitleEl) subtitleEl.textContent = 'Aggiungi una nuova fascia oraria';
-    showError('nuovo-turno-error', '');
     modal.open('nuovo-turno');
+}
+
+function openNuovoUtente() {
+    document.getElementById('nu-nome').value = '';
+    document.getElementById('nu-cognome').value = '';
+    document.getElementById('nu-email').value = '';
+    document.getElementById('nu-tessera').value = '';
+    document.getElementById('nu-telefono').value = '';
+    document.getElementById('nu-facolta').value = '';
+    document.getElementById('nu-cauzione').checked = false;
+    document.getElementById('nu-trattamento').checked = false;
+    modal.open('nuovo-utente');
+
 }
 
 function apriModificaTurno(id) {
@@ -994,7 +1058,8 @@ async function confermaPrenotaAdmin() {
         calendarRender?.render?.();
         await loadStats();
     } catch (e) {
-        showError('prenota-admin-error', e.message ?? 'Errore.');
+        //showError('prenota-admin-error', e.message ?? 'Errore.');
+        showToast('error', e.message);
     } finally {
         if (btn) btn.disabled = false;
     }
@@ -1208,7 +1273,15 @@ async function salvaLimite() {
 
 async function salvaAnticipo() {
     const v = parseInt(document.getElementById("input-settimane-anticipo").value);
-    if (isNaN(v) || v < 0) return;
+    if (!Number.isInteger(v)) {
+        v = Math.trunc(v);
+    }
+    if (isNaN(v) || v < 0) {
+        const msg = "Il numero di settimane prima di visualizzare il mese successivo non può essere negativo"
+        showToast("error", msg);
+        return;
+    }
+
 
     try {
         const { error } = await updateSettimaneAnticipo(v);
@@ -1234,7 +1307,7 @@ function initEventListeners() {
 
     document.getElementById('btn-refresh-stats')?.addEventListener('click', () => loadStats());
     document.getElementById('search-utenti')?.addEventListener('input', (e) => renderUtenti(e.target.value));
-    document.getElementById('btn-nuovo-utente')?.addEventListener('click', () => modal.open('nuovo-utente'));
+    document.getElementById('btn-nuovo-utente')?.addEventListener('click', () => openNuovoUtente());
 
     document.querySelectorAll('.tab-btn').forEach((btn) => {
         btn.addEventListener('click', () => {

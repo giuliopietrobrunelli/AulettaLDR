@@ -65,6 +65,15 @@ export async function getAllUtentiAdmin() {
     .order("cognome");
 }
 
+export async function getAllUtentiCediTurno(id_utente) {
+  return await supabase
+  .from("Utente")
+  .select("id_utente, nome, cognome, numero_tessera")
+  .neq("id_utente", id_utente)
+  .order("cognome");
+  
+}
+
 // restituisce tutti gli utenti escluso quello loggato (per la funzione cedi turno)
 export async function getAllUtentiRegistrati() {
   const {

@@ -825,7 +825,7 @@
                     <span class="section-title" style="font-size:14px">Settimane di anticipo</span>
                     <span class="setting-desc">Numero di settimane prima dell’inizio del prossimo mese in cui gli utenti possono visualizzare e prenotare i turni del mese successivo.</span>
                     <div class="horizontal-container">
-                        <input type="number" id="input-settimane-anticipo" min="0" max="8" value="1"
+                        <input type="number" id="input-settimane-anticipo" min="0" max="8" value="1" onkeydown="if(['e', 'E', '+', '-'].includes(event.key)) event.preventDefault();"
                             style="max-width:100px">
                         <button class="w-text" id="btn-salva-anticipo">
                             <i data-lucide="check" class="lucide"></i>
@@ -882,7 +882,7 @@
                 </div>
                 <div class="form-block">
                     <label for="nu-tessera"><span>N° tessera *</span></label>
-                    <input type="number" id="nu-tessera" placeholder="1234">
+                    <input type="number" id="nu-tessera" placeholder="1234" onkeydown="if(['e', 'E', '+', '-', '.', ','].includes(event.key)) event.preventDefault();">
                 </div>
                 <div class="form-block">
                     <label for="nu-telefono"><span>Telefono</span></label>
@@ -907,7 +907,7 @@
                 <span id="nuovo-utente-error" class="form-error" style="display:none"></span>
             </div>
             <div class="full-modal-footer">
-                <button type="button" class="w-text" data-close-modal="nuovo-utente">Annulla</button>
+                <button type="button" class="w-text" data-close-modal="nuovo-utente" >Annulla</button>
                 <button type="button" class="w-text active" id="btn-salva-nuovo-utente">
                     <i data-lucide="user-plus" class="lucide"></i>
                     <span>Crea utente</span>
@@ -926,8 +926,20 @@
             <div class="full-modal-content">
                 <input type="hidden" id="mu-id">
                 <div class="form-block">
+                    <label for="mu-nome"><span>Nome</span></label>
+                    <input type="text" id="mu-nome" disabled>
+                </div>
+                <div class="form-block">
+                    <label for="mu-cognome"><span>Cognome</span></label>
+                    <input type="text" id="mu-cognome" disabled>
+                </div>
+                <div class="form-block">
                     <label for="mu-email"><span>Email</span></label>
                     <input type="email" id="mu-email">
+                </div>
+                <div class="form-block">
+                    <label for="mu-tessera"><span>Tessera</span></label>
+                    <input type="number" id="mu-tessera" onkeydown="if(['e', 'E', '+', '-', '.', ','].includes(event.key)) event.preventDefault();">
                 </div>
                 <div class="form-block">
                     <label for="mu-telefono"><span>Telefono</span></label>
