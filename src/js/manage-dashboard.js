@@ -192,7 +192,7 @@ export async function openModificaPrenotazioneAdmin(prenotazione) {
             handleRinunciaTurnoAdmin(prenotazione.id_prenotazione);
     }
 
-    open("modifica-prenotazione");
+    modal.open("modifica-prenotazione");
 }
 
 // gestisce la cessione del turno ad altro utente
@@ -230,7 +230,7 @@ async function handleCediTurnoAdmin(id_prenotazione, selectCedi) {
         if (btnCedi) btnCedi.disabled = false;
     }
 
-    if (window.lucide?.createIcons) window.lucide.createIcons();
+    window.lucide.createIcons();
 }
 
 // aggiorna lo stato di una prenotazione (solo admin)
@@ -267,7 +267,7 @@ async function handleSalvaStatoPrenotazioneAdmin(id_prenotazione, selectStato) {
         if (btn) btn.disabled = false;
     }
 
-    if (window.lucide?.createIcons) window.lucide.createIcons();
+    window.lucide.createIcons();
 }
 
 // gestisce la rinuncia/eliminazione di una prenotazione (lato admin)
@@ -298,7 +298,7 @@ async function handleRinunciaTurnoAdmin(id_prenotazione) {
         if (btnRinuncia) btnRinuncia.disabled = false;
     }
 
-    if (window.lucide?.createIcons) window.lucide.createIcons();
+    window.lucide.createIcons();
 }
 
 // ─── Rendering tabelle prenotazioni (future / passate) ───────────────────
@@ -347,7 +347,7 @@ async function loadStats() {
         const oggi = ora.toISOString().split('T')[0];
 
         const [resUtenti, resMese, resOggi] = await Promise.all([
-            getAllUtenti(),
+            getAllUtentiAdmin(),
             getPrenotazioniByDateRange(meseStart, meseEnd),
             getPrenotazioniByDateRange(oggi, oggi),
         ]);
@@ -420,7 +420,7 @@ async function loadStats() {
         console.error("loadStats:", e);
     }
 
-    if (window.lucide?.createIcons) window.lucide.createIcons();
+    window.lucide.createIcons();
 }
 
 // ─── Utenti ───────────────────────────────────────────────────────────────
@@ -455,6 +455,7 @@ function renderPrenotazioni(filter = '') {
     };
     renderTabellaPrenotazioni('table-prenotazioni-future', prenotazioniFuture.filter(match));
     renderTabellaPrenotazioni('table-prenotazioni-passate', prenotazioniPassate.filter(match));
+    if (window.lucide?.createIcons) window.lucide.createIcons();
 }
 
 function fillTable(tbodyId, utenti) {
@@ -486,7 +487,7 @@ function fillTable(tbodyId, utenti) {
             ?.addEventListener('click', () => apriModificaUtente(u.id_utente));
         tbody.appendChild(tr);
     }
-    if (window.lucide?.createIcons) window.lucide.createIcons();
+    window.lucide.createIcons();
 }
 
 // ─── Gestione tab (generalizzata per gruppo) ──────────────────────────────
@@ -600,6 +601,7 @@ async function salvaModificaUtente() {
         }).eq('id_utente', id);
         if (error) throw error;
         modal.closeEl(modal.getEl('modifica-utente'));
+        showToast('success', 'Modifiche salvate con successo!');
         await loadUtentiAdmin();
     } catch (e) {
         showError('modifica-utente-error', e.message ?? 'Errore durante il salvataggio.');
@@ -707,7 +709,7 @@ function renderTurni() {
             ?.addEventListener('click', () => cambiaStatoTurnoAdmin(t.id_turno, !isAttivo));
         list.appendChild(row);
     }
-    if (window.lucide?.createIcons) window.lucide.createIcons();
+    window.lucide.createIcons();
 }
 
 function openNuovoTurno() {
@@ -1053,7 +1055,7 @@ function renderFeedbackTable() {
         });
         tbody.appendChild(tr);
     }
-    if (window.lucide?.createIcons) window.lucide.createIcons();
+    window.lucide.createIcons();
 }
 
 function troncaTesto(testo, max = 80) {

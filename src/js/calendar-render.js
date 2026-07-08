@@ -200,7 +200,6 @@ export const calendarRender = {
       if (turn) this.selectSlot(turn);
     });
 
-    // this.loadTurni().then(() => this.setViewMode(this.viewMode));
     // carica turni e impostazioni dal db prima del primo render
     Promise.all([this.loadSettimaneAnticipo(), this.loadTurni()]).then(() =>
       this.setViewMode(this.viewMode),
@@ -499,28 +498,28 @@ export const calendarRender = {
   // restituisce stato di uno slot (disponibile, occupato, passato, bloccato)
   getSlotStatus(date, turnId) {
     const slotBooking = this.getSlotBooking(this.formatDateISO(date), turnId);
-    if (slotBooking) {
-      if (
-        profiloUtente &&
-        slotBooking.id_utente === profiloUtente.id_utente
-      ) {
-        return "own";
-      }
-      return "occupied";
-    }
-    if (this.isBeforeDate(date, this.today)) return "past";
-    if (!this.isBookableDate(date)) return "locked";
-
-    // controllo orario solo per oggi
+    const isPastDay = this.isBeforeDate(date, this.today);
+  
+    let timeStatus = null;
     if (this.isSameDate(date, this.today)) {
       const turn = this.turns.find((t) => t.id === turnId);
       if (turn?.orario_inizio && turn?.orario_fine) {
-        const timeStatus = this.getTurnTimeStatus(turn);
-        if (timeStatus === "past") return "past";
-        if (timeStatus === "auto-confirm") return "auto-confirm";
+        timeStatus = this.getTurnTimeStatus(turn);
       }
     }
-
+  
+    const isPast = isPastDay || timeStatus === "past";
+  
+    if (slotBooking) {
+      const isMine = profiloUtente && slotBooking.id_utente === profiloUtente.id_utente;
+      if (isPast) return isMine ? "own-past" : "occupied-past";
+      return isMine ? "own" : "occupied";
+    }
+  
+    if (isPast) return "past";
+    if (!this.isBookableDate(date)) return "locked";
+    if (timeStatus === "auto-confirm") return "auto-confirm";
+  
     return "available";
   },
 
@@ -730,14 +729,11 @@ export const calendarRender = {
       const icon = document.createElement("i");
       icon.setAttribute("data-lucide", "plus");
       el.appendChild(icon);
-    } else if (status === "occupied") {
+    } else if (status === "occupied" || status === "occupied-past") {
       el.appendChild(this.createUserPreviewEl(booking));
-    } else if (status == "own") {
+    } else if (status === "own" || status === "own-past") {
       el.appendChild(this.createUserPreviewEl(booking));
-      el.addEventListener("click", () => {
-        // console.log('click su turno own, booking:', booking);
-        openModificaModal(booking);
-      });
+      el.addEventListener("click", () => openModificaModal(booking));
     }
   },
 
@@ -759,7 +755,7 @@ export const calendarRender = {
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
-    checkbox.checked = status === "occupied" || status === "own";
+    checkbox.checked = status === "occupied" || status === "own" || status === "occupied-past";
     checkbox.tabIndex = -1;
 
     const orderSpan = document.createElement("span");
@@ -779,7 +775,7 @@ export const calendarRender = {
       const icon = document.createElement("i");
       icon.setAttribute("data-lucide", "plus");
       userDiv.appendChild(icon);
-    } else if (status === "occupied" || status === "own") {
+    } else if (status === "occupied" || status === "occupied-past" || status === "own" || status === "own-past") {
       userDiv.appendChild(this.createUserPreviewEl(booking));
     }
 
@@ -1173,6 +1169,8 @@ export const calendarRender = {
       this.restoreSelection();
       this.finishViewTransition(this.dayContainer);
       if (typeof lucide !== "undefined") lucide.createIcons();
+      this.updateDayActiveIndicator(date);
+      this.syncDayActiveIndicatorTimer(date);
       refreshBookingsModal(date);
       return;
     }
@@ -1185,6 +1183,8 @@ export const calendarRender = {
     this.finishViewTransition(this.dayContainer);
     this.restoreSelection();
     if (typeof lucide !== "undefined") lucide.createIcons();
+    this.updateDayActiveIndicator(date);
+    this.syncDayActiveIndicatorTimer(date);
     refreshBookingsModal(date);
   },
 
@@ -1263,13 +1263,6 @@ export const calendarRender = {
     // return base;
   },
 
-  // controlla se la data è domani
-  isTomorrow(date) {
-    const tomorrow = new Date(this.today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return this.isSameDate(date, tomorrow);
-  },
-
   // formatta il titolo della vista settimana (adatta a mesi diversi)
   formatWeekTitle(start, end) {
     const sameMonth =
@@ -1281,6 +1274,120 @@ export const calendarRender = {
     }
 
     return `${start.getDate()} ${MONTHS[start.getMonth()]} – ${end.getDate()} ${MONTHS[end.getMonth()]} ${end.getFullYear()}`;
+  },
+
+  // controlla se un turno è in corso in questo preciso momento
+  isTurnCurrentlyActive(turn) {
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const toMinutes = (t) => {
+      if (!t) return 0;
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m;
+    };
+    const startMin = toMinutes(turn.orario_inizio);
+    const fineMin = toMinutes(turn.orario_fine);
+    const endMin =
+      !turn.orario_fine || fineMin === 0 || fineMin <= startMin ? 24 * 60 : fineMin;
+    return nowMin >= startMin && nowMin < endMin;
+  },
+
+  // crea (una sola volta) la barra e il puntino dentro #day-schedules
+  ensureDayActiveIndicator() {
+    const container = document.getElementById("day-schedules");
+    if (!container || container.querySelector(".day-active-track")) return;
+  
+    const track = document.createElement("div");
+    track.className = "day-active-track";
+  
+    const past = document.createElement("span");
+    past.className = "day-active-track-segment day-active-track-past";
+  
+    const remaining = document.createElement("span");
+    remaining.className = "day-active-track-segment day-active-track-remaining";
+  
+    const dot = document.createElement("span");
+    dot.className = "day-active-dot";
+  
+    track.append(past, remaining, dot);
+    container.prepend(track);
+  },
+
+  // aggiorna (o rimuove) la barra in base al giorno visualizzato e al turno attivo adesso
+  updateDayActiveIndicator(date) {
+    const container = document.getElementById("day-schedules");
+    if (!container) return;
+
+    const isToday = this.isSameDate(date, this.today);
+
+    // classe usata dal css per fare spazio alla barra (padding-left ecc.)
+    container.classList.toggle("current-day-schedule", isToday);
+
+    // la barra esiste solo nella vista del giorno corrente
+    if (!isToday) {
+      container.querySelector(".day-active-track")?.remove();
+      return;
+    }
+
+    this.ensureDayActiveIndicator();
+    const track = container.querySelector(".day-active-track");
+    const segPast = container.querySelector(".day-active-track-past");
+    const segRemaining = container.querySelector(".day-active-track-remaining");
+    const dot = container.querySelector(".day-active-dot");
+    if (!track || !segPast || !segRemaining || !dot) return;
+
+    // misura la posizione reale della prima e dell'ultima riga: si adatta
+    // automaticamente se i turni vengono aggiunti/rimossi, senza inset fissi
+    const rows = Array.from(container.querySelectorAll(".day-turn"));
+    if (!rows.length) {
+      track.style.display = "none";
+      return;
+    }
+    track.style.display = "";
+
+    const firstRow = rows[0];
+    const lastRow = rows[rows.length - 1];
+    const trackTop = firstRow.offsetTop;
+    const trackHeight = lastRow.offsetTop + lastRow.offsetHeight - trackTop;
+
+    track.style.top = `${trackTop}px`;
+    track.style.height = `${trackHeight}px`;
+
+    const activeTurn = this.turns.find(
+      (t) => t.orario_inizio && t.orario_fine && this.isTurnCurrentlyActive(t),
+    );
+    const rowEl = activeTurn
+      ? container.querySelector(`.day-turn[data-turn="${activeTurn.id}"]`)
+      : null;
+
+    if (!activeTurn || !rowEl) {
+      // nessun turno attivo adesso: barra grigia intera, puntino nascosto
+      segPast.style.height = "100%";
+      segRemaining.style.height = "0";
+      dot.classList.remove("visible");
+      return;
+    }
+
+    const offsetInTrack = rowEl.offsetTop + rowEl.offsetHeight / 2 - trackTop;
+
+    segPast.style.height = `${offsetInTrack}px`;
+    segRemaining.style.top = `${offsetInTrack}px`;
+    segRemaining.style.height = `${trackHeight - offsetInTrack}px`;
+    dot.style.top = `${offsetInTrack}px`;
+    dot.classList.add("visible");
+  },
+
+  // avvia/ferma il refresh periodico (il turno attivo cambia col passare del tempo)
+  syncDayActiveIndicatorTimer(date) {
+    if (this.dayActiveIndicatorInterval) {
+      clearInterval(this.dayActiveIndicatorInterval);
+      this.dayActiveIndicatorInterval = null;
+    }
+    if (!this.isSameDate(date, this.today)) return;
+
+    this.dayActiveIndicatorInterval = setInterval(() => {
+      this.updateDayActiveIndicator(this.dayViewDate);
+    }, 30000); // ogni 30s è più che sufficiente
   },
 
   // ─── gestione delle prenotazione ────────────────────────────────────────────
@@ -1753,6 +1860,13 @@ export const calendarRender = {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
     return d < ref;
+  },
+
+  // controlla se la data è domani
+  isTomorrow(date) {
+    const tomorrow = new Date(this.today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return this.isSameDate(date, tomorrow);
   },
 
   // formatta data oggetto in stringa 'gg.mm.aaaa'

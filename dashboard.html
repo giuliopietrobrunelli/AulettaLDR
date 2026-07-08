@@ -163,6 +163,12 @@
             font-family: var(--plex-sans);
         }
 
+        @media (max-width: 800px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* ── Tabelle utenti ───────────────────────────────── */
 
         .section-header {
@@ -379,7 +385,6 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
-            max-width: 420px;
         }
 
         .setting-row {
@@ -697,8 +702,7 @@
                 <span class="section-title" style="font-size:14px">Tutte le prenotazioni</span>
                 <div class="horizontal-container">
                     <div class="search-bar">
-                        <input type="text" id="search-prenotazioni" placeholder="Cerca per utente, data, stato"
-                            oninput="filterPrenotazioni()">
+                        <input type="text" id="search-prenotazioni" placeholder="Cerca per utente, data, stato">
                     </div>
                 </div>
             </div>
@@ -799,36 +803,35 @@
                 <span class="section-title">Impostazioni piattaforma</span>
             </div>
 
+            <div class="divider"></div>
+
             <div class="settings-grid">
 
                 <div class="setting-row">
-                    <label for="input-limite-settimanale">Limite prenotazioni settimanali</label>
+                    <span class="section-title" style="font-size:14px">Limite prenotazioni settimanali</span>
+                    <span class="setting-desc">Numero massimo di prenotazioni che un utente può effettuare in una
+                        singola settimana (lun–dom).</span>
                     <div class="horizontal-container">
                         <input type="number" id="input-limite-settimanale" min="1" max="100" value=""
                             style="max-width:100px">
                         <button class="w-text" id="btn-salva-limite">
-                            <i data-lucide="save" class="lucide"></i>
+                            <i data-lucide="check" class="lucide"></i>
                             <span>Salva</span>
                         </button>
                     </div>
-                    <span class="setting-desc">Numero massimo di prenotazioni che un utente può effettuare in una
-                        singola settimana (lun–dom).</span>
                 </div>
 
-                <div class="divider"></div>
-
                 <div class="setting-row">
-                    <label>Settimane visibili in anticipo</label>
+                    <span class="section-title" style="font-size:14px">Settimane di anticipo</span>
+                    <span class="setting-desc">Numero di settimane prima dell’inizio del prossimo mese in cui gli utenti possono visualizzare e prenotare i turni del mese successivo.</span>
                     <div class="horizontal-container">
                         <input type="number" id="input-settimane-anticipo" min="0" max="8" value="1"
                             style="max-width:100px">
                         <button class="w-text" id="btn-salva-anticipo">
-                            <i data-lucide="save" class="lucide"></i>
+                            <i data-lucide="check" class="lucide"></i>
                             <span>Salva</span>
                         </button>
                     </div>
-                    <span class="setting-desc">Quante settimane prima del cambio mese gli utenti possono vedere e
-                        prenotare il mese successivo.</span>
                 </div>
 
             </div>
@@ -955,7 +958,7 @@
                 </button>
                 <div class="horizontal-container" style="gap:8px">
                     <button type="button" class="w-text" data-close-modal="modifica-utente">Annulla</button>
-                    <button type="button" class="w-text active" id="btn-salva-modifiche-utente">
+                    <button type="button" class="w-text active" id="btn-salva-modifica-utente">
                         <i data-lucide="save" class="lucide"></i>
                         <span>Salva</span>
                     </button>
@@ -1267,9 +1270,7 @@
     <script type="module" src="/src/js/modal.js"></script>
     <script type="module" src="/src/js/calendar-render.js"></script>
     <script type="module" src="/src/js/main-view.js"></script>
-
     <script type="module" src="/src/js/manage-dashboard.js"></script>
-
     <script type="module" src="/src/js/auth.js"></script>
     <script type="module" src="/src/js/app.js"></script>
 

@@ -615,11 +615,58 @@ main {
   gap: 20px;
 }
 
+#day-schedules.current-day-schedule {
+  padding-left: 18px;
+}
+
 #day-schedules {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 15px;
+  position: relative;
+}
+
+.day-active-track {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+}
+
+.day-active-track-segment {
+  position: absolute;
+  left: 0;
+  width: 2px;
+  border-radius: 1px;
+  transition: height 0.3s ease, top 0.3s ease;
+}
+
+.day-active-track-past {
+  top: 0;
+  background-color: var(--gray);
+}
+
+.day-active-track-remaining {
+  background-color: var(--aula);
+}
+
+.day-active-dot {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 20%;
+  background-color: var(--aula);
+  opacity: 0;
+  transition: top 0.3s ease, opacity 0.2s ease;
+}
+
+.day-active-dot.visible {
+  opacity: 1;
 }
 
 .day-turn {
@@ -628,6 +675,10 @@ main {
   align-items: center;
   justify-content: start;
   gap: 10px;
+}
+
+.time-day-turn span {
+  min-width: max-content;
 }
 
 .day-turn .check-day-turn,
@@ -693,6 +744,23 @@ main {
   opacity: 0.3 !important;
 }
 
+.day-turn[data-status="occupied-past"],
+.day-turn[data-status="own-past"] {
+  opacity: 0.3 !important;
+  cursor: default;
+  pointer-events: none;
+}
+.day-turn[data-status="occupied-past"] span,
+.day-turn[data-status="own-past"] span {
+  text-decoration: line-through;
+}
+
+.turn[data-status="occupied-past"],
+.turn[data-status="own-past"] {
+  opacity: 0.3 !important;
+  pointer-events: none;
+}
+
 .day-turn[data-status="own"]:hover {
   cursor: pointer;
 }
@@ -705,7 +773,8 @@ main {
 .day-turn[data-status="past"] h3 {
   text-decoration: line-through;
 }
-.day-turn[data-status="occupied"] .check-day-turn input[type="checkbox"] {
+.day-turn[data-status="occupied"] .check-day-turn input[type="checkbox"],
+.day-turn[data-status="occupied-past"] .check-day-turn input[type="checkbox"] {
   accent-color: var(--black);
 }
 .day-turn[data-status="own"] .check-day-turn input[type="checkbox"] {
@@ -734,6 +803,7 @@ main {
 }
 .user-day-turn .horizontal-container span {
   font-size: 13px;
+  min-width: max-content;
 }
 
 .turn.selected {
@@ -1323,7 +1393,7 @@ footer {
   transform: scale(0.96);
   transition: transform 0.23s cubic-bezier(0.32, 0.72, 0.25, 1);
   pointer-events: auto;
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 
 .full-modal.showing .full-modal-body {

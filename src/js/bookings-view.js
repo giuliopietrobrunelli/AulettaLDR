@@ -691,11 +691,35 @@ export async function renderBookingsView() {
         (a, b) => (a.Turno?.indice ?? 0) - (b.Turno?.indice ?? 0),
       );
       fragments.push(
-        createBookingsRow(
-          formatDayTitle(parseDbDate(dateKey)),
-          prenotazioni.map((p) => createReservationCard(p, { isOwn: true })),
-        ),
-      );
+        (() => {
+          const dateObj = parseDbDate(dateKey);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const tomorrow = new Date(today);
+          tomorrow.setDate(today.getDate() + 1);
+          let prefix = "";
+
+          if (
+            dateObj.getFullYear() === today.getFullYear() &&
+            dateObj.getMonth() === today.getMonth() &&
+            dateObj.getDate() === today.getDate()
+          ) {
+            prefix = "Oggi, ";
+          } else if (
+            dateObj.getFullYear() === tomorrow.getFullYear() &&
+            dateObj.getMonth() === tomorrow.getMonth() &&
+            dateObj.getDate() === tomorrow.getDate()
+          ) {
+            prefix = "Domani, ";
+          }
+
+          return createBookingsRow(
+            `${prefix}${formatDayTitle(dateObj)}`,
+            prenotazioni.map((p) => createReservationCard(p, { isOwn: true })),
+          );
+        })(),
+   
+        );
     }
   }
 
