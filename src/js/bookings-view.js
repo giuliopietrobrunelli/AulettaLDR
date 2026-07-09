@@ -718,8 +718,8 @@ export async function renderBookingsView() {
             prenotazioni.map((p) => createReservationCard(p, { isOwn: true })),
           );
         })(),
-   
-        );
+
+      );
     }
   }
 
@@ -1006,7 +1006,7 @@ export async function refreshAulettaState() {
   const currentBooking = currentTurn
     ? (data ?? []).find((p) => p.id_turno === currentTurn.id_turno)
     : null;
-  
+
   const turnoInfoCompleto = currentTurn ? null : await getCurrentTurnInfo();
   const turnoDisattivato = !currentTurn && turnoInfoCompleto?.attivo === false;
 
@@ -1147,9 +1147,31 @@ export async function initPrenotaModal() {
     validatePrenotaForm(prenotaDataInput, prenotaTurnoSelect, btnConferma);
   };
 
+  let dateWatcherInterval = null;
+  let lastDateValue = prenotaDataInput.value;
+
+  const startDateWatcher = () => {
+    lastDateValue = prenotaDataInput.value;
+    dateWatcherInterval = setInterval(() => {
+      if (prenotaDataInput.value !== lastDateValue) {
+        lastDateValue = prenotaDataInput.value;
+        aggiornaTurniDisponibili();
+      }
+    }, 300);
+  };
+
+  const stopDateWatcher = () => {
+    clearInterval(dateWatcherInterval);
+    dateWatcherInterval = null;
+  };
+
   // ── listener cambio data ──────────────────────────────────────────────────
   prenotaDataInput.addEventListener("change", aggiornaTurniDisponibili, {
     signal,
+  });
+  // ── listener cambio data (quando l'utente esce dal campo) ───────────────
+  prenotaDataInput.addEventListener("blur", aggiornaTurniDisponibili, {
+    signal
   });
 
   // ── listener cambio turno ─────────────────────────────────────────────────
@@ -1222,13 +1244,20 @@ export async function initPrenotaModal() {
   const modalObserver = new MutationObserver(() => {
     if (modalPrenota.classList.contains("showing")) {
       aggiornaTurniDisponibili();
+      startDateWatcher();
+    }
+    else {
+      stopDateWatcher();
     }
   });
   modalObserver.observe(modalPrenota, {
     attributes: true,
     attributeFilter: ["class"],
   });
-  signal.addEventListener("abort", () => modalObserver.disconnect());
+  signal.addEventListener("abort", () => {
+    modalObserver.disconnect();
+    stopDateWatcher();
+});
 }
 
 export function validatePrenotaForm(inputData, selectTurno, btn) {
@@ -1244,7 +1273,7 @@ export function validatePrenotaForm(inputData, selectTurno, btn) {
 export function resetTurnoSelect(select, btn) {
   select.innerHTML =
     '<option value="" disabled selected>Seleziona un orario</option>';
-  select.disabled = false;
+  select.disabled = true;
   btn.disabled = true;
   btn.classList.remove("active");
 }

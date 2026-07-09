@@ -563,7 +563,7 @@ async function salvaNuovoUtente() {
     }
 
     const emailDuplicata = allUtenti.find(u => u.email === email);
-    if (emailDuplicata){
+    if (emailDuplicata) {
         showToast('error', 'Email già assegnata a un altro utente');
         return;
     }
@@ -642,7 +642,7 @@ async function salvaModificaUtente() {
     }
 
     const emailDuplicata = allUtenti.find(u => u.email === email && u.id_utente !== id);
-    if (emailDuplicata){
+    if (emailDuplicata) {
         showToast('error', 'Email già assegnata a un altro utente');
         return;
     }
@@ -650,6 +650,7 @@ async function salvaModificaUtente() {
     try {
         const { error } = await supabase.from('Utente').update({
             email, cauzione, registrato,
+            numero_tessera: tessera,
             telefono: telefono ? parseInt(telefono) : null,
             facolta_universitaria: facolta || null,
         }).eq('id_utente', id);
@@ -1353,9 +1354,16 @@ function initEventListeners() {
     ['pa-data', 'pa-forza'].forEach((id) => {
         document.getElementById(id)?.addEventListener('change', async () => {
             const data = document.getElementById('pa-data').value;
-            if (!data) return;
             const sel = document.getElementById('pa-turno');
             if (!sel) return;
+
+            if (!data) {
+                populatePaTurni();
+                sel.disabled = false;
+                validatePrenotaAdmin();
+                return;
+            }
+
             sel.disabled = true;
             sel.innerHTML = '<option disabled selected>Caricamento…</option>';
 
