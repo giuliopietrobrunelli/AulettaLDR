@@ -56,9 +56,9 @@ let prenotazioniFuture = [];
 let prenotazioniPassate = [];
 let turniCache = [];
 let limiteSettimanale = null;
+let settimaneAnticipo = null;
 let pendingDeleteFn = null;
-let turnoInModificaId = null; // id del turno attualmente aperto nel modal "Modifica turno"
-
+let turnoInModificaId = null;
 function showError(elId, msg) {
     const el = document.getElementById(elId);
     if (!el) return;
@@ -101,7 +101,9 @@ function showSection(id) {
     if (id === 'stats') loadStats();
     if (id === 'utenti') loadUtentiAdmin();
     if (id === 'turni') loadTurni();
-    if (id === 'calendario') calendarRender?.render?.();
+    if (id === 'prenotazioni') {
+        resetSearchPrenotazioni();
+    }
     if (id === 'feedback') loadFeedback();
     if (id === 'impostazioni') loadImpostazioni();
 }
@@ -360,7 +362,7 @@ async function loadStats() {
         const confermate = pMese.filter(p => p.stato === 'confermata' || p.data_conferma);
         const tasso = pMese.length ? Math.round(confermate.length / pMese.length * 100) : 0;
 
-        document.getElementById('stat-registrati').textContent = reg.length;
+        //document.getElementById('stat-registrati').textContent = reg.length;
         document.getElementById('stat-totali').textContent = tutti.length;
         document.getElementById('stat-prenot-mese').textContent = pMese.length;
         document.getElementById('stat-prenot-oggi').textContent = pOggi.length;
@@ -415,8 +417,7 @@ async function loadStats() {
         prenotazioniPassate = passateOrdinate;
         allPrenotazioni = [...prenotazioniFuture, ...prenotazioniPassate];
 
-        renderTabellaPrenotazioni('table-prenotazioni-future', prenotazioniFuture);
-        renderTabellaPrenotazioni('table-prenotazioni-passate', prenotazioniPassate);
+        resetSearchPrenotazioni();
     } catch (e) {
         console.error("loadStats:", e);
     }
@@ -429,7 +430,7 @@ async function loadUtentiAdmin() {
     try {
         const { data } = await getAllUtentiAdmin();
         allUtenti = data ?? [];
-        renderUtenti();
+        resetSearchUtenti();
     } catch (e) {
         console.error("loadUtenti:", e);
     }
@@ -444,6 +445,19 @@ function renderUtenti(filter = '') {
     const nonReg = filtered.filter(u => !u.registrato);
     fillTable('table-registrati', reg);
     fillTable('table-non-registrati', nonReg);
+}
+
+// Funzioni reset campi search
+export function resetSearchUtenti() {
+    const input = document.getElementById('search-utenti');
+    if (input) input.value = '';
+    renderUtenti('');
+}
+
+export function resetSearchPrenotazioni() {
+    const input = document.getElementById('search-prenotazioni');
+    if (input) input.value = '';
+    renderPrenotazioni('');
 }
 
 // ─── Prenotazioni (ricerca su future + passate) ───────────────────────────
@@ -568,6 +582,12 @@ async function salvaNuovoUtente() {
         return;
     }
 
+    const telefonoDuplicato = telefono && allUtenti.find(u => u.telefono === Number(telefono));
+    if (telefonoDuplicato) {
+        showToast('error', 'Telefono già assegnato a un altro utente');
+        return;
+    }
+
     const btn = document.getElementById('btn-salva-nuovo-utente');
     if (btn) btn.disabled = true;
 
@@ -601,7 +621,8 @@ async function salvaNuovoUtente() {
 }
 
 // ─── Modifica utente ───────────────────────────────────────────────────────
-function apriModificaUtente(id) {
+async function apriModificaUtente(id) {
+    await loadUtentiAdmin();
     const u = allUtenti.find(x => x.id_utente === id);
     if (!u) return;
     document.getElementById('mu-id').value = u.id_utente;
@@ -611,8 +632,8 @@ function apriModificaUtente(id) {
     document.getElementById('mu-tessera').value = u.numero_tessera;
     document.getElementById('mu-telefono').value = u.telefono ?? '';
     document.getElementById('mu-facolta').value = u.facolta_universitaria ?? '';
-    document.getElementById('mu-cauzione').checked = !!u.cauzione;
-    document.getElementById('mu-registrato').checked = !!u.registrato;
+    document.getElementById('mu-cauzione').checked = u.cauzione;
+    document.getElementById('mu-trattamento').checked = u.trattamento_dati;
     document.getElementById('modifica-utente-subtitle').textContent = `${u.cognome} ${u.nome} — tessera n.${u.numero_tessera}`;
     showError('modifica-utente-error', '');
     modal.open('modifica-utente');
@@ -626,7 +647,7 @@ async function salvaModificaUtente() {
     const telefono = document.getElementById('mu-telefono').value.trim();
     const facolta = document.getElementById('mu-facolta').value.trim();
     const cauzione = document.getElementById('mu-cauzione').checked;
-    const registrato = document.getElementById('mu-registrato').checked;
+    const trattamento = document.getElementById('mu-trattamento').checked;
 
     const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(email)) {
@@ -649,7 +670,9 @@ async function salvaModificaUtente() {
 
     try {
         const { error } = await supabase.from('Utente').update({
-            email, cauzione, registrato,
+            email: email,
+            cauzione: cauzione,
+            trattamento_dati: trattamento,
             numero_tessera: tessera,
             telefono: telefono ? parseInt(telefono) : null,
             facolta_universitaria: facolta || null,
@@ -657,6 +680,7 @@ async function salvaModificaUtente() {
         if (error) throw error;
         modal.closeEl(modal.getEl('modifica-utente'));
         showToast('success', 'Modifiche salvate con successo!');
+        document.getElementById("search-utenti").value = '';
         await loadUtentiAdmin();
     } catch (e) {
         showError('modifica-utente-error', e.message ?? 'Errore durante il salvataggio.');
@@ -672,6 +696,7 @@ function eliminaUtente() {
         await supabase.from('Utente').delete().eq('id_utente', id);
         modal.closeEl(modal.getEl('modifica-utente'));
         modal.closeEl(modal.getEl('conferma-elimina'));
+        document.getElementById("search-utenti").value = '';
         await loadUtentiAdmin();
     };
     modal.open('conferma-elimina');
@@ -1229,18 +1254,67 @@ function fmtStatoBadge(stato) {
 async function loadImpostazioni() {
     await syncLimiteSettimanale();
     const limEl = document.getElementById("input-limite-settimanale");
-    if (limEl) limEl.value = limiteSettimanale;
+    const btnSalvaLimite = document.getElementById("btn-salva-limite");
+    if (limEl) {
+        limEl.value = limiteSettimanale;
+        limEl.dataset.initialValue = limiteSettimanale;
+    }
+    if (limEl && btnSalvaLimite && !limEl.dataset.listenersAttached) {
+        limEl.addEventListener("input", () => {
+            if (limEl.value !== limEl.dataset.initialValue) {
+                btnSalvaLimite.classList.add("active");
+                btnSalvaLimite.disabled = false;
+            } else {
+                btnSalvaLimite.classList.remove("active");
+                btnSalvaLimite.disabled = true;
+            }
+        });
+        limEl.addEventListener("blur", () => {
+            if (limEl.value == "") {
+                limEl.value = limEl.dataset.initialValue;
+                btnSalvaLimite.classList.remove("active");
+                btnSalvaLimite.disabled = true;
+            }
+        });
+
+        limEl.dataset.listenersAttached = "true";
+    }
 
     const antEl = document.getElementById("input-settimane-anticipo");
+    const btnSalvaAnticipo = document.getElementById("btn-salva-anticipo");
     if (antEl) {
+        let valoreAnticipo;
         try {
             const { data, error } = await getSettimaneAnticipo();
-            antEl.value = !error && data != null
+            valoreAnticipo = !error && data != null
                 ? data
                 : (calendarRender?.weeksBeforeNextMonthView ?? 1);
         } catch (e) {
             console.error("loadImpostazioni (anticipo):", e);
-            antEl.value = calendarRender?.weeksBeforeNextMonthView ?? 1;
+            valoreAnticipo = calendarRender?.weeksBeforeNextMonthView ?? 1;
+        }
+        antEl.value = valoreAnticipo;
+        antEl.dataset.initialValue = valoreAnticipo;
+
+        if (btnSalvaAnticipo && !antEl.dataset.listenersAttached) {
+            antEl.addEventListener("input", () => {
+                if (antEl.value !== antEl.dataset.initialValue) {
+                    btnSalvaAnticipo.classList.add("active");
+                    btnSalvaAnticipo.disabled = false;
+                } else {
+                    btnSalvaAnticipo.classList.remove("active");
+                    btnSalvaAnticipo.disabled = true;
+                }
+            });
+            antEl.addEventListener("blur", () => {
+                if (antEl.value == "") {
+                    antEl.value = antEl.dataset.initialValue;
+                    btnSalvaAnticipo.classList.remove("active");
+                    btnSalvaAnticipo.disabled = true;
+                }
+            });
+
+            antEl.dataset.listenersAttached = "true";
         }
     }
 }
@@ -1255,7 +1329,9 @@ async function syncLimiteSettimanale() {
 }
 
 async function salvaLimite() {
-    const v = parseInt(document.getElementById("input-limite-settimanale").value);
+    const limEl = document.getElementById("input-limite-settimanale");
+    const btnSalvaLimite = document.getElementById("btn-salva-limite");
+    const v = parseInt(limEl.value);
     if (!v || v < 1) return;
 
     try {
@@ -1266,23 +1342,30 @@ async function salvaLimite() {
         setMaxWeeklyBookings?.(v);
         document.getElementById("stat-limite").textContent = v;
         showToast("success", `Limite aggiornato a ${v} prenotazioni/settimana.`, "check");
+
+        limEl.value = v;
+        limEl.dataset.initialValue = v;
     } catch (e) {
         console.error("salvaLimite:", e);
         showToast("error", "Impossibile salvare l'impostazione.", "x");
     }
+
+    btnSalvaLimite.disabled = true;
+    btnSalvaLimite.classList.remove("active");
 }
 
 async function salvaAnticipo() {
-    const v = parseInt(document.getElementById("input-settimane-anticipo").value);
+    const antEl = document.getElementById("input-settimane-anticipo");
+    const btnSalvaAnticipo = document.getElementById("btn-salva-anticipo");
+    let v = parseInt(antEl.value);
     if (!Number.isInteger(v)) {
         v = Math.trunc(v);
     }
     if (isNaN(v) || v < 0) {
-        const msg = "Il numero di settimane prima di visualizzare il mese successivo non può essere negativo"
+        const msg = "Il numero di settimane prima di visualizzare il mese successivo non può essere negativo";
         showToast("error", msg);
         return;
     }
-
 
     try {
         const { error } = await updateSettimaneAnticipo(v);
@@ -1293,16 +1376,24 @@ async function salvaAnticipo() {
             calendarRender.render?.();
         }
         showToast("success", `Anticipo aggiornato a ${v} settimane.`, "check");
+
+        antEl.value = v;
+        antEl.dataset.initialValue = v;
     } catch (e) {
         console.error("salvaAnticipo:", e);
         showToast("error", "Impossibile salvare l'impostazione.", "x");
+    }
+
+    if (btnSalvaAnticipo) {
+        btnSalvaAnticipo.disabled = true;
+        btnSalvaAnticipo.classList.remove("active");
     }
 }
 
 // ─── Collegamento eventi (sostituisce gli onclick/oninput inline) ─────────
 function initEventListeners() {
     // Nav principale (i bottoni hanno già id btn-nav-<sezione> nell'HTML)
-    ['utenti', 'turni', 'calendario', 'stats', 'feedback', 'impostazioni'].forEach((id) => {
+    ['utenti', 'turni', 'prenotazioni', 'stats', 'feedback', 'impostazioni'].forEach((id) => {
         document.getElementById(`btn-nav-${id}`)?.addEventListener('click', () => showSection(id));
     });
 

@@ -409,15 +409,6 @@
             font-family: var(--plex-sans);
         }
 
-        /* ── Calendario admin ─────────────────────────────── */
-
-        #admin-calendar-header {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
         /* ── Modali dashboard ─────────────────────────────── */
 
         #modal-nuovo-utente .full-modal-content,
@@ -517,7 +508,7 @@
                 <i data-lucide="clock" class="lucide"></i>
                 <span>Turni</span>
             </button>
-            <button type="button" class="w-text nav-switch" id="btn-nav-calendario" data-main-view="prenotazioni">
+            <button type="button" class="w-text nav-switch" id="btn-nav-prenotazioni" data-main-view="prenotazioni">
                 <i data-lucide="calendar-days" class="lucide"></i>
                 <span>Prenotazioni</span>
             </button>
@@ -601,7 +592,7 @@
             </div>
 
             <div class="tab-bar">
-                <button class="tab-btn active" data-tab="registrati" >Registrati</button>
+                <button class="tab-btn active" data-tab="registrati">Registrati</button>
                 <button class="tab-btn" data-tab="non-registrati">Non registrati</button>
             </div>
 
@@ -678,7 +669,7 @@
         </section>
 
         <!-- ════ SEZIONE: PRENOTAZIONI ════ -->
-        <section class="dash-section" id="section-calendario">
+        <section class="dash-section" id="section-prenotazioni">
 
             <span class="section-title">Prenotazioni</span>
 
@@ -812,8 +803,10 @@
                     <span class="setting-desc">Numero massimo di prenotazioni che un utente può effettuare in una
                         singola settimana (lun–dom).</span>
                     <div class="horizontal-container">
-                        <input type="number" id="input-limite-settimanale" pattern="\d*" min="1" oninput="this.value=this.value.replace(/\D/g,'')" autocomplete="off" style="max-width:100px">
-                        <button class="w-text" id="btn-salva-limite">
+                        <input type="number" id="input-limite-settimanale" pattern="\d*" min="1"
+                            oninput="this.value=this.value.replace(/\D/g,'')" autocomplete="off"
+                            style="max-width:100px">
+                        <button class="w-text" id="btn-salva-limite" disabled>
                             <i data-lucide="check" class="lucide"></i>
                             <span>Salva</span>
                         </button>
@@ -822,10 +815,13 @@
 
                 <div class="setting-row">
                     <span class="section-title" style="font-size:14px">Settimane di anticipo</span>
-                    <span class="setting-desc">Numero di settimane prima dell’inizio del prossimo mese in cui gli utenti possono visualizzare e prenotare i turni del mese successivo.</span>
+                    <span class="setting-desc">Numero di settimane prima dell’inizio del prossimo mese in cui gli utenti
+                        possono visualizzare e prenotare i turni del mese successivo.</span>
                     <div class="horizontal-container">
-                        <input type="number" id="input-settimane-anticipo" pattern="\d*" min="0" max="4" oninput="this.value=this.value.replace(/\D/g,'')" autocomplete="off" style="max-width:100px">
-                        <button class="w-text" id="btn-salva-anticipo">
+                        <input type="number" id="input-settimane-anticipo" pattern="\d*" min="0" max="4"
+                            oninput="this.value = this.value.replace(/\D/g,'').replace(/^0+(?=\d)/,''); if (Number(this.value) > 4) this.value = 4;"
+                            autocomplete="off" style="max-width:100px">
+                        <button class="w-text" id="btn-salva-anticipo" disabled>
                             <i data-lucide="check" class="lucide"></i>
                             <span>Salva</span>
                         </button>
@@ -866,7 +862,7 @@
                 <span class="modal-subtitle">Inserisci i dati del nuovo membro</span>
             </div>
             <div class="full-modal-content">
-                <div class="form-block">
+                    <div class="form-block">
                     <label for="nu-nome"><span>Nome *</span></label>
                     <input type="text" id="nu-nome" placeholder="Mario">
                 </div>
@@ -880,11 +876,14 @@
                 </div>
                 <div class="form-block">
                     <label for="nu-tessera"><span>N° tessera *</span></label>
-                    <input type="number" id="nu-tessera" placeholder="1234" pattern="\d*" min="1" oninput="this.value=this.value.replace(/\D/g,'')" autocomplete="off" required>
+                    <input type="number" id="nu-tessera" placeholder="1234" pattern="\d*" min="1"
+                        oninput="this.value=this.value.replace(/\D/g,'')" autocomplete="off" required>
                 </div>
                 <div class="form-block">
                     <label for="nu-telefono"><span>Telefono</span></label>
-                    <input type="tel" id="nu-telefono" placeholder="3331234567">
+                    <input type="tel" id="nu-telefono" placeholder="3331234567" inputmode="numeric"
+                        pattern="[0-9]{9,10}" maxlength="10" oninput="this.value=this.value.replace(/\D/g,'')"
+                        autocomplete="off">
                 </div>
                 <div class="form-block">
                     <label for="nu-facolta"><span>Facoltà universitaria</span></label>
@@ -905,7 +904,7 @@
                 <span id="nuovo-utente-error" class="form-error" style="display:none"></span>
             </div>
             <div class="full-modal-footer">
-                <button type="button" class="w-text" data-close-modal="nuovo-utente" >Annulla</button>
+                <button type="button" class="w-text" data-close-modal="nuovo-utente">Annulla</button>
                 <button type="button" class="w-text active" id="btn-salva-nuovo-utente">
                     <i data-lucide="user-plus" class="lucide"></i>
                     <span>Crea utente</span>
@@ -937,11 +936,14 @@
                 </div>
                 <div class="form-block">
                     <label for="mu-tessera"><span>Tessera</span></label>
-                    <input type="number" id="mu-tessera" onkeydown="if(['e', 'E', '+', '-', '.', ','].includes(event.key)) event.preventDefault();">
+                    <input type="number" id="mu-tessera" pattern="\d*" min="1"
+                        oninput="this.value=this.value.replace(/\D/g,'')" autocomplete="off" required>
                 </div>
                 <div class="form-block">
                     <label for="mu-telefono"><span>Telefono</span></label>
-                    <input type="tel" id="mu-telefono">
+                    <input type="tel" id="mu-telefono" placeholder="3331234567" inputmode="numeric"
+                        pattern="[0-9]{9,10}" maxlength="10" oninput="this.value=this.value.replace(/\D/g,'')"
+                        autocomplete="off">
                 </div>
                 <div class="form-block">
                     <label for="mu-facolta"><span>Facoltà universitaria</span></label>
@@ -955,8 +957,8 @@
                 </div>
                 <div class="form-block">
                     <label style="flex-direction:row; align-items:center; gap:8px; cursor:pointer">
-                        <input type="checkbox" id="mu-registrato" style="width:auto">
-                        <span>Accesso attivo (registrato)</span>
+                        <input type="checkbox" id="mu-trattamento" style="width:auto">
+                        <span>Trattamento dati accettato</span>
                     </label>
                 </div>
                 <span id="modifica-utente-error" class="form-error" style="display:none"></span>
@@ -1045,7 +1047,6 @@
         <div class="full-modal-body">
             <div class="modal-header">
                 <span class="modal-title">Prenotazione privilegiata</span>
-                <span class="modal-subtitle">Nessun limite settimanale applicato</span>
             </div>
             <div class="full-modal-content">
                 <div class="form-block">

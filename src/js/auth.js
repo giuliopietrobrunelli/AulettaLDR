@@ -230,7 +230,7 @@ export const auth = {
       const numeroTessera = parseInt(inputTessera?.value?.trim(), 10);
 
       if (isNaN(numeroTessera)) {
-        this.showError(form, "inserisci un numero tessera valido.");
+        this.showError(form, "Inserisci un numero tessera valido.");
         this.setLoading(btnSubmit, false);
         return;
       }
@@ -238,7 +238,7 @@ export const auth = {
       // cerca l'utente col numero tessera indicato
       const { data: utente, error: dbError } = await supabase
         .from("Utente")
-        .select("id_utente, email, nome, registrato") // ← aggiunto registrato
+        .select("id_utente, email, nome, registrato")
         .eq("numero_tessera", numeroTessera)
         .single();
 
@@ -254,7 +254,7 @@ export const auth = {
       if (utente.registrato) {
         this.showError(
           form,
-          "hai già un account attivo. accedi dalla pagina di login. se pensi si possa trattare di un'errore contatta il direttivo.",
+          "Hai già un account attivo, accedi dalla pagina di login, se pensi si possa trattare di un'errore contatta il direttivo.",
         );
         this.setLoading(btnSubmit, false);
         return;
@@ -406,32 +406,58 @@ export const auth = {
 
       // risolve email da numero tessera se necessario
       let email = identifier;
+      let utente = null;
+      let dbError = null;
+
       if (!identifier.includes("@")) {
         const numeroTessera = parseInt(identifier, 10);
         if (isNaN(numeroTessera)) {
-          this.showError(form, "numero tessera non valido.");
+          this.showError(form, "inserimento non valido.");
           this.setLoading(btnSubmit, false);
           return;
         }
-
-        const { data: utente, error: dbError } = await supabase
+        const res = await supabase
           .from("Utente")
           .select("email, registrato")
           .eq("numero_tessera", numeroTessera)
           .single();
+        utente = res.data;
+        dbError = res.error;
 
         if (dbError || !utente) {
-          this.showError(form, "numero tessera non trovato.");
+          this.showError(form, "Nessun account è collegato a questa tessera.");
           this.setLoading(btnSubmit, false);
           return;
         }
 
         if (!utente.registrato) {
-          this.showError(form, "non hai ancora un account. registrati prima.");
+          this.showError(form, "Devi prima creare un account per poter aggiornare la password.");
           this.setLoading(btnSubmit, false);
           return;
         }
 
+        email = utente.email;
+      } else {
+        // se ha inserito una email, controlla se esiste e se è registrato
+        const res = await supabase
+          .from("Utente")
+          .select("email, registrato")
+          .eq("email", identifier)
+          .single();
+        utente = res.data;
+        dbError = res.error;
+
+        if (dbError || !utente) {
+          this.showError(form, "Nessun account è collegato a questo indirizzo mail.");
+          this.setLoading(btnSubmit, false);
+          return;
+        }
+
+        if (!utente.registrato) {
+          this.showError(form, "Devi prima creare un account per poter aggiornare la password.");
+          this.setLoading(btnSubmit, false);
+          return;
+        }
         email = utente.email;
       }
 

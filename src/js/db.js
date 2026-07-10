@@ -61,17 +61,17 @@ export async function getAllUtenti() {
 export async function getAllUtentiAdmin() {
   return await supabase
     .from("Utente")
-    .select("id_utente, nome, cognome, numero_tessera, email, telefono, facolta_universitaria, cauzione, registrato")
+    .select("id_utente, nome, cognome, numero_tessera, email, telefono, facolta_universitaria, cauzione, trattamento_dati, registrato")
     .order("cognome");
 }
 
 export async function getAllUtentiCediTurno(id_utente) {
   return await supabase
-  .from("Utente")
-  .select("id_utente, nome, cognome, numero_tessera")
-  .neq("id_utente", id_utente)
-  .order("cognome");
-  
+    .from("Utente")
+    .select("id_utente, nome, cognome, numero_tessera")
+    .neq("id_utente", id_utente)
+    .order("cognome");
+
 }
 
 // restituisce tutti gli utenti escluso quello loggato (per la funzione cedi turno)
@@ -309,6 +309,25 @@ export async function cediPrenotazione(id_prenotazione, id_destinatario) {
     };
   }
 
+  // controllo che non ci siano altre richieste attive per la stessa prenotazione
+  const { data: richiesteAttive, error: richiesteAttiveError } = await supabase
+    .from("RichiestaCessione")
+    .select("id_richiesta, id_prenotazione, stato")
+    .eq("id_prenotazione", id_prenotazione)
+    .eq("stato", "in_attesa");
+
+  if (richiesteAttiveError) {
+    return {
+      error: richiesteAttiveError,
+    };
+  }
+
+  if (richiesteAttive && richiesteAttive.length > 0) {
+    return {
+      error: new Error("È già presente una richiesta attiva per questa prenotazione."),
+    };
+  }
+
   const { data: prenDest, error: prenErrorDest } = await supabase
     .from("Prenotazione")
     .select("id_prenotazione, data_prenotazione")
@@ -328,7 +347,7 @@ export async function cediPrenotazione(id_prenotazione, id_destinatario) {
     };
   }
 
-  
+
 
   // recupera i dati del mittente per il testo della notifica
   const { data: mittente } = await supabase
