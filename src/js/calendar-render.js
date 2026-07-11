@@ -1801,7 +1801,7 @@ export const calendarRender = {
     this.clearSelection();
     this.invalidateBookingsCache();
     refreshBookingsData();
-    this.render();
+    // this.render();
 
     // mostra la modal di conferma prenotazione con i dati giusti
     const modalEl = document.getElementById("modal-booking-success");

@@ -107,7 +107,7 @@ export const auth = {
       if (form)
         this.showError(
           form,
-          "il link è scaduto o già usato. richiedine uno nuovo dalla pagina di login.",
+          "Ops! Link è scaduto o già usato, richiedine uno nuovo dalla pagina di login",
         );
       return;
     }
@@ -133,7 +133,7 @@ export const auth = {
 
       // controlla che tutti i campi siano compilati
       if (!identifier || !password) {
-        this.showError(form, "compila tutti i campi.");
+        this.showError(form, "Compila tutti i campi richiesti");
         this.setLoading(btnSubmit, false);
         return;
       }
@@ -142,46 +142,75 @@ export const auth = {
       let email = identifier;
 
       if (!identifier.includes("@")) {
-        // cerca la mail associata nella tabella utenti
+        // valida che sia un numero tessera
         const numeroTessera = parseInt(identifier, 10);
         if (isNaN(numeroTessera)) {
-          this.showError(form, "numero tessera non valido.");
+          this.showError(form, "Inserisci un numero tessera valido");
           this.setLoading(btnSubmit, false);
           return;
         }
 
-        const { data: utente, error: dbError } = await supabase
-          .from("Utente")
-          .select("email, registrato")
-          .eq("numero_tessera", numeroTessera)
-          .single();
+        // risolve tessera -> email tramite RPC (non espone l'intera riga Utente)
+        const { data, error: dbError } = await supabase.rpc(
+          "resolve_login_identifier",
+          { p_identifier: identifier },
+        );
+        const utente = data?.[0];
 
-        // la tessera inserita non è attiva o non è registrata
+        // la tessera non è attiva o non è collegata ad un account registrato
         if (dbError || !utente) {
           this.showError(
             form,
-            "numero di tessera inserito non esistente o non attivo.",
+            "Nessun account collegato alla tessera trovato, riprova o contatta il direttivo",
           );
           this.setLoading(btnSubmit, false);
           return;
         }
 
-        // la tessera corrisponde ad un utente associato
-        // ma che non ha creato l'account
+        // la tessera corrisponde ad un utente associato ma che non ha creato l'account
         if (!utente.registrato) {
           this.showError(
             form,
-            "la tua tessera è valida, ma devi prima registrarti.",
+            "La tua tessera è valida, ma devi prima registrarti. Clicca il pulsante -Crea account-",
           );
           this.setLoading(btnSubmit, false);
           return;
         }
 
-        // all'ora l'utente ha inserito una mail, forse sbagliata
+        // all'ora l'utente ha inserito una mail
+        email = utente.email;
+      } else {
+        // l'utente ha inserito direttamente una mail: verifica esistenza e stato registrazione
+        const { data, error: dbError } = await supabase.rpc(
+          "resolve_login_identifier",
+          { p_identifier: identifier },
+        );
+        const utente = data?.[0];
+
+        // la mail non è attiva o non è collegata ad un account registrato
+        if (dbError || !utente) {
+          this.showError(
+            form,
+            "Nessun account collegato all'indirizzo mail inserito è stato trovato, riprova o contatta il direttivo",
+          );
+          this.setLoading(btnSubmit, false);
+          return;
+        }
+
+        // la mail corrisponde ad un utente associato ma che non ha creato l'account
+        if (!utente.registrato) {
+          this.showError(
+            form,
+            "Il tuo indirizzo mail risulta associata ad una tessera LDR, ma devi prima registrarti. Clicca il pulsante -Crea account-",
+          );
+          this.setLoading(btnSubmit, false);
+          return;
+        }
+
         email = utente.email;
       }
 
-      // usa email e password per fare login
+      // usa email e password per provare ad effettuare il fare login
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -189,7 +218,7 @@ export const auth = {
 
       // segnala nel form che o la mail o la password sono errati
       if (error) {
-        this.showError(form, "credenziali errate.");
+        this.showError(form, "Credenziali errate, riprova");
         this.setLoading(btnSubmit, false);
         return;
       }
@@ -229,23 +258,24 @@ export const auth = {
       // cerca il numero tessera nel db
       const numeroTessera = parseInt(inputTessera?.value?.trim(), 10);
 
+      // è stata inserita una stringa non esclusivamente numerica
       if (isNaN(numeroTessera)) {
-        this.showError(form, "Inserisci un numero tessera valido.");
+        this.showError(form, "Inserisci un numero tessera valido");
         this.setLoading(btnSubmit, false);
         return;
       }
 
-      // cerca l'utente col numero tessera indicato
-      const { data: utente, error: dbError } = await supabase
-        .from("Utente")
-        .select("id_utente, email, nome, registrato")
-        .eq("numero_tessera", numeroTessera)
-        .single();
+      // cerca l'utente col numero tessera indicato tramite RPC
+      const { data, error: dbError } = await supabase.rpc(
+        "resolve_register_by_tessera",
+        { p_tessera: numeroTessera },
+      );
+      const utente = data?.[0];
 
       if (dbError || !utente) {
         this.showError(
           form,
-          "numero tessera non trovato. riprova o scrivi a un amministratore.",
+          "Tessera non trovata, riprova o contatta il direttivo.",
         );
         this.setLoading(btnSubmit, false);
         return;
@@ -254,7 +284,7 @@ export const auth = {
       if (utente.registrato) {
         this.showError(
           form,
-          "Hai già un account attivo, accedi dalla pagina di login, se pensi si possa trattare di un'errore contatta il direttivo.",
+          "Hai già un account attivo, accedi dalla pagina di login, se pensi si possa trattare di un'errore contatta il direttivo",
         );
         this.setLoading(btnSubmit, false);
         return;
@@ -276,7 +306,7 @@ export const auth = {
       if (otpError) {
         this.showError(
           form,
-          "errore nell'invio della mail. riprova tra qualche minuto.",
+          "Errore nell'invio della mail, riprova tra qualche minuto.",
         );
         console.error("otp error:", otpError.message);
         this.setLoading(btnSubmit, false);
@@ -286,7 +316,7 @@ export const auth = {
       // avvisa che il link è stato inviato
       this.showSuccess(
         form,
-        `abbiamo inviato un link di attivazione a ${this.maskEmail(utente.email)}. controlla la posta (anche nello spam).`,
+        `Abbiamo inviato un link di attivazione a ${this.maskEmail(utente.email)}, controlla la posta (anche nello spam).`,
       );
       this.setLoading(btnSubmit, false);
     });
@@ -310,22 +340,21 @@ export const auth = {
       const cognome = inputCognome?.value.trim();
 
       if (!nome || !cognome) {
-        this.showError(form, "inserisci nome e cognome.");
+        this.showError(form, "Compila tutti i campi richiesti");
         this.setLoading(btnSubmit, false);
         return;
       }
 
-      // cerca l'utente per nome e cognome (case non sensitive per comodità)
-      const { data: utenti, error: dbError } = await supabase
-        .from("Utente")
-        .select("id_utente, email, nome, cognome, registrato")
-        .ilike("nome", nome)
-        .ilike("cognome", cognome);
+      // cerca l'utente per nome e cognome (case non sensitive) tramite RPC
+      const { data: utenti, error: dbError } = await supabase.rpc(
+        "resolve_register_by_name",
+        { p_nome: nome, p_cognome: cognome },
+      );
 
       if (dbError || !utenti?.length) {
         this.showError(
           form,
-          "nessun utente trovato con questi dati. riprova o contatta un amministratore.",
+          "Nessun utente trovato con questi dati, riprova o contatta il direttivo",
         );
         this.setLoading(btnSubmit, false);
         return;
@@ -335,7 +364,7 @@ export const auth = {
       if (utenti.length > 1) {
         this.showError(
           form,
-          "trovati più utenti con questi dati. usa il numero tessera per registrarti.",
+          "Abbiamo trovato più utenti con questi dati, utilizza il numero tessera per registrarti. Se non hai più accesso alla tua tessera LDR contatta il direttivo",
         );
         this.setLoading(btnSubmit, false);
         return;
@@ -346,7 +375,7 @@ export const auth = {
       if (utente.registrato) {
         this.showError(
           form,
-          "hai già un account attivo. accedi dalla pagina di login. se pensi si possa trattare di un'errore contatta il direttivo.",
+          "Hai già un account attivo, accedi dalla pagina di login, se pensi si possa trattare di un'errore contatta il direttivo",
         );
         this.setLoading(btnSubmit, false);
         return;
@@ -368,7 +397,7 @@ export const auth = {
       if (otpError) {
         this.showError(
           form,
-          "errore nell'invio della mail. riprova tra qualche minuto.",
+          "Errore nell'invio della mail, riprova tra qualche minuto.",
         );
         console.error("otp error:", otpError.message);
         this.setLoading(btnSubmit, false);
@@ -377,7 +406,7 @@ export const auth = {
 
       this.showSuccess(
         form,
-        `abbiamo inviato un link di attivazione a ${this.maskEmail(utente.email)}. controlla la posta (anche nello spam).`,
+        `Abbiamo inviato un link di attivazione a ${this.maskEmail(utente.email)}, controlla la posta (anche nello spam).`,
       );
       this.setLoading(btnSubmit, false);
     });
@@ -399,67 +428,49 @@ export const auth = {
         .querySelector('input[name="reset-identifier"]')
         ?.value.trim();
       if (!identifier) {
-        this.showError(form, "inserisci email o numero tessera.");
+        this.showError(form, "Compila tutti i campi richiesti");
         this.setLoading(btnSubmit, false);
         return;
       }
 
-      // risolve email da numero tessera se necessario
-      let email = identifier;
-      let utente = null;
-      let dbError = null;
-
+      // valida formato se è un numero tessera
       if (!identifier.includes("@")) {
         const numeroTessera = parseInt(identifier, 10);
         if (isNaN(numeroTessera)) {
-          this.showError(form, "inserimento non valido.");
+          this.showError(form, "Inserimento non valido");
           this.setLoading(btnSubmit, false);
           return;
         }
-        const res = await supabase
-          .from("Utente")
-          .select("email, registrato")
-          .eq("numero_tessera", numeroTessera)
-          .single();
-        utente = res.data;
-        dbError = res.error;
-
-        if (dbError || !utente) {
-          this.showError(form, "Nessun account è collegato a questa tessera.");
-          this.setLoading(btnSubmit, false);
-          return;
-        }
-
-        if (!utente.registrato) {
-          this.showError(form, "Devi prima creare un account per poter aggiornare la password.");
-          this.setLoading(btnSubmit, false);
-          return;
-        }
-
-        email = utente.email;
-      } else {
-        // se ha inserito una email, controlla se esiste e se è registrato
-        const res = await supabase
-          .from("Utente")
-          .select("email, registrato")
-          .eq("email", identifier)
-          .single();
-        utente = res.data;
-        dbError = res.error;
-
-        if (dbError || !utente) {
-          this.showError(form, "Nessun account è collegato a questo indirizzo mail.");
-          this.setLoading(btnSubmit, false);
-          return;
-        }
-
-        if (!utente.registrato) {
-          this.showError(form, "Devi prima creare un account per poter aggiornare la password.");
-          this.setLoading(btnSubmit, false);
-          return;
-        }
-        email = utente.email;
       }
+
+      // risolve tessera o email -> email + stato registrazione tramite RPC
+      const { data, error: dbError } = await supabase.rpc(
+        "resolve_login_identifier",
+        { p_identifier: identifier },
+      );
+      const utente = data?.[0];
+
+      if (dbError || !utente) {
+        this.showError(
+          form,
+          identifier.includes("@")
+            ? "Nessun account è collegato a questo indirizzo mail."
+            : "Nessun account collegato alla tessera trovato, riprova o contatta il direttivo",
+        );
+        this.setLoading(btnSubmit, false);
+        return;
+      }
+
+      if (!utente.registrato) {
+        this.showError(
+          form,
+          "Devi prima creare un account per poter aggiornare la password.",
+        );
+        this.setLoading(btnSubmit, false);
+        return;
+      }
+
+      const email = utente.email;
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo:

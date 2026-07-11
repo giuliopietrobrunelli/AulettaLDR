@@ -1,13 +1,6 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
-CREATE TABLE public.Registrazione (
-  id_utente uuid NOT NULL,
-  id_amministratore uuid NOT NULL,
-  data_registrazione date NOT NULL DEFAULT now(),
-  CONSTRAINT Registrazione_pkey PRIMARY KEY (id_utente, id_amministratore),
-  CONSTRAINT Registrazione_id_utente_fkey FOREIGN KEY (id_utente) REFERENCES public.Utente(id_utente)
-);
 CREATE TABLE public.Utente (
   id_utente uuid NOT NULL DEFAULT gen_random_uuid(),
   numero_tessera bigint NOT NULL UNIQUE,

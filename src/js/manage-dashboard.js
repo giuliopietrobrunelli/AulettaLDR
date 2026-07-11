@@ -599,7 +599,7 @@ async function salvaNuovoUtente() {
             cauzione, trattamento_dati: tratt, registrato: false,
         });
         if (error) {
-            showError("error", "errore nel salvataggio del nuovo utente");
+            showToast('error', 'Impossibile inserire un nuovo utente. Riaggiorna la pagina e riprova');
             return;
         };
         // modal.closeEl(document.getElementById('nuovo-utente'));
@@ -614,9 +614,10 @@ async function salvaNuovoUtente() {
         document.getElementById('nu-trattamento').checked = false;
         await loadUtentiAdmin();
     } catch (e) {
-        showError('nuovo-utente-error', e.message ?? 'Errore durante la creazione.');
+        showToast('error', e.message ?? 'Errore durante la creazione del nuovo utente');
     } finally {
         if (btn) btn.disabled = false;
+        showToast('success', "Nuovo utente registrato con successo");
     }
 }
 

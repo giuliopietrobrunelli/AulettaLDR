@@ -891,7 +891,7 @@ async function handleRinunciaTurno(id_prenotazione) {
   modal.closeAll();
   showToast("success", "Prenotazione cancellata", "check");
   await refreshBookingsData();
-  calendarRender.render();
+  // calendarRender.render();
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1224,7 +1224,7 @@ export async function initPrenotaModal() {
         chiudiModalPrenota();
 
         await refreshBookingsData(); // già invalida la cache internamente
-        calendarRender.render(); // ridisegna con i dati aggiornati
+        // calendarRender.render(); // ridisegna con i dati aggiornati
       } catch (err) {
         console.error("Errore salvataggio prenotazione:", err);
         btnConferma.innerHTML = testoOriginale;
