@@ -1,4 +1,5 @@
 import { renderBookingsView } from "./bookings-view.js";
+import { calendarRender } from "./calendar-render.js";
 
 // funzione da chiamare per mostrare le impostazioni account, inizialmente nulla
 let renderAccountSettingsFn = null;
@@ -36,10 +37,8 @@ export function setMainView(view) {
 
   // se calendario, mostra il calendario nel modo corrente
   if (isCalendar) {
-    window.calendarRender?.setViewMode(
-      window.calendarRender.viewMode || "month",
-    );
-    window.calendarRender?.render?.();
+    calendarRender.setViewMode( calendarRender.viewMode || "month",);
+    calendarRender.render();
   } else {
     // se non calendario, nascondi tutte le viste del calendario
     document.getElementById("calendar-container")?.classList.add("hidden");

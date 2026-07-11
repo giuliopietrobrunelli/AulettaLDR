@@ -1,5 +1,6 @@
 import { supabase } from "./supabase-client.js";
 import { showToast } from "./toast.js";
+import { modal } from "./modal.js";
 
 // categorie disponibili per il feedback (devono coincidere con il CHECK constraint su Supabase)
 const CATEGORIE_VALIDE = ["bug", "suggerimento", "altro"];
@@ -65,21 +66,21 @@ function resetFeedbackModal(textarea, checkboxes) {
 
 // inizializza il modal feedback: selezione categoria, validazione e invio
 export function initFeedbackModal() {
-  const modal = document.getElementById("modal-feedback");
-  if (!modal) return;
+  const modalEl = document.getElementById("modal-feedback");
+  if (!modalEl) return;
 
   const textarea = document.getElementById("modal-feedback-text");
   const btnInvia = document.getElementById("btn-modal-invia-feedback");
-  const btnAnnulla = modal.querySelector('[data-modal="close-modal"]');
-  const categorieContainer = modal.querySelector(".feedback-categorie");
-  const checkboxes = modal.querySelectorAll('input[name="feedback-categoria"]');
+  const btnAnnulla = modalEl.querySelector('[data-modal="close-modal"]');
+  const categorieContainer = modalEl.querySelector(".feedback-categorie");
+  const checkboxes = modalEl.querySelectorAll('input[name="feedback-categoria"]');
 
   if (!textarea || !btnInvia || !categorieContainer) return;
 
   // evita listener duplicati se initFeedbackModal venisse richiamata più volte
-  if (modal._feedbackAbort) modal._feedbackAbort.abort();
+  if (modalEl._feedbackAbort) modalEl._feedbackAbort.abort();
   const ac = new AbortController();
-  modal._feedbackAbort = ac;
+  modalEl._feedbackAbort = ac;
   const signal = ac.signal;
 
   const getCategoriaSelezionata = initCategorieSelector(categorieContainer);
@@ -121,7 +122,7 @@ export function initFeedbackModal() {
 
       showToast("success", "Feedback inviato, grazie!", "check");
       resetFeedbackModal(textarea, checkboxes);
-      window.modal?.closeAll();
+      modal?.closeAll();
       btnInvia.disabled = false;
     },
     { signal },

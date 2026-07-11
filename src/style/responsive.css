@@ -79,6 +79,7 @@
     body {
         padding-inline: 0px;
         gap: 20px;
+        overflow-x: hidden;
     }
 
     input, textarea {
@@ -91,13 +92,17 @@
         font-weight: 500;
     }
 
+    footer {
+        display: none;
+    }
+
     #account-settings, #day-schedules, #my-bookings, #calendar-header, header, nav, footer {
         padding-inline: 20px;
         box-sizing: border-box;
     }
 
     #account-settings, #calendar-container, #day-schedules, #my-bookings {
-        padding-bottom: 20px;
+        padding-bottom: 90px;
     }
 
     #saluto-header {
@@ -265,11 +270,12 @@
         position: relative;
         bottom: 0;
         right: 0;
-        height: 50%;
+        height: 40%;
         width: 100%;
         transform: scale(0.96) translateY(100%);
         pointer-events: none;
         box-shadow: 0 16px 60px 0 rgba(0,0,0,0.46), 0 4px 20px 0 rgba(0,0,0,0.28);
+        padding-bottom: 90px;
     }
     .modal-title {
         font-size: 15px;
@@ -315,6 +321,13 @@
 
     .modal-advise-actions {
         padding-top: 15px;
+    }
+
+    #day-schedules.current-day-schedule {
+        padding-left: 40px;
+    }
+    .day-active-track {
+        left: 20px;
     }
 
 }

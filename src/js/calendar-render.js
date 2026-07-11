@@ -1,7 +1,23 @@
 import { showToast } from "./toast.js";
-import { openModificaModal } from "./bookings-view.js";
+import {
+  openModificaModal,
+  refreshBookingsData,
+  refreshBookingsModal,
+  MAX_WEEKLY_BOOKINGS,
+  countWeeklyBookings,
+  limiteSettimanaleReady,
+} from "./bookings-view.js";
 import { supabase } from "./supabase-client.js";
-import { getAllTurni, getSettimaneAnticipo } from "./db.js";
+import {
+  getAllTurni,
+  getSettimaneAnticipo,
+  getTurniByIndici,
+  createPrenotazioni,
+  getPrenotazioniByDateRange,
+  getPrenotazioniUtente,
+} from "./db.js";
+import { modal } from "./modal.js";
+import { profiloUtente } from "./user-state.js";
 
 // array dei nomi dei mesi in italiano
 const MONTHS = [
@@ -34,7 +50,7 @@ const WEEKDAYS_FULL = [
 ];
 
 // oggetto principale che gestisce il calendario
-const calendarRender = {
+export const calendarRender = {
   // modalità di visualizzazione del calendario: 'month', 'week', 'day'
   viewMode: "month",
   // modalità precedente (utile per tornare indietro dalla vista giorno)
@@ -170,8 +186,7 @@ const calendarRender = {
           // modificabile se non ancora iniziato, o entro 30 min dall'inizio
           if (diffMinuti < 30 && booking.stato !== "confermata") {
             openModificaModal(booking);
-          }
-          else{
+          } else {
             const msg = "Prenotazione già confermata, non è modificabile";
             showToast("info", msg);
           }
@@ -185,7 +200,6 @@ const calendarRender = {
       if (turn) this.selectSlot(turn);
     });
 
-    // this.loadTurni().then(() => this.setViewMode(this.viewMode));
     // carica turni e impostazioni dal db prima del primo render
     Promise.all([this.loadSettimaneAnticipo(), this.loadTurni()]).then(() =>
       this.setViewMode(this.viewMode),
@@ -213,7 +227,7 @@ const calendarRender = {
         () => {
           this.invalidateBookingsCache();
           this.render();
-          window.ldrBookings?.refresh?.();
+          refreshBookingsData();
         },
       )
       .subscribe((status) => {
@@ -222,46 +236,48 @@ const calendarRender = {
         if (status === "SUBSCRIBED") {
           this.invalidateBookingsCache();
           this.render();
-          window.ldrBookings?.refresh?.();
+          refreshBookingsData();
         }
       });
   },
 
-async loadTurni() {
-  try {
-    const turni = await getAllTurni();
+  async loadTurni() {
+    try {
+      const turni = await getAllTurni();
 
-    if (!turni || turni.length === 0) {
-      console.warn("calendarRender: nessun turno attivo trovato nel DB");
-      this.turns = [];
-      return;
+      if (!turni || turni.length === 0) {
+        console.warn("calendarRender: nessun turno attivo trovato nel DB");
+        this.turns = [];
+        return;
+      }
+
+      // trasforma i turni dal db in array di oggetti con id e label,
+      // come si aspetta il resto del codice (render, selectSlot, ecc.)
+      this.turns = turni.map((t) => ({
+        id: String(t.indice),
+        label: this.formatTurnLabel(t),
+        orario_inizio: t.orario_inizio,
+        orario_fine: t.orario_fine,
+      }));
+    } catch (err) {
+      console.error("calendarRender: impossibile caricare i turni dal db", err);
     }
+  },
 
-    // trasforma i turni dal db in array di oggetti con id e label,
-    // come si aspetta il resto del codice (render, selectSlot, ecc.)
-    this.turns = turni.map((t) => ({
-      id: String(t.indice),
-      label: this.formatTurnLabel(t),
-      orario_inizio: t.orario_inizio,
-      orario_fine: t.orario_fine,
-    }));
-
-  } catch (err) {
-    console.error("calendarRender: impossibile caricare i turni dal db", err);
-  }
-},
-
-// carica il numero di settimane di anticipo dalle impostazioni del db
-async loadSettimaneAnticipo() {
-  try {
-    const { data, error } = await getSettimaneAnticipo();
-    if (!error && data != null) {
-      this.weeksBeforeNextMonthView = data;
+  // carica il numero di settimane di anticipo dalle impostazioni del db
+  async loadSettimaneAnticipo() {
+    try {
+      const { data, error } = await getSettimaneAnticipo();
+      if (!error && data != null) {
+        this.weeksBeforeNextMonthView = data;
+      }
+    } catch (err) {
+      console.error(
+        "calendarRender: impossibile caricare le settimane di anticipo",
+        err,
+      );
     }
-  } catch (err) {
-    console.error("calendarRender: impossibile caricare le settimane di anticipo", err);
-  }
-},
+  },
 
   // restituisce l'orario in formato hh:mm
   formatClock(timeStr) {
@@ -270,7 +286,7 @@ async loadSettimaneAnticipo() {
 
   // formatta l'etichetta del turno (es: '08:30 - 10:30' o '19:30 in poi')
   formatTurnLabel(turn) {
-    if (!turn) return '';
+    if (!turn) return "";
     //if (turn.indice === 7) return `${this.formatClock(turn.orario_inizio)} in poi`;
     return `${this.formatClock(turn.orario_inizio)} - ${this.formatClock(turn.orario_fine)}`;
   },
@@ -482,28 +498,28 @@ async loadSettimaneAnticipo() {
   // restituisce stato di uno slot (disponibile, occupato, passato, bloccato)
   getSlotStatus(date, turnId) {
     const slotBooking = this.getSlotBooking(this.formatDateISO(date), turnId);
-    if (slotBooking) {
-      if (
-        window.ldrProfilo &&
-        slotBooking.id_utente === window.ldrProfilo.id_utente
-      ) {
-        return "own";
-      }
-      return "occupied";
-    }
-    if (this.isBeforeDate(date, this.today)) return "past";
-    if (!this.isBookableDate(date)) return "locked";
-
-    // controllo orario solo per oggi
+    const isPastDay = this.isBeforeDate(date, this.today);
+  
+    let timeStatus = null;
     if (this.isSameDate(date, this.today)) {
       const turn = this.turns.find((t) => t.id === turnId);
       if (turn?.orario_inizio && turn?.orario_fine) {
-        const timeStatus = this.getTurnTimeStatus(turn);
-        if (timeStatus === "past") return "past";
-        if (timeStatus === "auto-confirm") return "auto-confirm";
+        timeStatus = this.getTurnTimeStatus(turn);
       }
     }
-
+  
+    const isPast = isPastDay || timeStatus === "past";
+  
+    if (slotBooking) {
+      const isMine = profiloUtente && slotBooking.id_utente === profiloUtente.id_utente;
+      if (isPast) return isMine ? "own-past" : "occupied-past";
+      return isMine ? "own" : "occupied";
+    }
+  
+    if (isPast) return "past";
+    if (!this.isBookableDate(date)) return "locked";
+    if (timeStatus === "auto-confirm") return "auto-confirm";
+  
     return "available";
   },
 
@@ -579,9 +595,6 @@ async loadSettimaneAnticipo() {
 
   // recupera le prenotazioni dal database e aggiorna la cache
   async fetchAndCacheBookings(rangeStart, rangeEnd, cacheKey) {
-    const { getPrenotazioniByDateRange } = window.ldrDb ?? {};
-    if (!getPrenotazioniByDateRange) return;
-
     const start = this.formatDateForDb(this.formatDateISO(rangeStart));
     const end = this.formatDateForDb(this.formatDateISO(rangeEnd));
     const { data, error } = await getPrenotazioniByDateRange(start, end);
@@ -603,27 +616,6 @@ async loadSettimaneAnticipo() {
     this.bookingsBySlot.clear();
   },
 
-  // assicura che il db sia pronto prima di fare richieste
-  async ensureDbReady() {
-    if (window.ldrDb?.getPrenotazioniByDateRange) return;
-
-    await new Promise((resolve) => {
-      const started = performance.now();
-      const check = () => {
-        if (window.ldrDb?.getPrenotazioniByDateRange) {
-          resolve();
-          return;
-        }
-        if (performance.now() - started > 5000) {
-          resolve();
-          return;
-        }
-        requestAnimationFrame(check);
-      };
-      check();
-    });
-  },
-
   // attiva/disattiva il loader sulla vista
   setViewLoading(container, loading) {
     container?.classList.toggle("calendar-view-loading", loading);
@@ -640,7 +632,7 @@ async loadSettimaneAnticipo() {
   // crea l’elemento visuale con le faccine giorno per gli utenti prenotati
   // crea l'elemento visuale con le faccine/pallini per gli utenti prenotati
   createBookedDayRecap(bookings) {
-    const mostraFoto = window.ldrProfilo?.mostra_foto_prenotazioni ?? true;
+    const mostraFoto = profiloUtente.mostra_foto_prenotazioni ?? true;
 
     if (mostraFoto) {
       const recap = document.createElement("div");
@@ -737,14 +729,11 @@ async loadSettimaneAnticipo() {
       const icon = document.createElement("i");
       icon.setAttribute("data-lucide", "plus");
       el.appendChild(icon);
-    } else if (status === "occupied") {
+    } else if (status === "occupied" || status === "occupied-past") {
       el.appendChild(this.createUserPreviewEl(booking));
-    } else if (status == "own") {
+    } else if (status === "own" || status === "own-past") {
       el.appendChild(this.createUserPreviewEl(booking));
-      el.addEventListener("click", () => {
-        // console.log('click su turno own, booking:', booking);
-        openModificaModal(booking);
-      });
+      el.addEventListener("click", () => openModificaModal(booking));
     }
   },
 
@@ -766,7 +755,7 @@ async loadSettimaneAnticipo() {
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
-    checkbox.checked = status === "occupied" || status === "own";
+    checkbox.checked = status === "occupied" || status === "own" || status === "occupied-past";
     checkbox.tabIndex = -1;
 
     const orderSpan = document.createElement("span");
@@ -786,7 +775,7 @@ async loadSettimaneAnticipo() {
       const icon = document.createElement("i");
       icon.setAttribute("data-lucide", "plus");
       userDiv.appendChild(icon);
-    } else if (status === "occupied" || status === "own") {
+    } else if (status === "occupied" || status === "occupied-past" || status === "own" || status === "own-past") {
       userDiv.appendChild(this.createUserPreviewEl(booking));
     }
 
@@ -913,11 +902,10 @@ async loadSettimaneAnticipo() {
     this.finishViewTransition(rowsEl);
 
     if (hasCache) {
-      window.ldrBookings?.refreshBookingsModal?.();
+      refreshBookingsModal();
       return;
     }
 
-    await this.ensureDbReady();
     await this.fetchAndCacheBookings(
       cells[0],
       cells[cells.length - 1],
@@ -926,7 +914,7 @@ async loadSettimaneAnticipo() {
     if (gen !== this.renderGeneration) return;
 
     this.updateMonthBookings(rowsEl);
-    window.ldrBookings?.refreshBookingsModal?.();
+    refreshBookingsModal();
   },
 
   // costruisce la lista dei giorni da mostrare nella griglia mese
@@ -1061,7 +1049,7 @@ async loadSettimaneAnticipo() {
       this.restoreSelection();
       this.finishViewTransition(this.weekContainer);
       if (typeof lucide !== "undefined") lucide.createIcons();
-      window.ldrBookings?.refreshBookingsModal?.(days[0]);
+      refreshBookingsModal(days[0]);
       return;
     }
 
@@ -1073,7 +1061,7 @@ async loadSettimaneAnticipo() {
     this.finishViewTransition(this.weekContainer);
     this.restoreSelection();
     if (typeof lucide !== "undefined") lucide.createIcons();
-    window.ldrBookings?.refreshBookingsModal?.(days[0]);
+    refreshBookingsModal(days[0]);
   },
 
   // costruisce le intestazioni dei giorni nella vista settimana
@@ -1181,7 +1169,9 @@ async loadSettimaneAnticipo() {
       this.restoreSelection();
       this.finishViewTransition(this.dayContainer);
       if (typeof lucide !== "undefined") lucide.createIcons();
-      window.ldrBookings?.refreshBookingsModal?.(date);
+      this.updateDayActiveIndicator(date);
+      this.syncDayActiveIndicatorTimer(date);
+      refreshBookingsModal(date);
       return;
     }
 
@@ -1193,7 +1183,9 @@ async loadSettimaneAnticipo() {
     this.finishViewTransition(this.dayContainer);
     this.restoreSelection();
     if (typeof lucide !== "undefined") lucide.createIcons();
-    window.ldrBookings?.refreshBookingsModal?.(date);
+    this.updateDayActiveIndicator(date);
+    this.syncDayActiveIndicatorTimer(date);
+    refreshBookingsModal(date);
   },
 
   // crea le intestazioni dei giorni nella vista giorno
@@ -1271,13 +1263,6 @@ async loadSettimaneAnticipo() {
     // return base;
   },
 
-  // controlla se la data è domani
-  isTomorrow(date) {
-    const tomorrow = new Date(this.today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return this.isSameDate(date, tomorrow);
-  },
-
   // formatta il titolo della vista settimana (adatta a mesi diversi)
   formatWeekTitle(start, end) {
     const sameMonth =
@@ -1289,6 +1274,120 @@ async loadSettimaneAnticipo() {
     }
 
     return `${start.getDate()} ${MONTHS[start.getMonth()]} – ${end.getDate()} ${MONTHS[end.getMonth()]} ${end.getFullYear()}`;
+  },
+
+  // controlla se un turno è in corso in questo preciso momento
+  isTurnCurrentlyActive(turn) {
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const toMinutes = (t) => {
+      if (!t) return 0;
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m;
+    };
+    const startMin = toMinutes(turn.orario_inizio);
+    const fineMin = toMinutes(turn.orario_fine);
+    const endMin =
+      !turn.orario_fine || fineMin === 0 || fineMin <= startMin ? 24 * 60 : fineMin;
+    return nowMin >= startMin && nowMin < endMin;
+  },
+
+  // crea (una sola volta) la barra e il puntino dentro #day-schedules
+  ensureDayActiveIndicator() {
+    const container = document.getElementById("day-schedules");
+    if (!container || container.querySelector(".day-active-track")) return;
+  
+    const track = document.createElement("div");
+    track.className = "day-active-track";
+  
+    const past = document.createElement("span");
+    past.className = "day-active-track-segment day-active-track-past";
+  
+    const remaining = document.createElement("span");
+    remaining.className = "day-active-track-segment day-active-track-remaining";
+  
+    const dot = document.createElement("span");
+    dot.className = "day-active-dot";
+  
+    track.append(past, remaining, dot);
+    container.prepend(track);
+  },
+
+  // aggiorna (o rimuove) la barra in base al giorno visualizzato e al turno attivo adesso
+  updateDayActiveIndicator(date) {
+    const container = document.getElementById("day-schedules");
+    if (!container) return;
+
+    const isToday = this.isSameDate(date, this.today);
+
+    // classe usata dal css per fare spazio alla barra (padding-left ecc.)
+    container.classList.toggle("current-day-schedule", isToday);
+
+    // la barra esiste solo nella vista del giorno corrente
+    if (!isToday) {
+      container.querySelector(".day-active-track")?.remove();
+      return;
+    }
+
+    this.ensureDayActiveIndicator();
+    const track = container.querySelector(".day-active-track");
+    const segPast = container.querySelector(".day-active-track-past");
+    const segRemaining = container.querySelector(".day-active-track-remaining");
+    const dot = container.querySelector(".day-active-dot");
+    if (!track || !segPast || !segRemaining || !dot) return;
+
+    // misura la posizione reale della prima e dell'ultima riga: si adatta
+    // automaticamente se i turni vengono aggiunti/rimossi, senza inset fissi
+    const rows = Array.from(container.querySelectorAll(".day-turn"));
+    if (!rows.length) {
+      track.style.display = "none";
+      return;
+    }
+    track.style.display = "";
+
+    const firstRow = rows[0];
+    const lastRow = rows[rows.length - 1];
+    const trackTop = firstRow.offsetTop;
+    const trackHeight = lastRow.offsetTop + lastRow.offsetHeight - trackTop;
+
+    track.style.top = `${trackTop}px`;
+    track.style.height = `${trackHeight}px`;
+
+    const activeTurn = this.turns.find(
+      (t) => t.orario_inizio && t.orario_fine && this.isTurnCurrentlyActive(t),
+    );
+    const rowEl = activeTurn
+      ? container.querySelector(`.day-turn[data-turn="${activeTurn.id}"]`)
+      : null;
+
+    if (!activeTurn || !rowEl) {
+      // nessun turno attivo adesso: barra grigia intera, puntino nascosto
+      segPast.style.height = "100%";
+      segRemaining.style.height = "0";
+      dot.classList.remove("visible");
+      return;
+    }
+
+    const offsetInTrack = rowEl.offsetTop + rowEl.offsetHeight / 2 - trackTop;
+
+    segPast.style.height = `${offsetInTrack}px`;
+    segRemaining.style.top = `${offsetInTrack}px`;
+    segRemaining.style.height = `${trackHeight - offsetInTrack}px`;
+    dot.style.top = `${offsetInTrack}px`;
+    dot.classList.add("visible");
+  },
+
+  // avvia/ferma il refresh periodico (il turno attivo cambia col passare del tempo)
+  syncDayActiveIndicatorTimer(date) {
+    if (this.dayActiveIndicatorInterval) {
+      clearInterval(this.dayActiveIndicatorInterval);
+      this.dayActiveIndicatorInterval = null;
+    }
+    if (!this.isSameDate(date, this.today)) return;
+
+    this.dayActiveIndicatorInterval = setInterval(() => {
+      this.updateDayActiveIndicator(this.dayViewDate);
+    }, 30000); // ogni 30s è più che sufficiente
   },
 
   // ─── gestione delle prenotazione ────────────────────────────────────────────
@@ -1313,7 +1412,7 @@ async loadSettimaneAnticipo() {
 
   // crea il preview utente con immagine e nome breve
   createUserPreviewEl(profilo, { animate = false } = {}) {
-    const user = profilo ?? window.ldrProfilo;
+    const user = profilo ?? profiloUtente;
     const container = document.createElement("div");
     container.className = animate
       ? "horizontal-container user-preview-enter"
@@ -1499,8 +1598,7 @@ async loadSettimaneAnticipo() {
   async confirmBooking() {
     if (!this.selectedSlots.length || this.btnBookingConfirm?.disabled) return;
 
-    const profilo = window.ldrProfilo;
-    const { getTurniByIndici, createPrenotazioni } = window.ldrDb ?? {};
+    const profilo = profiloUtente;
 
     if (!profilo?.id_utente) {
       alert("Impossibile prenotare: profilo non caricato.");
@@ -1511,11 +1609,7 @@ async loadSettimaneAnticipo() {
       return;
     }
 
-    const { getPrenotazioniUtente } = window.ldrDb ?? {};
-    const { MAX_WEEKLY_BOOKINGS, countWeeklyBookings, ready } =
-      window.ldrBookingConfig ?? {};
-
-    if (ready) await ready; // aspetta che il limite sia caricato prima di controllare (evita bypass del limite)
+    await limiteSettimanaleReady; // aspetta che il limite sia caricato prima di controllare (evita bypass del limite)
 
     if (getPrenotazioniUtente && countWeeklyBookings) {
       const weekStart = this.formatDateForDb(
@@ -1547,14 +1641,14 @@ async loadSettimaneAnticipo() {
         }).length;
 
         if (esistenti + nuove > MAX_WEEKLY_BOOKINGS) {
-          const modal = document.getElementById("modal-booking-denied");
-          if (modal) {
-            if (window.modal && typeof window.modal.open === "function") {
-              window.modal.open("booking-denied");
+          const modalEl = document.getElementById("modal-booking-denied");
+          if (modalEl) {
+            if (modal && typeof modal.open === "function") {
+              modal.open("booking-denied");
             } else {
-              modal.classList.add("showing");
-              modal.style.display = "block";
-              modal.setAttribute("aria-hidden", "false");
+              modalEl.classList.add("showing");
+              modalEl.style.display = "block";
+              modalEl.setAttribute("aria-hidden", "false");
             }
           }
           return;
@@ -1593,7 +1687,7 @@ async loadSettimaneAnticipo() {
         const cleanup = () => {
           btnOk.replaceWith(btnOk.cloneNode(true));
           btnAnnulla.replaceWith(btnAnnulla.cloneNode(true));
-          window.modal?.closeAll();
+          modal?.closeAll();
         };
 
         document.getElementById("btn-auto-confirm-ok").onclick = () => {
@@ -1605,7 +1699,7 @@ async loadSettimaneAnticipo() {
           resolve(false);
         };
 
-        window.modal?.open("auto-confirm-warning");
+        modal?.open("auto-confirm-warning");
         lucide.createIcons();
       });
 
@@ -1695,7 +1789,7 @@ async loadSettimaneAnticipo() {
         showToast("error", msg, "x");
         this.clearSelection();
         this.invalidateBookingsCache();
-        window.ldrBookings?.refresh();
+        refreshBookingsData();
         this.render();
       } else {
         alert(msg);
@@ -1706,13 +1800,13 @@ async loadSettimaneAnticipo() {
     // aggiorna tutto dopo la prenotazione
     this.clearSelection();
     this.invalidateBookingsCache();
-    window.ldrBookings?.refresh();
-    this.render();
+    refreshBookingsData();
+    // this.render();
 
     // mostra la modal di conferma prenotazione con i dati giusti
-    const modal = document.getElementById("modal-booking-success");
-    if (modal) {
-      const summaryList = modal.querySelector("#booking-summary-list");
+    const modalEl = document.getElementById("modal-booking-success");
+    if (modalEl) {
+      const summaryList = modalEl.querySelector("#booking-summary-list");
       if (summaryList) {
         summaryList.innerHTML = "";
         for (const dati of datiModal) {
@@ -1740,12 +1834,12 @@ async loadSettimaneAnticipo() {
         }
       }
 
-      if (window.modal && typeof window.modal.open === "function") {
-        window.modal.open("booking-success");
+      if (modal && typeof modal.open === "function") {
+        modal.open("booking-success");
       } else {
-        modal.classList.add("showing");
-        modal.style.display = "block";
-        modal.setAttribute("aria-hidden", "false");
+        modalEl.classList.add("showing");
+        modalEl.style.display = "block";
+        modalEl.setAttribute("aria-hidden", "false");
       }
     }
   },
@@ -1766,6 +1860,13 @@ async loadSettimaneAnticipo() {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
     return d < ref;
+  },
+
+  // controlla se la data è domani
+  isTomorrow(date) {
+    const tomorrow = new Date(this.today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return this.isSameDate(date, tomorrow);
   },
 
   // formatta data oggetto in stringa 'gg.mm.aaaa'
@@ -1809,4 +1910,3 @@ async loadSettimaneAnticipo() {
 
 // avvia il calendario al caricamento della pagina
 document.addEventListener("DOMContentLoaded", () => calendarRender.init());
-window.calendarRender = calendarRender;

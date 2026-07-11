@@ -29,23 +29,12 @@ import {
 import { syncProfilePictures } from "./profile-utils.js";
 import { supabase } from "./supabase-client.js";
 import { showToast } from "./toast.js";
+import { calendarRender } from "./calendar-render.js";
+import { profiloUtente, setProfiloUtente } from "./user-state.js"
 
 // ── chiave pubblica VAPID ─────────────────────────────────────────────────────
 const VAPID_PUBLIC_KEY =
   "BHaLkN5pLWDWpek98BHimSKWBthlvdbrSu_j77UHw41wV38ILeoyK5YJotZf1j_xD6hWbH62npJY9OyDWpbPTQU";
-
-// espone alcune funzioni utili globalmente (non sovrascrive quanto già presente)
-window.ldrDb = {
-  supabase,
-  getTurniByIndici,
-  createPrenotazioni,
-  getPrenotazioniByDateRange,
-  getPrenotazioniUtente,
-  getAllTurni,
-  confermaPresenza,
-  updateProfiloUtente,
-  uploadFotoProfilo,
-};
 
 // ── helpers push ──────────────────────────────────────────────────────────────
 
@@ -64,7 +53,7 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 async function registerPushSubscription() {
-  const profilo = window.ldrProfilo;
+  const profilo = profiloUtente;
   if (!profilo?.id_utente) return;
 
   try {
@@ -77,7 +66,7 @@ async function registerPushSubscription() {
       });
     }
 
-    const { error } = await window.ldrDb.supabase
+    const { error } = await supabase
       .from("PushSubscription")
       .upsert(
         {
@@ -134,7 +123,7 @@ export async function disablePushNotifications() {
     await subscription.unsubscribe();
 
     // rimuove la riga corrispondente dal db, se presente
-    const { error } = await window.ldrDb.supabase
+    const { error } = await supabase
       .from("PushSubscription")
       .delete()
       .eq("endpoint", endpoint);
@@ -185,8 +174,8 @@ async function caricaProfiloUtente() {
     return;
   }
 
-  // salva il profilo in una variabile globale
-  window.ldrProfilo = profilo;
+  // salva il profilo
+  setProfiloUtente(profilo);
 
   // aggiorna elementi della pagina col nome utente
   document.querySelectorAll('[data-get-info="username-name"]').forEach((el) => {
@@ -216,9 +205,9 @@ async function caricaProfiloUtente() {
   // imposta la vista predefinita se necessario
   if (
     profilo.vista_predefinita === "week" &&
-    window.calendarRender?.viewMode === "month"
+    calendarRender.viewMode === "month"
   ) {
-    window.calendarRender.setViewMode("week");
+    calendarRender.setViewMode("week");
   }
 
   // aggiorna le prenotazioni dopo aver caricato il profilo
