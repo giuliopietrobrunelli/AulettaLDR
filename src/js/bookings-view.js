@@ -10,12 +10,13 @@ import {
   getRichiesteInArrivo,
   accettaRichiestaCessione,
   rifiutaRichiestaCessione,
-  getLimiteSettimanale
+  getLimiteSettimanale,
+  getSettimaneAnticipo,
 } from "./db.js";
 import { getProfilePicUrl } from "./profile-utils.js";
 import { showToast } from "./toast.js";
 import { confirmAction } from "./confirm.js";
-import { supabase } from "./supabase-client.js";
+import { supabase, sessionReady } from "./supabase-client.js";
 import { calendarRender } from "./calendar-render.js";
 import { modal } from "./modal.js";
 import { profiloUtente, setProfiloUtente } from "./user-state.js"
@@ -984,7 +985,7 @@ export function initBookingsView() {
     await renderNotificheModal();
   }, 60_000);
 
-  ensureNotificheRealtime();
+  sessionReady.then(() => ensureNotificheRealtime());
 }
 
 // aggiorna la modal delle prenotazioni usando il profilo corrente
@@ -1070,8 +1071,32 @@ export async function initPrenotaModal() {
 
   // data minima = oggi, ed è anche il valore selezionato di default
   const oggiStr = new Date().toISOString().split("T")[0];
+  const maxData = await getMaxDataPrenotabile();
+  const maxStr = maxData.toISOString().split("T")[0];
+
   prenotaDataInput.min = oggiStr;
+  prenotaDataInput.max = maxStr;
   prenotaDataInput.value = oggiStr;
+
+  // calcola l'ultima data prenotabile, applicando la stessa regola
+  // usata dal calendario principale (settimane di anticipo prima di sbloccare il mese successivo)
+  async function getMaxDataPrenotabile() {
+    const oggi = new Date();
+    oggi.setHours(0, 0, 0, 0);
+
+    const { data: settimaneAnticipo } = await getSettimaneAnticipo();
+    const weeks = settimaneAnticipo ?? 1; // stesso fallback di calendarRender
+
+    const nextMonthStart = new Date(oggi.getFullYear(), oggi.getMonth() + 1, 1);
+    const threshold = new Date(nextMonthStart);
+    threshold.setDate(threshold.getDate() - weeks * 7);
+    const canViewNextMonth = oggi >= threshold;
+
+    const maxOffset = canViewNextMonth ? 1 : 0;
+    const rangeEnd = new Date(oggi.getFullYear(), oggi.getMonth() + maxOffset + 1, 0);
+    rangeEnd.setHours(0, 0, 0, 0);
+    return rangeEnd;
+  }
 
   // usa AbortController per evitare listener duplicati se initPrenotaModal
   // venisse chiamata più volte
@@ -1225,10 +1250,13 @@ export async function initPrenotaModal() {
 
         await refreshBookingsData(); // già invalida la cache internamente
         // calendarRender.render(); // ridisegna con i dati aggiornati
-      } catch (err) {
-        console.error("Errore salvataggio prenotazione:", err);
+
+      } catch (err) { // errore sollevato lato server
+        
+        // console.error("Errore salvataggio prenotazione:", err);
         btnConferma.innerHTML = testoOriginale;
         validatePrenotaForm(prenotaDataInput, prenotaTurnoSelect, btnConferma);
+        modal.open("booking-denied");
       }
     },
     { signal },
@@ -1241,8 +1269,10 @@ export async function initPrenotaModal() {
   // perché l'utente potrebbe non essere ancora autenticato a quel punto.
   // osservando la classe "showing" la chiamata parte solo quando la modal
   // diventa realmente visibile, ogni volta che viene aperta)
-  const modalObserver = new MutationObserver(() => {
+  const modalObserver = new MutationObserver(async () => {
     if (modalPrenota.classList.contains("showing")) {
+      const maxDataAggiornata = await getMaxDataPrenotabile();
+      prenotaDataInput.max = maxDataAggiornata.toISOString().split("T")[0];
       aggiornaTurniDisponibili();
       startDateWatcher();
     }
@@ -1257,7 +1287,7 @@ export async function initPrenotaModal() {
   signal.addEventListener("abort", () => {
     modalObserver.disconnect();
     stopDateWatcher();
-});
+  });
 }
 
 export function validatePrenotaForm(inputData, selectTurno, btn) {

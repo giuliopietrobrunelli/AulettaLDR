@@ -8,6 +8,24 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     flowType: 'implicit',
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true, // intercetta il magic link al ritorno
+    detectSessionInUrl: true, // detecta il token di autenticazione
   },
+});
+
+// promise che si risolve solo quando la sessione (se esiste) è stata recuperata
+// e il client realtime ha ricevuto il token corretto
+export const sessionReady = (async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    supabase.realtime.setAuth(session.access_token);
+  }
+  return session;
+})();
+
+// tiene aggiornato il token realtime ad ogni cambio di sessione
+// (login, refresh automatico del token, logout)
+supabase.auth.onAuthStateChange((event, session) => {
+  if (session?.access_token) {
+    supabase.realtime.setAuth(session.access_token);
+  }
 });

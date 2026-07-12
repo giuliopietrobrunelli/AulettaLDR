@@ -32,7 +32,8 @@
             <section class="form-block">
                 <div class="form-block">
                     <label for="n-tessera"><span>Numero tessera</span></label>
-                    <input id="n-tessera" name="n-tessera" type="number" placeholder="0000" autocomplete="off" required>
+                    <input id="n-tessera" name="n-tessera" type="number" placeholder="0000" pattern="\d*" min="1"
+                        oninput="this.value=this.value.replace(/\D/g,'')" autocomplete="off" required>
                 </div>
             </section>
             <section class="form-block">

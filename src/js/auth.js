@@ -1,4 +1,5 @@
 import { supabase } from "./supabase-client.js";
+import { confirmAction } from "./confirm.js";
 
 // oggetto principale per la gestione dell'autenticazione
 export const auth = {
@@ -24,7 +25,7 @@ export const auth = {
         if (form)
           this.showError(
             form,
-            `link non valido: ${errorDesc ?? "richiedine uno nuovo dalla pagina di login."}`,
+            `Link non valido: ${errorDesc ?? "richiedine uno nuovo dalla pagina di login"}`,
           );
         return;
       }
@@ -143,9 +144,11 @@ export const auth = {
 
       if (!identifier.includes("@")) {
         // valida che sia un numero tessera
-        const numeroTessera = parseInt(identifier, 10);
-        if (isNaN(numeroTessera)) {
-          this.showError(form, "Inserisci un numero tessera valido");
+        // const numeroTessera = parseInt(identifier, 10);
+        // const numeroTessera = Number(identifier);
+        // if (identifier.trim() === "" || isNaN(numeroTessera)) {
+        if (!/^\d+$/.test(identifier)) {
+          this.showError(form, "Inserisci un numero tessera valido -solo numeri-");
           this.setLoading(btnSubmit, false);
           return;
         }
@@ -180,6 +183,11 @@ export const auth = {
         // all'ora l'utente ha inserito una mail
         email = utente.email;
       } else {
+        if (!/^[^\s@]+@[^\s@]+.[^\s@]+$/.test(identifier)) {
+          this.showError(form, "Inserisci un indirizzo email valido");
+          this.setLoading(btnSubmit, false);
+          return;
+        }
         // l'utente ha inserito direttamente una mail: verifica esistenza e stato registrazione
         const { data, error: dbError } = await supabase.rpc(
           "resolve_login_identifier",
@@ -201,7 +209,7 @@ export const auth = {
         if (!utente.registrato) {
           this.showError(
             form,
-            "Il tuo indirizzo mail risulta associata ad una tessera LDR, ma devi prima registrarti. Clicca il pulsante -Crea account-",
+            "Il tuo indirizzo mail risulta associato ad una tessera LDR, ma devi prima registrarti. Clicca il pulsante -Crea account-",
           );
           this.setLoading(btnSubmit, false);
           return;
@@ -260,7 +268,7 @@ export const auth = {
 
       // è stata inserita una stringa non esclusivamente numerica
       if (isNaN(numeroTessera)) {
-        this.showError(form, "Inserisci un numero tessera valido");
+        this.showError(form, "Inserisci un numero tessera valido -solo numeri-");
         this.setLoading(btnSubmit, false);
         return;
       }
@@ -591,6 +599,12 @@ export const auth = {
 
   // funzione di logout: esce e manda a login
   async logout() {
+    const confirmed = await confirmAction({
+      title: "Conferma logout",
+      message: "Stai per effettuare il logout",
+      confirmText: "Conferma",
+    });
+    if (!confirmed) return;
     await supabase.auth.signOut();
     if (this.realtimeChannel) {
       // chiudi il canale realtime per evitare leak di informazioni di altri account

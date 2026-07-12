@@ -17,7 +17,8 @@
     <!-- font da googlefonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap"
+        rel="stylesheet">
     <!--  -->
 
 </head>
@@ -34,17 +35,22 @@
             <section class="form-block">
                 <div class="form-block">
                     <label for="nome"><span>Nome</span></label>
-                    <input id="nome" name="nome" type="text" placeholder="Es. Mario" autocomplete="given-name" required>
+                    <input id="nome" name="nome" type="text" placeholder="Es. Mario" autocomplete="given-name"
+                        pattern="[a-zA-ZàèéìòùÀÈÉÌÒÙáéíóúÁÉÍÓÚ\s'-]*"
+                        oninput="this.value=this.value.replace(/[^a-zA-ZàèéìòùÀÈÉÌÒÙáéíóúÁÉÍÓÚ\s'-]/g,'')" required>
                 </div>
                 <div class="form-block">
                     <label for="cognome"><span>Cognome</span></label>
-                    <input id="cognome" name="cognome" type="text" placeholder="Es. Rossi" autocomplete="family-name" required>
+                    <input id="cognome" name="cognome" type="text" placeholder="Es. Rossi" autocomplete="family-name"
+                        pattern="[a-zA-ZàèéìòùÀÈÉÌÒÙáéíóúÁÉÍÓÚ\s'-]*"
+                        oninput="this.value=this.value.replace(/[^a-zA-ZàèéìòùÀÈÉÌÒÙáéíóúÁÉÍÓÚ\s'-]/g,'')" required>
                 </div>
             </section>
 
             <section class="form-block">
                 <button type="submit" class="active">Ricevi codice via mail</button>
-                <h3>Problemi con la registrazione? <a href="mailto:illumedellaragione6@gmail.com">Contatta il direttivo</a></h3>
+                <h3>Problemi con la registrazione? <a href="mailto:illumedellaragione6@gmail.com">Contatta il
+                        direttivo</a></h3>
                 <div class="divider"></div>
 
                 <h3>Un altro modo per registrarsi?</h3>

@@ -362,7 +362,7 @@ async function loadStats() {
         const confermate = pMese.filter(p => p.stato === 'confermata' || p.data_conferma);
         const tasso = pMese.length ? Math.round(confermate.length / pMese.length * 100) : 0;
 
-        //document.getElementById('stat-registrati').textContent = reg.length;
+        document.getElementById('stat-registrati').textContent = reg.length;
         document.getElementById('stat-totali').textContent = tutti.length;
         document.getElementById('stat-prenot-mese').textContent = pMese.length;
         document.getElementById('stat-prenot-oggi').textContent = pOggi.length;
