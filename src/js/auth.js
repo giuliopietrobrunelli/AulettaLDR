@@ -5,6 +5,7 @@ import { confirmAction } from "./confirm.js";
 export const auth = {
   async init() {
     const hash = window.location.hash;
+    const arrivedViaLink = hash.includes("access_token");
 
     // gestisce errori espliciti nell'URL (link scaduto ecc.)
     if (hash.includes("error=")) {
@@ -43,11 +44,11 @@ export const auth = {
     if (error) console.error("errore sessione:", error.message);
 
     if (window.location.pathname.includes("reset-password")) {
-      this.initResetPasswordPage(session);
+      this.initResetPasswordPage(session, arrivedViaLink);
       return;
     }
     if (window.location.pathname.includes("set-password")) {
-      this.initSetPassword(session);
+      this.initSetPassword(session, arrivedViaLink);
       return;
     }
     if (window.location.pathname.includes("register-alternative")) {
@@ -101,7 +102,11 @@ export const auth = {
     this.setupRegisterForm();
   },
 
-  initResetPasswordPage(session) {
+  initResetPasswordPage(session, arrivedViaLink) {
+    if (!arrivedViaLink) {
+      window.location.href = "/";
+      return;
+    }
     if (!session) {
       // se non c'è sessione il link è scaduto
       const form = document.getElementById("reset-password-form");
@@ -546,9 +551,14 @@ export const auth = {
   },
 
   // gestione impostazione password dopo magic link via email
-  async initSetPassword(session) {
+  async initSetPassword(session, arrivedViaLink) {
     const form = document.getElementById("set-password-form");
     if (!form) return;
+
+    if (!arrivedViaLink) {
+      window.location.href = "/";
+      return;
+    }
 
     if (!session) {
       this.showError(
