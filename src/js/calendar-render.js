@@ -1633,6 +1633,8 @@ export const calendarRender = {
     await limiteSettimanaleReady; // aspetta che il limite sia caricato prima di controllare (evita bypass del limite)
 
     if (getPrenotazioniUtente && countWeeklyBookings) {
+
+      // prende le prenotazioni dell'utente nella settimana attuale
       const weekStart = this.formatDateForDb(
         this.formatDateISO(this.getWeekStart(this.today)),
       );
@@ -1648,7 +1650,6 @@ export const calendarRender = {
         const ws = this.formatDateISO(this.getWeekStart(date));
         nuovePerSettimana.set(ws, (nuovePerSettimana.get(ws) ?? 0) + 1);
       }
-
       for (const [ws, nuove] of nuovePerSettimana) {
         const wsDate = this.parseDateISO(ws);
         const wsStart = new Date(wsDate);
@@ -1661,17 +1662,9 @@ export const calendarRender = {
           return d >= wsStart && d <= wsEnd;
         }).length;
 
+        // mostra modal limite settimanale raggiunto e blocca il procedimento
         if (esistenti + nuove > MAX_WEEKLY_BOOKINGS) {
-          const modalEl = document.getElementById("modal-booking-denied");
-          if (modalEl) {
-            if (modal && typeof modal.open === "function") {
-              modal.open("booking-denied");
-            } else {
-              modalEl.classList.add("showing");
-              modalEl.style.display = "block";
-              modalEl.setAttribute("aria-hidden", "false");
-            }
-          }
+          modal.open("booking-denied");
           return;
         }
       }
@@ -1685,6 +1678,7 @@ export const calendarRender = {
       return el?.dataset.status === "auto-confirm";
     });
 
+    // se ci sonoslot auto-confirm chiedi conferma prima di procedere
     if (slotsAutoConfirm.length) {
       const nomi = slotsAutoConfirm
         .map((slot) => {
@@ -1729,23 +1723,20 @@ export const calendarRender = {
 
     this.btnBookingConfirm.disabled = true;
 
-    // prende gli indici dei turni selezionati, senza duplicati
+    // prende gli indici dei turni selezionati, senza duplicati, se non esistono o non sono attivi lancia errore
     const indici = [
       ...new Set(this.selectedSlots.map((s) => parseInt(s.turnId, 10))),
     ];
     const { data: turni, error: turnoError } = await getTurniByIndici(indici);
-
     if (turnoError || !turni?.length) {
-      console.error("Turni non trovati:", turnoError);
-      alert("Turni non trovati. Riprova più tardi.");
+      showToast("error", "Turni non trovati. Riprova più tardi.")
       this.btnBookingConfirm.disabled = false;
       return;
     }
-
     const turnoByIndice = new Map(turni.map((t) => [t.indice, t.id_turno]));
-    const prenotazioni = [];
-
+    
     // prepara le prenotazioni e raccogli dati per la modal riepilogo
+    const prenotazioni = [];
     const datiModal = [];
     for (const slot of this.selectedSlots) {
       const indice = parseInt(slot.turnId, 10);
@@ -1802,10 +1793,8 @@ export const calendarRender = {
     const { error } = await createPrenotazioni(prenotazioni);
 
     this.btnBookingConfirm.disabled = false;
-
     if (error) {
-      // molto probabilmente se l'errore viene sollevato è per via del turno già occupato mentre l'utente navigava. la pagina non è stata ricaricata e la prenotazione non è stata mostrata
-      const msg = "Turno già occupato! Riprova.";
+      const msg = "Errore inaspettato durante la prenotazione. Riprova";
       if (typeof showToast === "function") {
         showToast("error", msg, "x");
         this.clearSelection();

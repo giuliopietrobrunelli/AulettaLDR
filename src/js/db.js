@@ -170,7 +170,7 @@ export async function createPrenotazione({
   if (error?.code === "23505") {
     return {
       data: null,
-      error: { ...error, userMessage: "turno già occupato" },
+      error: { ...error, userMessage: "Turno già occupato" },
     };
   }
 

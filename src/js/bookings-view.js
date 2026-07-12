@@ -1250,10 +1250,13 @@ export async function initPrenotaModal() {
 
         await refreshBookingsData(); // già invalida la cache internamente
         // calendarRender.render(); // ridisegna con i dati aggiornati
-      } catch (err) {
-        console.error("Errore salvataggio prenotazione:", err);
+
+      } catch (err) { // errore sollevato lato server
+        
+        // console.error("Errore salvataggio prenotazione:", err);
         btnConferma.innerHTML = testoOriginale;
         validatePrenotaForm(prenotaDataInput, prenotaTurnoSelect, btnConferma);
+        modal.open("booking-denied");
       }
     },
     { signal },
