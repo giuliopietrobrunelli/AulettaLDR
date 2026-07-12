@@ -224,8 +224,8 @@ export const calendarRender = {
   .on(
     "postgres_changes",
     { event: "INSERT", schema: "public", table: "Prenotazione" },
-    (payload) => {
-      showToast("info", "REALTIME INSERT", "bell");
+    () => {
+      //showToast("info", "REALTIME INSERT", "bell");
       this.invalidateBookingsCache();
       this.render();
       refreshBookingsData();
@@ -250,15 +250,15 @@ export const calendarRender = {
     },
   )
   .subscribe((status) => {
-    showToast("info", `STATO: ${status}`, "wifi");
+    //showToast("info", `STATO: ${status}`, "wifi");
     if (status === "SUBSCRIBED") {
       this.invalidateBookingsCache();
       this.render();
       refreshBookingsData();
     }
-    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-      setTimeout(() => this.initRealtimeSync(), 3000);
-    }
+    // if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+    // setTimeout(() => this.initRealtimeSync(), 3000);
+    // }
   });
   },
 

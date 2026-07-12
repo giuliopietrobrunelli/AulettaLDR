@@ -122,6 +122,29 @@ export async function uploadFotoProfilo(id_utente, file) {
   return await updateProfiloUtente(id_utente, { foto_profilo });
 }
 
+// rimuove la foto profilo utente: elimina il/i file dallo storage e azzera il campo sul db
+export async function rimuoviFotoProfilo(id_utente) {
+  // elenca tutti i file nella cartella dell'utente (l'estensione può variare tra un upload e l'altro)
+  const { data: files, error: listError } = await supabase.storage
+    .from("profili-utente")
+    .list(id_utente);
+
+  if (listError) return { data: null, error: listError };
+
+  // rimuove i file trovati, se presenti
+  if (files?.length) {
+    const paths = files.map((f) => `${id_utente}/${f.name}`);
+    const { error: removeError } = await supabase.storage
+      .from("profili-utente")
+      .remove(paths);
+
+    if (removeError) return { data: null, error: removeError };
+  }
+
+  // azzera il campo sul profilo, tornando all'immagine di default
+  return await updateProfiloUtente(id_utente, { foto_profilo: null });
+}
+
 // ─── get informazioni sui turni ────────────────────────────────────────────
 
 // restituisce i turni corrispondenti agli indici dati

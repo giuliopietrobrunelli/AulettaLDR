@@ -1,4 +1,4 @@
-import { updateProfiloUtente, uploadFotoProfilo } from "./db.js";
+import { updateProfiloUtente, uploadFotoProfilo, rimuoviFotoProfilo } from "./db.js";
 import { getProfilePicUrl, syncProfilePictures } from "./profile-utils.js";
 import { showToast } from "./toast.js";
 import {
@@ -8,6 +8,7 @@ import {
 } from "./app.js";
 import { modal } from "./modal.js";
 import { profiloUtente, setProfiloUtente } from "./user-state.js"
+import { confirmAction } from "./confirm.js";
 
 // massimo 3mb per la foto profilo
 const MAX_AVATAR_SIZE = 3 * 1024 * 1024;
@@ -87,7 +88,7 @@ export function renderAccountSettings() {
 
   const btnUpload = document.createElement("button");
   btnUpload.type = "button";
-  btnUpload.className = "w-text";
+  btnUpload.className = "w-text active";
   btnUpload.innerHTML = "Cambia immagine profilo";
 
   // al click sul bottone si apre la selezione file
@@ -111,7 +112,7 @@ export function renderAccountSettings() {
 
     // gestisci eventuali errori di upload
     if (error || !data) {
-      showToast("error","Impossibile caricare l'immagine. Riprova più tardi.","image-off",);
+      showToast("error", "Impossibile caricare l'immagine. Riprova più tardi.", "image-off",);
       btnUpload.disabled = false;
       return;
     }
@@ -120,11 +121,57 @@ export function renderAccountSettings() {
     setProfiloUtente(data);
     img.src = getProfilePicUrl(data);
     syncProfilePictures(data);
+    btnReset.disabled = !data.foto_profilo;
     showToast("success", "Immagine profilo aggiornata.", "user-round-check");
     btnUpload.disabled = false;
   });
 
-  profileRow.append(img, btnUpload, fileInput);
+  const btnReset = document.createElement("button");
+  btnReset.type = "button";
+  btnReset.className = "w-text";
+  btnReset.innerHTML = "Rimuovi immagine profilo";
+  // disabilitato se non c'è già una foto personalizzata da rimuovere
+  btnReset.disabled = !profilo.foto_profilo;
+
+  // al click chiede conferma e rimuove la foto profilo, tornando a quella di default
+  btnReset.addEventListener("click", async () => {
+    if (btnReset.disabled) return;
+
+    const confirmed = await confirmAction({
+      title: "Rimuovi immagine profilo",
+      message: "Vuoi tornare all'immagine profilo predefinita?",
+      confirmText: "Rimuovi",
+      danger: true,
+    });
+    if (!confirmed) return;
+
+    btnReset.disabled = true;
+    btnUpload.disabled = true;
+
+    const { data, error } = await rimuoviFotoProfilo(profilo.id_utente);
+
+    if (error || !data) {
+      showToast(
+        "error",
+        "Impossibile rimuovere l'immagine. Riprova più tardi.",
+        "image-off",
+      );
+      btnReset.disabled = false;
+      btnUpload.disabled = false;
+      return;
+    }
+
+    // aggiorna la foto profilo (torna a quella di default) e sincronizza ovunque
+    setProfiloUtente(data);
+    img.src = getProfilePicUrl(data);
+    syncProfilePictures(data);
+    showToast("success", "Immagine profilo rimossa.", "user-round-x");
+    btnReset.disabled = true; // non c'è più nulla da rimuovere
+    btnUpload.disabled = false;
+  });
+
+  profileRow.append(img, btnUpload, btnReset, fileInput);
+
   profileBlock.append(profileRow);
   container.appendChild(profileBlock);
 
@@ -245,7 +292,7 @@ export function renderAccountSettings() {
     } else {
       setProfiloUtente(data);
       syncRecapButtonsState(data.mostra_foto_prenotazioni);
-      showToast("success","Preferenze aggiornate");
+      showToast("success", "Preferenze aggiornate");
     }
 
     btnRecapFoto.disabled = false;
