@@ -1,0 +1,456 @@
+
+        /* ── Layout dashboard ─────────────────────────────── */
+
+        body {
+            gap: 20px;
+            visibility: hidden;
+        }
+
+        body.admin-access-checked {
+            visibility: visible;
+        }
+
+        /* Sidebar + content layout */
+        #dash-layout {
+            display: flex;
+            width: 100%;
+            gap: 0;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Sidebar */
+        #dash-sidebar {
+            width: 200px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding-right: 20px;
+            border-right: .5px solid var(--gray2);
+        }
+
+        .dash-nav-label {
+            font-size: 10px;
+            font-family: var(--plex-sans);
+            opacity: .4;
+            padding: 10px 8px 4px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .dash-nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 4px;
+            background: transparent;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            min-height: unset;
+            transition: background-color 0.15s;
+        }
+
+        .dash-nav-btn:hover {
+            background-color: var(--gray);
+        }
+
+        .dash-nav-btn.active {
+            background-color: var(--black);
+        }
+
+        .dash-nav-btn.active span {
+            color: var(--white);
+        }
+
+        .dash-nav-btn.active .lucide {
+            color: var(--white);
+            opacity: 1;
+        }
+
+        .dash-nav-btn span {
+            font-size: 12px;
+            color: var(--black);
+        }
+
+        .dash-nav-btn .lucide {
+            width: 15px;
+            height: 15px;
+            opacity: .55;
+            flex-shrink: 0;
+        }
+
+        .dash-nav-btn:hover .lucide {
+            opacity: 1;
+        }
+
+        /* Content area */
+        #dash-content {
+            flex: 1;
+            min-width: 0;
+            padding-left: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Section panels (hidden by default) */
+        .dash-section {
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .dash-section.active {
+            display: flex;
+        }
+
+        /* ── Statistiche ──────────────────────────────────── */
+
+        .stats-grid {
+            display: grid;
+            /* grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); */
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .stat-card {
+            border: .5px solid var(--gray2);
+            border-radius: 4px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .stat-card-label {
+            font-size: 11px;
+            opacity: .5;
+            font-family: var(--plex-sans);
+        }
+
+        .stat-card-value {
+            font-size: 28px;
+            font-family: var(--plex-sans);
+            font-weight: 500;
+            line-height: 1;
+        }
+
+        .stat-card-sub {
+            font-size: 11px;
+            opacity: .45;
+            font-family: var(--plex-sans);
+        }
+
+        @media (max-width: 800px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ── Tabelle utenti ───────────────────────────────── */
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-family: var(--plex-sans);
+            font-weight: 500;
+        }
+
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            border-bottom: .5px solid var(--gray2);
+            padding-bottom: 0;
+            margin-bottom: 4px;
+        }
+
+        .tab-bar button {
+            color: var(--black);
+        }
+
+        .tab-btn {
+            padding: 6px 12px;
+            border-radius: 4px 4px 0 0;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            font-size: 12px;
+            font-family: var(--plex-sans);
+            cursor: pointer;
+            min-height: unset;
+            color: var(--black);
+            opacity: .5;
+            transition: opacity .15s;
+        }
+
+        .tab-btn:hover {
+            background: transparent;
+            opacity: .8;
+        }
+
+        .tab-btn.active {
+            opacity: 1;
+            border-bottom: 2px solid var(--black);
+            font-weight: 500;
+            background: transparent;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .search-bar input {
+            max-width: 240px;
+            font-size: 12px;
+            padding: 6px 10px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--plex-sans);
+            font-size: 12px;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 8px 10px;
+            font-weight: 500;
+            font-size: 11px;
+            opacity: .5;
+            border-bottom: .5px solid var(--gray2);
+            white-space: nowrap;
+        }
+
+        .data-table td {
+            padding: 9px 10px;
+            border-bottom: .5px solid var(--gray2);
+            vertical-align: middle;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tr:hover td {
+            background-color: var(--gray);
+        }
+
+        .table-container {
+            border: .5px solid var(--gray2);
+            border-radius: 4px;
+            overflow: hidden;
+            overflow-x: auto;
+        }
+
+        .table-panel {
+            display: none;
+        }
+
+        .table-panel.active {
+            display: block;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .badge-red {
+            background: var(--red);
+            color: var(--red-text);
+        }
+
+        .badge-green {
+            background: var(--green);
+            color: var(--green-text);
+        }
+
+        .badge-gray {
+            background: var(--gray);
+            color: var(--black);
+            opacity: .6;
+        }
+
+        .badge-yellow {
+            background: var(--aula);
+            color: var(--black);
+        }
+
+        .badge-blue {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .table-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn-icon {
+            padding: 4px 6px;
+            min-height: unset;
+            background: transparent;
+            border: .5px solid var(--gray2);
+        }
+
+        .btn-icon:hover {
+            background: var(--gray);
+        }
+
+        .btn-icon .lucide {
+            width: 13px;
+            height: 13px;
+        }
+
+        .empty-row td {
+            text-align: center;
+            padding: 30px;
+            opacity: .4;
+            font-style: italic;
+        }
+
+        /* ── Turni ────────────────────────────────────────── */
+
+        .turni-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .turno-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border: .5px solid var(--gray2);
+            border-radius: 4px;
+        }
+
+        .turno-index {
+            font-size: 13px;
+            font-weight: 500;
+            width: 24px;
+            flex-shrink: 0;
+            opacity: .5;
+        }
+
+        .turno-label {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .turno-time {
+            font-size: 12px;
+            opacity: .55;
+            font-style: italic;
+        }
+
+        /* ── Settings ─────────────────────────────────────── */
+
+        .settings-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .setting-row {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .setting-row label {
+            font-size: 12px;
+            opacity: .6;
+            font-family: var(--plex-sans);
+        }
+
+        .setting-row input {
+            font-size: 13px;
+        }
+
+        .setting-desc {
+            font-size: 11px;
+            opacity: .45;
+            font-family: var(--plex-sans);
+        }
+
+        /* ── Modali dashboard ─────────────────────────────── */
+
+        #modal-nuovo-utente .full-modal-content,
+        #modal-modifica-utente .full-modal-content,
+        #modal-prenota-admin .full-modal-content,
+        #modal-modifica-turno .full-modal-content,
+        #modal-nuovo-turno .full-modal-content,
+        #modal-elimina-turno .full-modal-content {
+            gap: 12px;
+        }
+
+        #modal-nuovo-utente .form-block label span,
+        #modal-modifica-utente .form-block label span,
+        #modal-prenota-admin .form-block label span,
+        #modal-modifica-turno .form-block label span,
+        #modal-nuovo-turno .form-block label span,
+        #modal-elimina-turno .form-block label span {
+            font-size: 12px;
+            opacity: .6;
+        }
+
+        /* ── Responsive sidebar ───────────────────────────── */
+
+        @media (max-width: 700px) {
+            #dash-layout {
+                flex-direction: column;
+            }
+
+            #dash-sidebar {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+                padding-right: 0;
+                padding-bottom: 12px;
+                border-right: none;
+                border-bottom: .5px solid var(--gray2);
+            }
+
+            .dash-nav-label {
+                display: none;
+            }
+
+            #dash-content {
+                padding-left: 0;
+                padding-top: 16px;
+            }
+        }
+
+        /* inline info box */
+        .info-box {
+            background: var(--gray);
+            border-radius: 4px;
+            padding: 10px 14px;
+            font-size: 12px;
+            opacity: .75;
+        }
+
+        #gf-contenuto[readonly] {
+            background: var(--gray);
+            resize: none;
+        }
+    
