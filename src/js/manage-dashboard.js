@@ -694,10 +694,17 @@ function eliminaUtente() {
     document.getElementById('conferma-elimina-text').textContent =
         `Sei sicuro di voler eliminare l'utente "${info}"? L'operazione non può essere annullata.`;
     pendingDeleteFn = async () => {
-        await supabase.from('Utente').delete().eq('id_utente', id);
+        try {
+            await supabase.from('Utente').delete().eq('id_utente', id);
+        } catch (error) {
+            showToast("error", "Errore durante l'eliminazione dell'utente");
+            return;
+        }
         modal.closeEl(modal.getEl('modifica-utente'));
         modal.closeEl(modal.getEl('conferma-elimina'));
         document.getElementById("search-utenti").value = '';
+
+        showToast("success", "Utente eliminato correttamente");
         await loadUtentiAdmin();
     };
     modal.open('conferma-elimina');
@@ -902,9 +909,11 @@ async function salvaModificaTurno() {
         if (error) throw error;
         turnoInModificaId = null;
         modal.closeEl(modal.getEl('modifica-turno'));
+        showToast("success", "Turno modificato con successo");
         await loadTurni();
     } catch (e) {
-        showError('modifica-turno-error', e.message ?? 'Errore.');
+        // showError('modifica-turno-error', e.message ?? 'Errore.');
+        showToast("error", e.message);
     }
 }
 
