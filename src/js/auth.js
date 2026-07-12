@@ -201,7 +201,7 @@ export const auth = {
         if (!utente.registrato) {
           this.showError(
             form,
-            "Il tuo indirizzo mail risulta associata ad una tessera LDR, ma devi prima registrarti. Clicca il pulsante -Crea account-",
+            "Il tuo indirizzo mail risulta associato ad una tessera LDR, ma devi prima registrarti. Clicca il pulsante -Crea account-",
           );
           this.setLoading(btnSubmit, false);
           return;

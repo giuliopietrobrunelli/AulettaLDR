@@ -7,7 +7,7 @@ import {
   countWeeklyBookings,
   limiteSettimanaleReady,
 } from "./bookings-view.js";
-import { supabase } from "./supabase-client.js";
+import { supabase, sessionReady } from "./supabase-client.js";
 import {
   getAllTurni,
   getSettimaneAnticipo,
@@ -206,7 +206,7 @@ export const calendarRender = {
     );
 
     // avvia la sottoscrizione realtime alle prenotazioni
-    this.initRealtimeSync();
+    sessionReady.then(() => this.initRealtimeSync());
   },
 
   // sottoscrive ai cambiamenti realtime sulla tabella Prenotazione,
@@ -220,25 +220,46 @@ export const calendarRender = {
     }
 
     this.realtimeChannel = supabase
-      .channel("prenotazioni-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "Prenotazione" },
-        () => {
-          this.invalidateBookingsCache();
-          this.render();
-          refreshBookingsData();
-        },
-      )
-      .subscribe((status) => {
-        // alla riconnessione dopo un drop, risincronizza tutto per sicurezza
-        // (potrebbero essere stati persi eventi durante la disconnessione)
-        if (status === "SUBSCRIBED") {
-          this.invalidateBookingsCache();
-          this.render();
-          refreshBookingsData();
-        }
-      });
+  .channel("prenotazioni-changes")
+  .on(
+    "postgres_changes",
+    { event: "INSERT", schema: "public", table: "Prenotazione" },
+    (payload) => {
+      showToast("info", "REALTIME INSERT", "bell");
+      this.invalidateBookingsCache();
+      this.render();
+      refreshBookingsData();
+    },
+  )
+  .on(
+    "postgres_changes",
+    { event: "UPDATE", schema: "public", table: "Prenotazione" },
+    () => {
+      this.invalidateBookingsCache();
+      this.render();
+      refreshBookingsData();
+    },
+  )
+  .on(
+    "postgres_changes",
+    { event: "DELETE", schema: "public", table: "Prenotazione" },
+    () => {
+      this.invalidateBookingsCache();
+      this.render();
+      refreshBookingsData();
+    },
+  )
+  .subscribe((status) => {
+    showToast("info", `STATO: ${status}`, "wifi");
+    if (status === "SUBSCRIBED") {
+      this.invalidateBookingsCache();
+      this.render();
+      refreshBookingsData();
+    }
+    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+      setTimeout(() => this.initRealtimeSync(), 3000);
+    }
+  });
   },
 
   async loadTurni() {

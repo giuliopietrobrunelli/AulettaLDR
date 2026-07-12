@@ -15,7 +15,7 @@ import {
 import { getProfilePicUrl } from "./profile-utils.js";
 import { showToast } from "./toast.js";
 import { confirmAction } from "./confirm.js";
-import { supabase } from "./supabase-client.js";
+import { supabase, sessionReady } from "./supabase-client.js";
 import { calendarRender } from "./calendar-render.js";
 import { modal } from "./modal.js";
 import { profiloUtente, setProfiloUtente } from "./user-state.js"
@@ -984,7 +984,7 @@ export function initBookingsView() {
     await renderNotificheModal();
   }, 60_000);
 
-  ensureNotificheRealtime();
+  sessionReady.then(() => ensureNotificheRealtime());
 }
 
 // aggiorna la modal delle prenotazioni usando il profilo corrente
